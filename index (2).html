@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>mofmofu 分析ツール</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700;900&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #0f1117;
+  --surface: #181c27;
+  --border: #252a38;
+  --text: #f0f2f8;
+  --muted: #5a607a;
+  --accent1: #f97316;
+  --accent2: #16a34a;
+  --accent3: #6366f1;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'Noto Sans JP', sans-serif;
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+/* Background grid */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background-image:
+    linear-gradient(rgba(255,255,255,.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255,255,255,.03) 1px, transparent 1px);
+  background-size: 48px 48px;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.container {
+  max-width: 860px;
+  margin: 0 auto;
+  padding: 80px 24px 60px;
+  position: relative;
+  z-index: 1;
+}
+
+/* Header */
+.eyebrow {
+  font-family: 'DM Mono', monospace;
+  font-size: 11px;
+  letter-spacing: .2em;
+  color: var(--muted);
+  text-transform: uppercase;
+  margin-bottom: 16px;
+  opacity: 0;
+  animation: fadeUp .6s ease forwards;
+}
+
+h1 {
+  font-size: clamp(32px, 5vw, 52px);
+  font-weight: 900;
+  line-height: 1.1;
+  letter-spacing: -.03em;
+  margin-bottom: 16px;
+  opacity: 0;
+  animation: fadeUp .6s .1s ease forwards;
+}
+
+h1 span {
+  background: linear-gradient(120deg, var(--accent1), #fb923c);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.subtitle {
+  font-size: 15px;
+  color: var(--muted);
+  line-height: 1.7;
+  max-width: 480px;
+  margin-bottom: 56px;
+  opacity: 0;
+  animation: fadeUp .6s .2s ease forwards;
+}
+
+/* Divider */
+.divider {
+  height: 1px;
+  background: var(--border);
+  margin-bottom: 40px;
+  opacity: 0;
+  animation: fadeUp .6s .25s ease forwards;
+}
+
+/* Tool cards */
+.tools {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.tool-card {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 28px 32px;
+  text-decoration: none;
+  color: var(--text);
+  transition: all .2s ease;
+  position: relative;
+  overflow: hidden;
+  opacity: 0;
+  animation: fadeUp .6s ease forwards;
+}
+
+.tool-card:nth-child(1) { animation-delay: .3s; }
+.tool-card:nth-child(2) { animation-delay: .4s; }
+.tool-card:nth-child(3) { animation-delay: .5s; }
+
+.tool-card::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  transition: opacity .2s;
+  border-radius: 16px;
+}
+.tool-card.orange::before { background: linear-gradient(120deg, rgba(249,115,22,.06), transparent 60%); }
+.tool-card.green::before  { background: linear-gradient(120deg, rgba(22,163,74,.06), transparent 60%); }
+.tool-card.indigo::before { background: linear-gradient(120deg, rgba(99,102,241,.06), transparent 60%); }
+
+.tool-card:hover {
+  border-color: var(--card-accent, #f97316);
+  transform: translateY(-2px);
+  box-shadow: 0 12px 40px rgba(0,0,0,.4);
+}
+.tool-card:hover::before { opacity: 1; }
+
+.tool-card.orange { --card-accent: var(--accent1); }
+.tool-card.green  { --card-accent: var(--accent2); }
+.tool-card.indigo { --card-accent: var(--accent3); }
+
+.tool-icon {
+  width: 52px;
+  height: 52px;
+  border-radius: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 24px;
+  flex-shrink: 0;
+}
+.orange .tool-icon { background: rgba(249,115,22,.15); }
+.green  .tool-icon { background: rgba(22,163,74,.15); }
+.indigo .tool-icon { background: rgba(99,102,241,.15); }
+
+.tool-body { flex: 1; }
+
+.tool-name {
+  font-size: 17px;
+  font-weight: 700;
+  margin-bottom: 5px;
+  letter-spacing: -.01em;
+}
+
+.tool-desc {
+  font-size: 13px;
+  color: var(--muted);
+  line-height: 1.6;
+}
+
+.tool-tags {
+  display: flex;
+  gap: 6px;
+  margin-top: 10px;
+  flex-wrap: wrap;
+}
+
+.tag {
+  font-family: 'DM Mono', monospace;
+  font-size: 10px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  color: var(--muted);
+  letter-spacing: .05em;
+}
+
+.tool-arrow {
+  font-size: 18px;
+  color: var(--muted);
+  transition: transform .2s, color .2s;
+  flex-shrink: 0;
+}
+.tool-card:hover .tool-arrow {
+  transform: translateX(4px);
+  color: var(--card-accent);
+}
+
+/* Footer */
+.footer {
+  margin-top: 64px;
+  padding-top: 24px;
+  border-top: 1px solid var(--border);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  opacity: 0;
+  animation: fadeUp .6s .6s ease forwards;
+}
+
+.footer-brand {
+  font-family: 'DM Mono', monospace;
+  font-size: 12px;
+  color: var(--muted);
+  letter-spacing: .1em;
+}
+
+.footer-note {
+  font-size: 11px;
+  color: var(--muted);
+}
+
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(16px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@media (max-width: 600px) {
+  .tool-card { padding: 20px; gap: 16px; }
+  .tool-icon { width: 44px; height: 44px; font-size: 20px; }
+  .footer { flex-direction: column; gap: 8px; text-align: center; }
+}
+</style>
+</head>
+<body>
+<div class="container">
+
+  <div class="eyebrow">mofmofu / 楽天RMS 分析ツール集</div>
+
+  <h1>データ分析を、<br><span>もっとはやく。</span></h1>
+
+  <p class="subtitle">
+    楽天RMSのデータをコピペ・アップロードするだけで<br>
+    昨対比較・販促費計算が自動で完了するツール集です。
+  </p>
+
+  <div class="divider"></div>
+
+  <div class="tools">
+
+    <a href="analytics-compare.html" class="tool-card orange">
+      <div class="tool-icon">📊</div>
+      <div class="tool-body">
+        <div class="tool-name">参照元・検索ワード 昨対比較</div>
+        <div class="tool-desc">
+          RMSのアクセス分析画面をそのままコピペするだけ。<br>
+          参照元・検索ワードの前年比較と「消えたキーワード」の掘り起こしができます。
+        </div>
+        <div class="tool-tags">
+          <span class="tag">コピペ対応</span>
+          <span class="tag">参照元TOP30</span>
+          <span class="tag">検索ワードTOP100</span>
+          <span class="tag">消えたキーワード検出</span>
+        </div>
+      </div>
+      <div class="tool-arrow">→</div>
+    </a>
+
+    <a href="product-compare.html" class="tool-card green">
+      <div class="tool-icon">📦</div>
+      <div class="tool-body">
+        <div class="tool-name">商品別売上 昨対比較</div>
+        <div class="tool-desc">
+          商品別売上CSVをアップロードするだけ。<br>
+          売上金額・販売数量の昨対比較、消えた商品の検出、CSVダウンロードに対応。
+        </div>
+        <div class="tool-tags">
+          <span class="tag">CSVアップロード</span>
+          <span class="tag">売上／数量切替</span>
+          <span class="tag">消えた商品</span>
+          <span class="tag">CSVダウンロード</span>
+        </div>
+      </div>
+      <div class="tool-arrow">→</div>
+    </a>
+
+    <a href="summary-calc.html" class="tool-card indigo">
+      <div class="tool-icon">🧮</div>
+      <div class="tool-body">
+        <div class="tool-name">月次サマリー 自動計算</div>
+        <div class="tool-desc">
+          売上・原価率・販促費を入力するだけ。<br>
+          粗利・販促費率・昨対差分が自動計算。印刷・PDF保存にも対応。
+        </div>
+        <div class="tool-tags">
+          <span class="tag">自動計算</span>
+          <span class="tag">販促費内訳</span>
+          <span class="tag">昨対バッジ</span>
+          <span class="tag">PDF印刷対応</span>
+        </div>
+      </div>
+      <div class="tool-arrow">→</div>
+    </a>
+
+  </div>
+
+  <div class="footer">
+    <div class="footer-brand">MOFMOFU / 株式会社エル・アイ・シー</div>
+    <div class="footer-note">社内利用限定ツール</div>
+  </div>
+
+</div>
+</body>
+</html>
