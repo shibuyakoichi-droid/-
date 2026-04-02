@@ -15,6 +15,7 @@
   --accent1: #f97316;
   --accent2: #16a34a;
   --accent3: #6366f1;
+  --accent4: #e11d48;
 }
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -123,6 +124,7 @@ h1 span {
 .tool-card:nth-child(1) { animation-delay: .3s; }
 .tool-card:nth-child(2) { animation-delay: .4s; }
 .tool-card:nth-child(3) { animation-delay: .5s; }
+.tool-card:nth-child(4) { animation-delay: .6s; }
 
 .tool-card::before {
   content: '';
@@ -135,6 +137,7 @@ h1 span {
 .tool-card.orange::before { background: linear-gradient(120deg, rgba(249,115,22,.06), transparent 60%); }
 .tool-card.green::before  { background: linear-gradient(120deg, rgba(22,163,74,.06), transparent 60%); }
 .tool-card.indigo::before { background: linear-gradient(120deg, rgba(99,102,241,.06), transparent 60%); }
+.tool-card.pink::before   { background: linear-gradient(120deg, rgba(225,29,72,.06), transparent 60%); }
 
 .tool-card:hover {
   border-color: var(--card-accent, #f97316);
@@ -146,6 +149,7 @@ h1 span {
 .tool-card.orange { --card-accent: var(--accent1); }
 .tool-card.green  { --card-accent: var(--accent2); }
 .tool-card.indigo { --card-accent: var(--accent3); }
+.tool-card.pink   { --card-accent: var(--accent4); }
 
 .tool-icon {
   width: 52px;
@@ -160,6 +164,7 @@ h1 span {
 .orange .tool-icon { background: rgba(249,115,22,.15); }
 .green  .tool-icon { background: rgba(22,163,74,.15); }
 .indigo .tool-icon { background: rgba(99,102,241,.15); }
+.pink   .tool-icon { background: rgba(225,29,72,.15); }
 
 .tool-body { flex: 1; }
 
@@ -213,7 +218,7 @@ h1 span {
   justify-content: space-between;
   align-items: center;
   opacity: 0;
-  animation: fadeUp .6s .6s ease forwards;
+  animation: fadeUp .6s .7s ease forwards;
 }
 
 .footer-brand {
@@ -305,6 +310,24 @@ h1 span {
           <span class="tag">販促費内訳</span>
           <span class="tag">昨対バッジ</span>
           <span class="tag">PDF印刷対応</span>
+        </div>
+      </div>
+      <div class="tool-arrow">→</div>
+    </a>
+
+    <a href="tiktok_daily_report.html" class="tool-card pink">
+      <div class="tool-icon">📱</div>
+      <div class="tool-body">
+        <div class="tool-name">TikTok 日報ジェネレーター</div>
+        <div class="tool-desc">
+          月次累計・当日売上ファイルをアップロードするだけ。<br>
+          売上ランキングを自動生成し、Slack貼り付け用テキストをワンクリックでコピー。
+        </div>
+        <div class="tool-tags">
+          <span class="tag">XLSXアップロード</span>
+          <span class="tag">月次累計ランキング</span>
+          <span class="tag">当日売上ランキング</span>
+          <span class="tag">テキストコピー</span>
         </div>
       </div>
       <div class="tool-arrow">→</div>
