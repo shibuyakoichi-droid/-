@@ -1,0 +1,484 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TikTok 日報ジェネレーター</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@300;400;500;700&family=DM+Mono:wght@400;500&display=swap');
+
+  :root {
+    --bg: #0a0a0f;
+    --surface: #12121a;
+    --surface2: #1a1a26;
+    --border: #2a2a3d;
+    --accent: #fe2c55;
+    --accent2: #25f4ee;
+    --gold: #ffd700;
+    --text: #e8e8f0;
+    --text-dim: #8888a8;
+    --green: #4caf83;
+    --red: #ff4f6a;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Noto Sans JP', sans-serif;
+    min-height: 100vh;
+    padding: 24px 16px;
+  }
+
+  .header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 32px;
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 20px;
+  }
+
+  .tiktok-logo {
+    width: 36px; height: 36px;
+    background: linear-gradient(135deg, var(--accent2), var(--accent));
+    border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 18px; font-weight: 900; color: white;
+    font-family: 'DM Mono', monospace;
+  }
+
+  h1 {
+    font-size: 20px; font-weight: 700;
+    background: linear-gradient(90deg, var(--accent2), var(--accent));
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+  }
+
+  .subtitle { font-size: 12px; color: var(--text-dim); margin-top: 2px; }
+
+  /* Upload area */
+  .section { margin-bottom: 24px; }
+  .section-label {
+    font-size: 11px; font-weight: 700; letter-spacing: 1.5px;
+    color: var(--text-dim); text-transform: uppercase; margin-bottom: 10px;
+    display: flex; align-items: center; gap: 6px;
+  }
+  .section-label::after {
+    content: ''; flex: 1; height: 1px; background: var(--border);
+  }
+
+  .upload-row {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 12px;
+  }
+
+  .upload-card {
+    background: var(--surface);
+    border: 1.5px dashed var(--border);
+    border-radius: 12px;
+    padding: 20px 16px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.2s;
+    position: relative;
+    overflow: hidden;
+  }
+  .upload-card:hover { border-color: var(--accent2); background: var(--surface2); }
+  .upload-card.loaded { border-color: var(--green); border-style: solid; }
+  .upload-card input[type=file] {
+    position: absolute; inset: 0; opacity: 0; cursor: pointer;
+  }
+  .upload-icon { font-size: 28px; margin-bottom: 8px; }
+  .upload-title { font-size: 13px; font-weight: 700; margin-bottom: 4px; }
+  .upload-hint { font-size: 11px; color: var(--text-dim); }
+  .upload-status { font-size: 12px; color: var(--green); margin-top: 6px; font-weight: 500; }
+
+  /* Top N setting */
+  .settings-row {
+    display: flex; align-items: center; gap: 16px;
+    background: var(--surface); border-radius: 10px;
+    padding: 14px 16px; border: 1px solid var(--border);
+  }
+  .settings-row label { font-size: 13px; color: var(--text-dim); white-space: nowrap; }
+  .num-input {
+    background: var(--surface2); border: 1px solid var(--border);
+    color: var(--text); border-radius: 6px; padding: 6px 10px;
+    font-family: 'DM Mono', monospace; font-size: 14px; width: 70px;
+    text-align: center;
+  }
+  .num-input:focus { outline: none; border-color: var(--accent2); }
+
+  /* Generate button */
+  .btn-generate {
+    width: 100%; padding: 14px;
+    background: linear-gradient(135deg, var(--accent), #ff6b8a);
+    border: none; border-radius: 12px; color: white;
+    font-size: 15px; font-weight: 700; font-family: 'Noto Sans JP', sans-serif;
+    cursor: pointer; transition: opacity 0.2s; letter-spacing: 0.5px;
+  }
+  .btn-generate:hover { opacity: 0.9; }
+  .btn-generate:disabled { opacity: 0.4; cursor: not-allowed; }
+
+  /* Report output */
+  #report-area { margin-top: 28px; }
+
+  .report-block {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    overflow: hidden;
+    margin-bottom: 20px;
+  }
+
+  .report-header {
+    background: var(--surface2);
+    padding: 14px 18px;
+    display: flex; align-items: center; justify-content: space-between;
+    border-bottom: 1px solid var(--border);
+  }
+  .report-title { font-size: 14px; font-weight: 700; }
+  .report-period { font-size: 11px; color: var(--text-dim); font-family: 'DM Mono', monospace; }
+
+  .rank-table { width: 100%; border-collapse: collapse; }
+  .rank-table th {
+    font-size: 10px; font-weight: 700; letter-spacing: 1px;
+    color: var(--text-dim); text-transform: uppercase;
+    padding: 10px 16px; text-align: left;
+    border-bottom: 1px solid var(--border); background: var(--surface2);
+  }
+  .rank-table td {
+    padding: 10px 16px; font-size: 13px;
+    border-bottom: 1px solid rgba(255,255,255,0.04);
+    vertical-align: middle;
+  }
+  .rank-table tr:last-child td { border-bottom: none; }
+  .rank-table tr:hover td { background: var(--surface2); }
+
+  .rank-badge {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 26px; height: 26px; border-radius: 6px;
+    font-family: 'DM Mono', monospace; font-size: 12px; font-weight: 700;
+  }
+  .rank-1 { background: rgba(255,215,0,0.15); color: var(--gold); border: 1px solid rgba(255,215,0,0.3); }
+  .rank-2 { background: rgba(192,192,192,0.12); color: #c0c0c0; border: 1px solid rgba(192,192,192,0.2); }
+  .rank-3 { background: rgba(205,127,50,0.12); color: #cd7f32; border: 1px solid rgba(205,127,50,0.2); }
+  .rank-n  { background: rgba(136,136,168,0.1); color: var(--text-dim); border: 1px solid var(--border); }
+
+  .product-name {
+    font-size: 12px; color: var(--text);
+    display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
+    overflow: hidden; max-width: 220px; line-height: 1.4;
+  }
+  .gmv { font-family: 'DM Mono', monospace; font-weight: 500; color: var(--accent2); }
+  .sales-count { font-family: 'DM Mono', monospace; color: var(--text-dim); }
+
+  /* Copy output */
+  .copy-area {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    overflow: hidden;
+    margin-top: 20px;
+  }
+  .copy-header {
+    padding: 12px 16px;
+    display: flex; align-items: center; justify-content: space-between;
+    border-bottom: 1px solid var(--border);
+  }
+  .copy-title { font-size: 12px; font-weight: 700; color: var(--text-dim); }
+  .btn-copy {
+    background: var(--surface); border: 1px solid var(--border);
+    color: var(--text); border-radius: 7px; padding: 6px 14px;
+    font-size: 12px; font-weight: 600; cursor: pointer;
+    transition: all 0.15s; font-family: 'Noto Sans JP', sans-serif;
+  }
+  .btn-copy:hover { border-color: var(--accent2); color: var(--accent2); }
+  .copy-text {
+    padding: 16px; font-family: 'DM Mono', monospace; font-size: 12px;
+    line-height: 1.8; white-space: pre-wrap; color: #c8c8e0;
+    max-height: 400px; overflow-y: auto;
+  }
+
+  .empty-state {
+    text-align: center; padding: 60px 20px;
+    color: var(--text-dim); font-size: 13px;
+  }
+  .empty-icon { font-size: 40px; margin-bottom: 12px; opacity: 0.4; }
+
+  .error-msg {
+    background: rgba(255,79,106,0.1);
+    border: 1px solid rgba(255,79,106,0.3);
+    border-radius: 8px; padding: 12px 16px;
+    font-size: 13px; color: var(--red); margin-top: 12px;
+  }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="tiktok-logo">tt</div>
+  <div>
+    <h1>TikTok 日報ジェネレーター</h1>
+    <div class="subtitle">月次累計 &amp; 当日売上ランキング</div>
+  </div>
+</div>
+
+<!-- Upload section -->
+<div class="section">
+  <div class="section-label">📂 データ読み込み</div>
+  <div class="upload-row">
+    <div class="upload-card" id="monthly-card">
+      <input type="file" id="monthly-file" accept=".xlsx,.csv">
+      <div class="upload-icon">📊</div>
+      <div class="upload-title">月次累計</div>
+      <div class="upload-hint">TikTok商品リスト（月累計）</div>
+      <div class="upload-status" id="monthly-status" style="display:none"></div>
+    </div>
+    <div class="upload-card" id="daily-card">
+      <input type="file" id="daily-file" accept=".xlsx,.csv">
+      <div class="upload-icon">📅</div>
+      <div class="upload-title">当日売上</div>
+      <div class="upload-hint">TikTok商品リスト（当日）</div>
+      <div class="upload-status" id="daily-status" style="display:none"></div>
+    </div>
+  </div>
+</div>
+
+<!-- Settings -->
+<div class="section">
+  <div class="section-label">⚙️ 設定</div>
+  <div class="settings-row">
+    <label>表示件数（上位N位）</label>
+    <input type="number" id="top-n" class="num-input" value="10" min="3" max="50">
+    <label style="margin-left:auto; font-size:12px; color:var(--text-dim)">※ 当日データなしでも月累計のみ出力可能</label>
+  </div>
+</div>
+
+<div id="error-area"></div>
+
+<button class="btn-generate" id="btn-generate" onclick="generateReport()">
+  📋 日報を生成する
+</button>
+
+<!-- Report output -->
+<div id="report-area">
+  <div class="empty-state">
+    <div class="empty-icon">📈</div>
+    <div>データを読み込んで「日報を生成する」を押してください</div>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script>
+let monthlyData = null;
+let dailyData = null;
+
+function showError(msg) {
+  document.getElementById('error-area').innerHTML = `<div class="error-msg">⚠️ ${msg}</div>`;
+}
+function clearError() {
+  document.getElementById('error-area').innerHTML = '';
+}
+
+function parseFile(file, labelEl, cardEl, callback) {
+  const reader = new FileReader();
+  reader.onload = e => {
+    try {
+      const wb = XLSX.read(new Uint8Array(e.target.result), { type: 'array' });
+      const ws = wb.Sheets[wb.SheetNames[0]];
+      const raw = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' });
+      
+      // Find header row: row with 'ID' in first column
+      let headerRow = -1;
+      for (let i = 0; i < raw.length; i++) {
+        if (String(raw[i][0]).trim() === 'ID') { headerRow = i; break; }
+      }
+      if (headerRow < 0) { showError(`ヘッダー行（ID列）が見つかりません: ${file.name}`); return; }
+
+      // Get period from row above header (row 0 typically)
+      let period = '';
+      for (let i = 0; i < headerRow; i++) {
+        const v = String(raw[i][0] || '').trim();
+        if (v && v !== '') { period = v; break; }
+      }
+
+      const headers = raw[headerRow];
+      const rows = [];
+      for (let i = headerRow + 1; i < raw.length; i++) {
+        const r = raw[i];
+        if (!r[0]) continue;
+        const obj = {};
+        headers.forEach((h, idx) => { obj[h] = r[idx]; });
+        rows.push(obj);
+      }
+
+      labelEl.textContent = `✓ ${file.name} (${rows.length}件)`;
+      labelEl.style.display = 'block';
+      cardEl.classList.add('loaded');
+      callback({ rows, period, headers });
+    } catch(err) {
+      showError(`ファイル読み込みエラー: ${err.message}`);
+    }
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+document.getElementById('monthly-file').addEventListener('change', e => {
+  if (!e.target.files[0]) return;
+  clearError();
+  parseFile(e.target.files[0],
+    document.getElementById('monthly-status'),
+    document.getElementById('monthly-card'),
+    data => { monthlyData = data; });
+});
+
+document.getElementById('daily-file').addEventListener('change', e => {
+  if (!e.target.files[0]) return;
+  clearError();
+  parseFile(e.target.files[0],
+    document.getElementById('daily-status'),
+    document.getElementById('daily-card'),
+    data => { dailyData = data; });
+});
+
+function parseGMV(val) {
+  if (!val) return 0;
+  return parseInt(String(val).replace(/[^\d]/g, '')) || 0;
+}
+
+function fmtGMV(val) {
+  if (!val) return '¥0';
+  const n = parseGMV(val);
+  return '¥' + n.toLocaleString('ja-JP');
+}
+
+function fmtCount(val) {
+  if (!val || val === '') return '-';
+  const n = parseInt(String(val).replace(/[^\d]/g, ''));
+  return isNaN(n) ? '-' : n.toLocaleString('ja-JP');
+}
+
+function rankBadge(i) {
+  const cls = i === 0 ? 'rank-1' : i === 1 ? 'rank-2' : i === 2 ? 'rank-3' : 'rank-n';
+  return `<span class="rank-badge ${cls}">${i+1}</span>`;
+}
+
+function shortName(name) {
+  const s = String(name || '').trim();
+  return s.length > 40 ? s.slice(0, 40) + '…' : s;
+}
+
+function buildTable(rows, topN, label, period) {
+  const sorted = [...rows]
+    .filter(r => parseGMV(r['GMV']) > 0)
+    .sort((a, b) => parseGMV(b['GMV']) - parseGMV(a['GMV']))
+    .slice(0, topN);
+
+  const total = sorted.reduce((s, r) => s + parseGMV(r['GMV']), 0);
+
+  let html = `
+  <div class="report-block">
+    <div class="report-header">
+      <div class="report-title">${label}</div>
+      <div class="report-period">${period || ''} / 合計 ¥${total.toLocaleString('ja-JP')}</div>
+    </div>
+    <table class="rank-table">
+      <thead><tr>
+        <th>順位</th><th>商品名</th><th>GMV</th><th>販売数</th><th>注文数</th>
+      </tr></thead>
+      <tbody>`;
+
+  sorted.forEach((r, i) => {
+    html += `<tr>
+      <td>${rankBadge(i)}</td>
+      <td><div class="product-name">${shortName(r['商品'])}</div></td>
+      <td><span class="gmv">${fmtGMV(r['GMV'])}</span></td>
+      <td><span class="sales-count">${fmtCount(r['販売数'])}</span></td>
+      <td><span class="sales-count">${fmtCount(r['注文数'])}</span></td>
+    </tr>`;
+  });
+
+  html += `</tbody></table></div>`;
+  return { html, sorted, total };
+}
+
+function buildTextReport(monthly, daily, topN) {
+  const today = new Date().toLocaleDateString('ja-JP', { month: 'long', day: 'numeric', weekday: 'short' });
+  let lines = [];
+  lines.push(`📊 TikTok 日報 ${today}`);
+  lines.push('━'.repeat(32));
+
+  const addSection = (label, period, sorted, total) => {
+    lines.push('');
+    lines.push(`【${label}】${period ? ' ' + period : ''}`);
+    lines.push(`合計 ¥${total.toLocaleString('ja-JP')}`);
+    lines.push('');
+    sorted.forEach((r, i) => {
+      const medals = ['🥇','🥈','🥉'];
+      const prefix = i < 3 ? medals[i] : `${i+1}位`;
+      lines.push(`${prefix} ${shortName(r['商品'])}`);
+      lines.push(`　GMV: ${fmtGMV(r['GMV'])} ／ 販売数: ${fmtCount(r['販売数'])} ／ 注文数: ${fmtCount(r['注文数'])}`);
+    });
+  };
+
+  if (monthly) addSection('月次累計ランキング TOP ' + topN, monthly.period, monthly.sorted, monthly.total);
+  if (daily)   addSection('当日売上ランキング TOP ' + topN, daily.period, daily.sorted, daily.total);
+
+  lines.push('');
+  lines.push('━'.repeat(32));
+  return lines.join('\n');
+}
+
+function generateReport() {
+  clearError();
+  if (!monthlyData && !dailyData) {
+    showError('少なくとも1つのファイルを読み込んでください。');
+    return;
+  }
+
+  const topN = parseInt(document.getElementById('top-n').value) || 10;
+  let html = '';
+  let monthlyResult = null;
+  let dailyResult = null;
+
+  if (monthlyData) {
+    const r = buildTable(monthlyData.rows, topN, `📊 月次累計 売上ランキング TOP ${topN}`, monthlyData.period);
+    html += r.html;
+    monthlyResult = r;
+  }
+
+  if (dailyData) {
+    const r = buildTable(dailyData.rows, topN, `📅 当日 売上ランキング TOP ${topN}`, dailyData.period);
+    html += r.html;
+    dailyResult = r;
+  }
+
+  // Text copy area
+  const textReport = buildTextReport(monthlyResult, dailyResult, topN);
+  html += `
+  <div class="copy-area">
+    <div class="copy-header">
+      <div class="copy-title">📋 テキストコピー（Slack / チャット用）</div>
+      <button class="btn-copy" onclick="copyText()">コピー</button>
+    </div>
+    <div class="copy-text" id="copy-text">${escapeHtml(textReport)}</div>
+  </div>`;
+
+  document.getElementById('report-area').innerHTML = html;
+}
+
+function escapeHtml(s) {
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+function copyText() {
+  const text = document.getElementById('copy-text').textContent;
+  navigator.clipboard.writeText(text).then(() => {
+    const btn = document.querySelector('.btn-copy');
+    btn.textContent = '✓ コピーしました';
+    setTimeout(() => btn.textContent = 'コピー', 2000);
+  });
+}
+</script>
+</body>
+</html>
