@@ -125,6 +125,8 @@ h1 span {
 .tool-card:nth-child(2) { animation-delay: .4s; }
 .tool-card:nth-child(3) { animation-delay: .5s; }
 .tool-card:nth-child(4) { animation-delay: .6s; }
+.tool-card:nth-child(5) { animation-delay: .7s; }
+.tool-card:nth-child(6) { animation-delay: .8s; }
 
 .tool-card::before {
   content: '';
@@ -138,6 +140,8 @@ h1 span {
 .tool-card.green::before  { background: linear-gradient(120deg, rgba(22,163,74,.06), transparent 60%); }
 .tool-card.indigo::before { background: linear-gradient(120deg, rgba(99,102,241,.06), transparent 60%); }
 .tool-card.pink::before   { background: linear-gradient(120deg, rgba(225,29,72,.06), transparent 60%); }
+.tool-card.cyan::before   { background: linear-gradient(120deg, rgba(6,182,212,.06), transparent 60%); }
+.tool-card.yellow::before { background: linear-gradient(120deg, rgba(234,179,8,.06), transparent 60%); }
 
 .tool-card:hover {
   border-color: var(--card-accent, #f97316);
@@ -146,10 +150,12 @@ h1 span {
 }
 .tool-card:hover::before { opacity: 1; }
 
-.tool-card.orange { --card-accent: var(--accent1); }
-.tool-card.green  { --card-accent: var(--accent2); }
-.tool-card.indigo { --card-accent: var(--accent3); }
-.tool-card.pink   { --card-accent: var(--accent4); }
+.tool-card.orange  { --card-accent: var(--accent1); }
+.tool-card.green   { --card-accent: var(--accent2); }
+.tool-card.indigo  { --card-accent: var(--accent3); }
+.tool-card.pink    { --card-accent: var(--accent4); }
+.tool-card.cyan    { --card-accent: #06b6d4; }
+.tool-card.yellow  { --card-accent: #eab308; }
 
 .tool-icon {
   width: 52px;
@@ -165,6 +171,8 @@ h1 span {
 .green  .tool-icon { background: rgba(22,163,74,.15); }
 .indigo .tool-icon { background: rgba(99,102,241,.15); }
 .pink   .tool-icon { background: rgba(225,29,72,.15); }
+.cyan   .tool-icon { background: rgba(6,182,212,.15); }
+.yellow .tool-icon { background: rgba(234,179,8,.15); }
 
 .tool-body { flex: 1; }
 
@@ -218,7 +226,7 @@ h1 span {
   justify-content: space-between;
   align-items: center;
   opacity: 0;
-  animation: fadeUp .6s .7s ease forwards;
+  animation: fadeUp .6s .9s ease forwards;
 }
 
 .footer-brand {
@@ -331,6 +339,42 @@ h1 span {
         </div>
       </div>
       <div class="tool-arrow">→</div>
+    </a>
+
+
+    <a href="production_mgmt_final.xlsx" download class="tool-card cyan">
+      <div class="tool-icon">📋</div>
+      <div class="tool-body">
+        <div class="tool-name">生産管理ファイル</div>
+        <div class="tool-desc">
+          生産管理マスターExcelファイル。<br>
+          sort_by_sales.py と組み合わせて販売数順ソートに使用。
+        </div>
+        <div class="tool-tags">
+          <span class="tag">XLSXダウンロード</span>
+          <span class="tag">生産管理</span>
+          <span class="tag">2026年2月</span>
+        </div>
+      </div>
+      <div class="tool-arrow">↓</div>
+    </a>
+
+    <a href="sort_by_sales.py" download class="tool-card yellow">
+      <div class="tool-icon">🐍</div>
+      <div class="tool-body">
+        <div class="tool-name">販売数順ソートスクリプト</div>
+        <div class="tool-desc">
+          販売CSV・セット定義CSVを読み込み、生産管理ファイルを販売数の多い順に並べ替え。<br>
+          セット商品の構成品への按分にも対応。
+        </div>
+        <div class="tool-tags">
+          <span class="tag">Pythonスクリプト</span>
+          <span class="tag">販売数ソート</span>
+          <span class="tag">セット按分</span>
+          <span class="tag">XLSXダウンロード</span>
+        </div>
+      </div>
+      <div class="tool-arrow">↓</div>
     </a>
 
   </div>
