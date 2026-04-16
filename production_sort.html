@@ -406,6 +406,11 @@ td.sales.zero { color: var(--muted); font-weight: 400; }
     </button>
   </div>
 
+  <div id="debug-panel" style="display:none; background:#1e2433; border:1px solid #252a38; border-radius:10px; padding:14px 18px; margin-bottom:20px; font-family:'DM Mono',monospace; font-size:12px; color:#94a3b8; line-height:2;">
+    <div style="font-weight:700; color:#f0f2f8; margin-bottom:6px;">処理ログ</div>
+    <div id="debug-log"></div>
+  </div>
+
   <div id="results">
     <div class="stats-row" id="stats-row"></div>
 
@@ -545,14 +550,26 @@ async function runProcess() {
   btn.disabled = true;
   btn.textContent = '⏳ 処理中...';
 
+  const debugPanel = document.getElementById('debug-panel');
+  const debugLog   = document.getElementById('debug-log');
+  debugPanel.style.display = '';
+  debugLog.innerHTML = '';
+  const log = msg => { debugLog.innerHTML += `<div>▶ ${msg}</div>`; console.log(msg); };
+
   try {
-    // Read xlsx
+    log('XLSXライブラリ確認...');
+    if (typeof XLSX === 'undefined') throw new Error('XLSXライブラリが読み込まれていません。インターネット接続を確認してください。');
+
+    log('生産管理xlsxを読み込み中...');
     const buf = await files.mgmt.arrayBuffer();
     const wb = XLSX.read(buf, { type: 'array' });
+    log(`シート一覧: ${wb.SheetNames.join(', ')}`);
     _sheetName = wb.SheetNames.find(n => n.includes('生産管理')) || wb.SheetNames[0];
+    log(`使用シート: ${_sheetName}`);
     const ws = wb.Sheets[_sheetName];
     const allData = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' });
 
+    log(`全行数: ${allData.length}`);
     if (allData.length === 0) throw new Error(`シート「${_sheetName}」にデータが見つかりません`);
 
     // ── ヘッダー行を自動検出（非空セルが最も多い行、最初の10行内）──
@@ -581,19 +598,28 @@ async function runProcess() {
     const a1Idx = attr1Col  >= 0 ? attr1Col  : 3;
     const a2Idx = attr2Col  >= 0 ? attr2Col  : 5;
 
-    console.log(`シート: ${_sheetName} | ヘッダー行: ${headerIdx+1} | 品番列: ${hIdx} | 属性１列: ${a1Idx} | 属性２列: ${a2Idx} | データ行数: ${dataRows.length}`);
+    log(`ヘッダー行: ${headerIdx+1}行目 | データ行数: ${dataRows.length}`);
+    log(`品番列: ${hIdx} (${_headers[hIdx]}) | 属性１列: ${a1Idx} (${_headers[a1Idx]}) | 属性２列: ${a2Idx} (${_headers[a2Idx]})`);
 
     const mgmtCodes = new Set(dataRows.map(r => String(r[hIdx] ?? '')).filter(Boolean));
 
+    log(`生産管理品番数: ${mgmtCodes.size}`);
+    log('販売CSVを読み込み中...');
+    log('セットCSVを読み込み中...');
     // Read CSVs (Shift-JIS → fallback UTF-8)
     const [salesRows, setsRows] = await Promise.all([
       readCSVAuto(files.sales),
       readCSVAuto(files.sets),
     ]);
+    log(`販売CSV行数: ${salesRows.length} | ヘッダー: ${salesRows[0]?.join(', ')}`);
+    log(`セットCSV行数: ${setsRows.length} | ヘッダー: ${setsRows[0]?.join(', ')}`);
 
     const salesRaw = loadSales(salesRows);
+    log(`販売SKU数（集計後）: ${Object.keys(salesRaw).length}`);
     const setDict  = loadSetDef(setsRows);
+    log(`セット親SKU数: ${Object.keys(setDict).length}`);
     const { result: salesSKU, skipped } = calcSalesPerSKU(salesRaw, setDict, mgmtCodes);
+    log(`マッチしたSKU数: ${Object.keys(salesSKU).length} | スキップ: ${skipped.length}`);
 
     // Attach qty
     _allRows = dataRows.map(row => {
@@ -609,6 +635,7 @@ async function runProcess() {
     _allRows.sort((a, b) => b.qty - a.qty);
 
     const matched = _allRows.filter(r => r.qty > 0).length;
+    log(`完了！ 総SKU: ${_allRows.length} / 販売あり: ${matched}`);
     renderStats(_allRows.length, matched, skipped.length);
     renderSkipped(skipped);
     buildTableHeaders();
