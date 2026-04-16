@@ -1,0 +1,669 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>生産管理 販売数順ソート</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700;900&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #0f1117;
+  --surface: #181c27;
+  --surface2: #1e2433;
+  --border: #252a38;
+  --text: #f0f2f8;
+  --muted: #5a607a;
+  --cyan: #06b6d4;
+  --green: #34d399;
+  --yellow: #fbbf24;
+  --red: #f87171;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'Noto Sans JP', sans-serif;
+  min-height: 100vh;
+  font-size: 14px;
+}
+
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background-image:
+    linear-gradient(rgba(255,255,255,.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255,255,255,.03) 1px, transparent 1px);
+  background-size: 48px 48px;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.container {
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 48px 24px 80px;
+  position: relative;
+  z-index: 1;
+}
+
+.back-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--muted);
+  text-decoration: none;
+  margin-bottom: 28px;
+  transition: color .2s;
+}
+.back-link:hover { color: var(--text); }
+
+.eyebrow {
+  font-family: 'DM Mono', monospace;
+  font-size: 11px;
+  letter-spacing: .2em;
+  color: var(--muted);
+  text-transform: uppercase;
+  margin-bottom: 12px;
+}
+
+h1 {
+  font-size: clamp(24px, 4vw, 40px);
+  font-weight: 900;
+  letter-spacing: -.03em;
+  margin-bottom: 8px;
+}
+h1 span {
+  background: linear-gradient(120deg, var(--cyan), #22d3ee);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.subtitle {
+  font-size: 13px;
+  color: var(--muted);
+  margin-bottom: 40px;
+  line-height: 1.8;
+}
+
+/* Upload grid */
+.upload-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 14px;
+  margin-bottom: 20px;
+}
+
+.upload-card {
+  background: var(--surface);
+  border: 1.5px dashed var(--border);
+  border-radius: 16px;
+  padding: 22px;
+  cursor: pointer;
+  transition: all .2s;
+  display: block;
+}
+.upload-card:hover { border-color: var(--cyan); background: rgba(6,182,212,.03); }
+.upload-card.ready { border-style: solid; border-color: var(--cyan); background: rgba(6,182,212,.05); }
+.upload-card input[type=file] { display: none; }
+
+.upload-icon { font-size: 26px; margin-bottom: 10px; }
+.upload-label { font-size: 13px; font-weight: 700; margin-bottom: 3px; }
+.upload-sub { font-size: 11px; color: var(--muted); margin-bottom: 10px; line-height: 1.6; }
+
+.file-tag {
+  display: inline-block;
+  font-family: 'DM Mono', monospace;
+  font-size: 11px;
+  color: var(--muted);
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  padding: 4px 10px;
+  border-radius: 6px;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.file-tag.ok { color: var(--green); background: rgba(52,211,153,.1); border-color: rgba(52,211,153,.3); }
+
+/* Process button */
+.process-row { margin-bottom: 40px; }
+
+.process-btn {
+  width: 100%;
+  padding: 16px;
+  background: var(--cyan);
+  color: #000;
+  border: none;
+  border-radius: 12px;
+  font-size: 15px;
+  font-weight: 700;
+  font-family: inherit;
+  cursor: pointer;
+  transition: all .2s;
+  letter-spacing: .02em;
+}
+.process-btn:disabled {
+  opacity: .3;
+  cursor: not-allowed;
+  background: var(--muted);
+  color: var(--text);
+}
+.process-btn:not(:disabled):hover {
+  background: #22d3ee;
+  box-shadow: 0 8px 32px rgba(6,182,212,.25);
+  transform: translateY(-1px);
+}
+
+/* Stats */
+.stats-row {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 20px;
+}
+.stat-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 12px 20px;
+  min-width: 120px;
+}
+.stat-num {
+  font-family: 'DM Mono', monospace;
+  font-size: 26px;
+  font-weight: 700;
+  display: block;
+  line-height: 1;
+  margin-bottom: 4px;
+}
+.stat-num.c { color: var(--text); }
+.stat-num.g { color: var(--green); }
+.stat-num.y { color: var(--yellow); }
+.stat-num.r { color: var(--red); }
+.stat-label { font-size: 11px; color: var(--muted); }
+
+/* Skipped */
+.skipped-details {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 12px 16px;
+  margin-bottom: 20px;
+  font-size: 12px;
+}
+.skipped-details summary {
+  cursor: pointer;
+  color: var(--muted);
+  font-weight: 700;
+  user-select: none;
+}
+.skipped-details ul {
+  margin-top: 10px;
+  padding-left: 16px;
+  color: var(--muted);
+  line-height: 2;
+  font-family: 'DM Mono', monospace;
+  font-size: 11px;
+}
+
+/* Results header */
+.results-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.results-meta {
+  font-family: 'DM Mono', monospace;
+  font-size: 11px;
+  color: var(--muted);
+  letter-spacing: .1em;
+}
+
+.dl-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 18px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--text);
+  font-size: 12px;
+  font-weight: 700;
+  font-family: inherit;
+  cursor: pointer;
+  transition: all .2s;
+}
+.dl-btn:hover { border-color: var(--cyan); color: var(--cyan); }
+
+/* Filter bar */
+.filter-bar {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 12px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+.search-input {
+  padding: 7px 14px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--text);
+  font-size: 13px;
+  font-family: inherit;
+  width: 240px;
+  outline: none;
+  transition: border-color .2s;
+}
+.search-input:focus { border-color: var(--cyan); }
+.search-input::placeholder { color: var(--muted); }
+
+.toggle-zero {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 14px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--muted);
+  font-size: 12px;
+  font-family: inherit;
+  cursor: pointer;
+  transition: all .2s;
+}
+.toggle-zero:hover, .toggle-zero.active { border-color: var(--cyan); color: var(--cyan); }
+
+/* Table */
+.table-wrap {
+  overflow-x: auto;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  max-height: 70vh;
+  overflow-y: auto;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+thead {
+  position: sticky;
+  top: 0;
+  z-index: 3;
+}
+thead tr { background: #1a1f2e; }
+th {
+  padding: 10px 14px;
+  text-align: left;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--muted);
+  letter-spacing: .05em;
+  border-bottom: 1px solid var(--border);
+}
+th.h-sales { color: var(--cyan); }
+
+tbody tr { border-bottom: 1px solid rgba(255,255,255,.03); transition: background .1s; }
+tbody tr:hover { background: rgba(255,255,255,.03); }
+tbody tr.zero td { opacity: .4; }
+
+td {
+  padding: 7px 14px;
+  vertical-align: middle;
+  max-width: 220px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+td.rank {
+  text-align: center;
+  font-family: 'DM Mono', monospace;
+  font-size: 11px;
+  color: var(--muted);
+  width: 40px;
+}
+td.sales {
+  font-family: 'DM Mono', monospace;
+  font-weight: 700;
+  color: var(--green);
+  text-align: right;
+  width: 100px;
+}
+td.sales.zero { color: var(--muted); font-weight: 400; }
+
+.rank-chip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px; height: 22px;
+  border-radius: 5px;
+  font-size: 10px;
+  font-weight: 700;
+  background: rgba(255,255,255,.05);
+  color: var(--muted);
+}
+.rank-chip.gold   { background: rgba(251,191,36,.2); color: #fbbf24; }
+.rank-chip.silver { background: rgba(148,163,184,.2); color: #94a3b8; }
+.rank-chip.bronze { background: rgba(217,119,6,.2);  color: #d97706; }
+
+#results { display: none; }
+</style>
+</head>
+<body>
+<div class="container">
+
+  <a href="top.html" class="back-link">← ダッシュボードに戻る</a>
+
+  <div class="eyebrow">mofmofu / 生産管理ツール</div>
+  <h1>生産管理 <span>販売数順ソート</span></h1>
+  <p class="subtitle">
+    生産管理xlsx・販売CSV・セットCSVをアップロードするだけ。<br>
+    販売数の多いSKU順にブラウザ上で一覧表示します。セット商品の構成品への按分にも対応。
+  </p>
+
+  <div class="upload-grid">
+    <label class="upload-card" id="card-mgmt">
+      <input type="file" id="file-mgmt" accept=".xlsx,.xls">
+      <div class="upload-icon">📋</div>
+      <div class="upload-label">① 生産管理ファイル</div>
+      <div class="upload-sub">production_mgmt_final.xlsx など<br>ヘッダー行3行目・データ4行目〜</div>
+      <div class="file-tag" id="tag-mgmt">クリックして選択</div>
+    </label>
+
+    <label class="upload-card" id="card-sales">
+      <input type="file" id="file-sales" accept=".csv">
+      <div class="upload-icon">📦</div>
+      <div class="upload-label">② 販売実績CSV</div>
+      <div class="upload-sub">item_order_*.csv<br>（Shift-JIS / 商品コード・属性・数量）</div>
+      <div class="file-tag" id="tag-sales">クリックして選択</div>
+    </label>
+
+    <label class="upload-card" id="card-sets">
+      <input type="file" id="file-sets" accept=".csv">
+      <div class="upload-icon">🔗</div>
+      <div class="upload-label">③ セット定義CSV</div>
+      <div class="upload-sub">set_*.csv<br>（Shift-JIS / 親商品・構成品・構成数量）</div>
+      <div class="file-tag" id="tag-sets">クリックして選択</div>
+    </label>
+  </div>
+
+  <div class="process-row">
+    <button class="process-btn" id="process-btn" disabled onclick="runProcess()">
+      ⚡ 販売数順にソートして表示
+    </button>
+  </div>
+
+  <div id="results">
+    <div class="stats-row" id="stats-row"></div>
+
+    <details class="skipped-details" id="skipped-wrap" style="display:none">
+      <summary id="skipped-summary">スキップされた品番 (0件)</summary>
+      <ul id="skipped-list"></ul>
+    </details>
+
+    <div class="results-top">
+      <div class="results-meta" id="results-meta"></div>
+      <button class="dl-btn" onclick="downloadXLSX()">⬇ Excelダウンロード</button>
+    </div>
+
+    <div class="filter-bar">
+      <input type="text" class="search-input" id="search-input" placeholder="品番・属性で絞り込み..." oninput="applyFilter()">
+      <button class="toggle-zero" id="toggle-zero-btn" onclick="toggleZero()">販売なし を非表示</button>
+    </div>
+
+    <div class="table-wrap">
+      <table>
+        <thead id="result-thead"></thead>
+        <tbody id="result-tbody"></tbody>
+      </table>
+    </div>
+  </div>
+
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<script>
+const files = { mgmt: null, sales: null, sets: null };
+let hideZero = false;
+let _allRows = [];   // { row[], qty }
+let _headers = [];
+let _sheetName = '';
+
+// ── File inputs ──
+['mgmt','sales','sets'].forEach(key => {
+  document.getElementById('file-' + key).addEventListener('change', e => {
+    const file = e.target.files[0];
+    if (!file) return;
+    files[key] = file;
+    const tag = document.getElementById('tag-' + key);
+    tag.textContent = file.name;
+    tag.className = 'file-tag ok';
+    document.getElementById('card-' + key).classList.add('ready');
+    document.getElementById('process-btn').disabled = !(files.mgmt && files.sales && files.sets);
+  });
+});
+
+// ── CSV parse (Shift-JIS) ──
+async function readShiftJISCSV(file) {
+  const buf = await file.arrayBuffer();
+  const text = new TextDecoder('shift-jis').decode(buf);
+  const lines = text.split(/\r?\n/).filter(l => l.trim());
+  return lines.map(parseLine);
+}
+
+function parseLine(line) {
+  const result = [];
+  let cur = '', inQ = false;
+  for (let i = 0; i < line.length; i++) {
+    if (line[i] === '"') { inQ = !inQ; }
+    else if (line[i] === ',' && !inQ) { result.push(cur); cur = ''; }
+    else cur += line[i];
+  }
+  result.push(cur);
+  return result;
+}
+
+function toObjects(rows) {
+  if (rows.length < 2) return [];
+  const h = rows[0];
+  return rows.slice(1).map(r => Object.fromEntries(h.map((k, i) => [k, r[i] ?? ''])));
+}
+
+// ── 1. 販売CSV集計 ──
+function loadSales(rows) {
+  const records = toObjects(rows);
+  const agg = {};
+  for (const r of records) {
+    const qty = parseFloat((r['商品数量'] || '0').replace(/,/g,'')) || 0;
+    const key = `${r['商品コード'] ?? ''}|${r['属性１名'] ?? ''}|${r['属性２名'] ?? ''}`;
+    agg[key] = (agg[key] || 0) + qty;
+  }
+  return agg;
+}
+
+// ── 2. セット定義 ──
+function loadSetDef(rows) {
+  const records = toObjects(rows);
+  const dict = {};
+  for (const r of records) {
+    const pk = `${r['親商品コード'] ?? ''}|${r['親属性１名'] ?? ''}`;
+    if (!dict[pk]) dict[pk] = [];
+    dict[pk].push({
+      code:  r['構成品商品コード'] ?? '',
+      attr1: r['構成品属性１名'] ?? '',
+      qty:   parseFloat(r['構成数量']) || 1,
+    });
+  }
+  return dict;
+}
+
+// ── 3. SKU別販売数 ──
+function calcSalesPerSKU(salesRaw, setDict, mgmtCodes) {
+  const result = {};
+  const skipped = [];
+  for (const [key, qty] of Object.entries(salesRaw)) {
+    if (!qty) continue;
+    const [hinban, attr1, attr2] = key.split('|');
+    const pk = `${hinban}|${attr1}`;
+    if (setDict[pk]) {
+      for (const c of setDict[pk]) {
+        const sk = `${c.code}|${c.attr1}|`;
+        result[sk] = (result[sk] || 0) + qty * c.qty;
+      }
+    } else if (mgmtCodes.has(hinban)) {
+      result[key] = (result[key] || 0) + qty;
+    } else {
+      skipped.push(`${hinban} / ${attr1} / ${attr2}  販売数=${Math.round(qty)}`);
+    }
+  }
+  return { result, skipped };
+}
+
+// ── Main ──
+async function runProcess() {
+  const btn = document.getElementById('process-btn');
+  btn.disabled = true;
+  btn.textContent = '⏳ 処理中...';
+
+  try {
+    // Read xlsx
+    const buf = await files.mgmt.arrayBuffer();
+    const wb = XLSX.read(buf, { type: 'array' });
+    _sheetName = wb.SheetNames.find(n => n.includes('生産管理')) || wb.SheetNames[0];
+    const ws = wb.Sheets[_sheetName];
+    const allData = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' });
+
+    _headers = (allData[2] || []).map(v => String(v));
+    const dataRows = allData.slice(3).filter(r => r[0] !== '' && r[0] != null);
+
+    const mgmtCodes = new Set(dataRows.map(r => String(r[0])));
+
+    // Read CSVs
+    const [salesRows, setsRows] = await Promise.all([
+      readShiftJISCSV(files.sales),
+      readShiftJISCSV(files.sets),
+    ]);
+
+    const salesRaw = loadSales(salesRows);
+    const setDict  = loadSetDef(setsRows);
+    const { result: salesSKU, skipped } = calcSalesPerSKU(salesRaw, setDict, mgmtCodes);
+
+    // Attach qty
+    _allRows = dataRows.map(row => {
+      const hinban = String(row[0]);
+      const attr1  = String(row[3] || '');
+      const attr2  = String(row[5] || '');
+      const k1 = `${hinban}|${attr1}|${attr2}`;
+      const k2 = `${hinban}|${attr1}|`;
+      const qty = salesSKU[k1] ?? salesSKU[k2] ?? 0;
+      return { row, qty };
+    });
+
+    _allRows.sort((a, b) => b.qty - a.qty);
+
+    const matched = _allRows.filter(r => r.qty > 0).length;
+    renderStats(_allRows.length, matched, skipped.length);
+    renderSkipped(skipped);
+    buildTableHeaders();
+    applyFilter();
+
+    document.getElementById('results-meta').textContent =
+      `${_allRows.length.toLocaleString()} SKU  /  シート: ${_sheetName}`;
+    document.getElementById('results').style.display = '';
+
+  } catch (e) {
+    alert('エラー: ' + e.message);
+    console.error(e);
+  }
+
+  btn.disabled = false;
+  btn.textContent = '⚡ 販売数順にソートして表示';
+}
+
+function renderStats(total, matched, skippedN) {
+  document.getElementById('stats-row').innerHTML = `
+    <div class="stat-card"><span class="stat-num c">${total.toLocaleString()}</span><div class="stat-label">総SKU数</div></div>
+    <div class="stat-card"><span class="stat-num g">${matched.toLocaleString()}</span><div class="stat-label">販売あり</div></div>
+    <div class="stat-card"><span class="stat-num y">${(total - matched).toLocaleString()}</span><div class="stat-label">販売なし</div></div>
+    <div class="stat-card"><span class="stat-num r">${skippedN.toLocaleString()}</span><div class="stat-label">スキップ</div></div>
+  `;
+}
+
+function renderSkipped(skipped) {
+  const wrap = document.getElementById('skipped-wrap');
+  if (!skipped.length) { wrap.style.display = 'none'; return; }
+  wrap.style.display = '';
+  document.getElementById('skipped-summary').textContent = `スキップされた品番 (${skipped.length}件)`;
+  document.getElementById('skipped-list').innerHTML = skipped.map(s => `<li>${s}</li>`).join('');
+}
+
+function buildTableHeaders() {
+  document.getElementById('result-thead').innerHTML =
+    '<tr>' +
+    '<th style="width:44px">#</th>' +
+    '<th class="h-sales">今月販売数</th>' +
+    _headers.map(h => `<th>${h}</th>`).join('') +
+    '</tr>';
+}
+
+function applyFilter() {
+  const q = (document.getElementById('search-input').value || '').toLowerCase();
+  const rows = q
+    ? _allRows.filter(({ row }) => row.some(v => String(v).toLowerCase().includes(q)))
+    : _allRows;
+  const visible = hideZero ? rows.filter(r => r.qty > 0) : rows;
+  renderRows(visible);
+}
+
+function toggleZero() {
+  hideZero = !hideZero;
+  const btn = document.getElementById('toggle-zero-btn');
+  btn.textContent = hideZero ? '販売なし を表示' : '販売なし を非表示';
+  btn.classList.toggle('active', hideZero);
+  applyFilter();
+}
+
+function renderRows(rows) {
+  document.getElementById('result-tbody').innerHTML = rows.map(({ row, qty }, idx) => {
+    const rank = _allRows.indexOf(_allRows.find(r => r.row === row)) + 1;
+    let chip = `<span class="rank-chip">${rank}</span>`;
+    if (rank === 1) chip = `<span class="rank-chip gold">1</span>`;
+    else if (rank === 2) chip = `<span class="rank-chip silver">2</span>`;
+    else if (rank === 3) chip = `<span class="rank-chip bronze">3</span>`;
+
+    const salesVal = qty === 0 ? '―' : Math.round(qty).toLocaleString();
+    const cells = row.map(v => `<td>${v === null ? '' : v}</td>`).join('');
+    return `<tr class="${qty === 0 ? 'zero' : ''}">
+      <td class="rank">${chip}</td>
+      <td class="sales${qty === 0 ? ' zero' : ''}">${salesVal}</td>
+      ${cells}
+    </tr>`;
+  }).join('');
+}
+
+// ── Download ──
+function downloadXLSX() {
+  if (!_allRows.length) return;
+  const header = [..._headers, '今月販売数(CSV実績)'];
+  const data = [header, ..._allRows.map(({ row, qty }) => [...row, Math.round(qty)])];
+  const ws = XLSX.utils.aoa_to_sheet(data);
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, _sheetName || '生産管理');
+  XLSX.writeFile(wb, 'production_mgmt_sorted_by_sales.xlsx');
+}
+</script>
+</body>
+</html>
