@@ -1,0 +1,935 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>発注管理システム</title>
+<style>
+:root {
+  --bg: #0f1117;
+  --surface: #181c27;
+  --surface2: #1e2433;
+  --surface3: #242938;
+  --border: #252a38;
+  --text: #f0f2f8;
+  --muted: #5a607a;
+  --accent: #6366f1;
+  --accent-dim: rgba(99,102,241,.15);
+  --s-pending:  #fbbf24;
+  --s-progress: #f97316;
+  --s-shipped:  #06b6d4;
+  --s-done:     #34d399;
+  --nav-h: 64px;
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+}
+* { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+html, body { height: 100%; background: var(--bg); color: var(--text); font-family: 'Hiragino Kaku Gothic ProN','Noto Sans JP','Meiryo',sans-serif; font-size: 14px; overflow: hidden; }
+
+/* ── Layout ── */
+#app { display: flex; flex-direction: column; height: 100%; }
+.header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 14px 16px 10px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+  padding-top: calc(14px + env(safe-area-inset-top, 0px));
+}
+.header-title { font-size: 17px; font-weight: 800; letter-spacing: -.02em; }
+.header-action {
+  padding: 7px 16px; background: var(--accent); color: #fff;
+  border: none; border-radius: 8px; font-size: 13px; font-weight: 700;
+  font-family: inherit; cursor: pointer; transition: background .15s;
+}
+.header-action:hover { background: #4f46e5; }
+.header-action.hidden { visibility: hidden; }
+
+.content {
+  flex: 1; overflow-y: auto; overflow-x: hidden;
+  padding: 16px 16px calc(var(--nav-h) + var(--safe-bottom) + 16px);
+}
+
+/* ── Bottom nav ── */
+.bottom-nav {
+  position: fixed; bottom: 0; left: 0; right: 0;
+  height: calc(var(--nav-h) + var(--safe-bottom));
+  padding-bottom: var(--safe-bottom);
+  background: var(--surface);
+  border-top: 1px solid var(--border);
+  display: flex;
+  z-index: 100;
+}
+.nav-item {
+  flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 3px; cursor: pointer; color: var(--muted); transition: color .15s; font-size: 10px;
+  padding: 6px 0; border: none; background: none; font-family: inherit;
+}
+.nav-item .nav-icon { font-size: 22px; line-height: 1; }
+.nav-item.active { color: var(--accent); }
+
+/* ── Screens ── */
+.screen { display: none; }
+.screen.active { display: block; }
+
+/* ── Cards ── */
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 14px 16px;
+  margin-bottom: 10px;
+}
+.card-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+
+/* ── Status badge ── */
+.badge {
+  display: inline-flex; align-items: center; padding: 3px 10px;
+  border-radius: 999px; font-size: 11px; font-weight: 700; white-space: nowrap;
+}
+.badge.pending  { background: rgba(251,191,36,.15); color: var(--s-pending); }
+.badge.progress { background: rgba(249,115,22,.15); color: var(--s-progress); }
+.badge.shipped  { background: rgba(6,182,212,.15);  color: var(--s-shipped); }
+.badge.done     { background: rgba(52,211,153,.15); color: var(--s-done); }
+
+/* ── Stats bar ── */
+.stats-grid { display: grid; grid-template-columns: repeat(2,1fr); gap: 10px; margin-bottom: 16px; }
+.stat-card {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 12px; padding: 12px 14px;
+}
+.stat-num { font-size: 28px; font-weight: 800; line-height: 1; margin-bottom: 3px; }
+.stat-label { font-size: 11px; color: var(--muted); }
+
+/* ── Factory summary cards ── */
+.factory-card {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 14px; padding: 14px 16px; margin-bottom: 10px;
+}
+.factory-name { font-size: 15px; font-weight: 700; margin-bottom: 10px; }
+.factory-stats { display: flex; gap: 8px; flex-wrap: wrap; }
+.fstat {
+  display: flex; align-items: center; gap: 5px;
+  background: var(--surface2); border-radius: 8px; padding: 5px 10px;
+  font-size: 12px;
+}
+.fstat-dot { width: 7px; height: 7px; border-radius: 50%; }
+
+/* ── Form ── */
+.form-section { margin-bottom: 20px; }
+.form-label { font-size: 11px; font-weight: 700; color: var(--muted); letter-spacing: .08em; margin-bottom: 6px; display: block; }
+.form-input, .form-select, .form-textarea {
+  width: 100%; padding: 11px 14px;
+  background: var(--surface); border: 1.5px solid var(--border);
+  border-radius: 10px; color: var(--text); font-size: 14px; font-family: inherit;
+  outline: none; transition: border-color .15s; -webkit-appearance: none; appearance: none;
+}
+.form-input:focus, .form-select:focus, .form-textarea:focus { border-color: var(--accent); }
+.form-textarea { resize: vertical; min-height: 80px; }
+.form-select { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%235a607a' stroke-width='2' fill='none' stroke-linecap='round'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 14px center; padding-right: 36px; }
+.form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.voice-wrap { position: relative; }
+.voice-wrap .form-input { padding-right: 44px; }
+.voice-btn {
+  position: absolute; right: 10px; top: 50%; transform: translateY(-50%);
+  background: none; border: none; cursor: pointer; font-size: 20px; padding: 4px;
+  color: var(--muted); transition: color .15s;
+}
+.voice-btn.recording { color: #ef4444; animation: pulse .8s infinite; }
+.voice-btn:hover { color: var(--text); }
+@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.4} }
+
+.submit-btn {
+  width: 100%; padding: 15px; background: var(--accent); color: #fff;
+  border: none; border-radius: 12px; font-size: 15px; font-weight: 700;
+  font-family: inherit; cursor: pointer; transition: background .15s; margin-top: 8px;
+}
+.submit-btn:hover { background: #4f46e5; }
+
+/* ── Filter tabs ── */
+.filter-tabs { display: flex; gap: 6px; margin-bottom: 14px; overflow-x: auto; padding-bottom: 2px; }
+.filter-tabs::-webkit-scrollbar { display: none; }
+.ftab {
+  padding: 6px 14px; border-radius: 999px; font-size: 12px; font-weight: 700;
+  border: 1.5px solid var(--border); color: var(--muted); white-space: nowrap;
+  cursor: pointer; background: none; font-family: inherit; transition: all .15s;
+}
+.ftab.active { border-color: var(--accent); color: var(--accent); background: var(--accent-dim); }
+
+/* ── Search ── */
+.search-box {
+  width: 100%; padding: 10px 14px; background: var(--surface);
+  border: 1.5px solid var(--border); border-radius: 10px;
+  color: var(--text); font-size: 14px; font-family: inherit;
+  outline: none; margin-bottom: 14px; transition: border-color .15s;
+}
+.search-box:focus { border-color: var(--accent); }
+.search-box::placeholder { color: var(--muted); }
+
+/* ── Order card ── */
+.order-card {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 14px; padding: 14px 16px; margin-bottom: 10px; cursor: pointer;
+  transition: border-color .15s;
+}
+.order-card:hover { border-color: var(--accent); }
+.order-top { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 8px; }
+.order-factory { font-size: 11px; color: var(--muted); font-weight: 700; letter-spacing: .05em; }
+.order-meta { display: flex; gap: 6px; align-items: center; margin-top: 4px; }
+.order-code { font-size: 15px; font-weight: 800; }
+.order-name { font-size: 13px; color: var(--muted); }
+.order-detail { font-size: 12px; color: var(--muted); margin-top: 6px; }
+.order-date { font-size: 11px; color: var(--muted); }
+
+/* ── Status stepper ── */
+.stepper { display: flex; gap: 0; margin: 10px 0 0; }
+.step {
+  flex: 1; text-align: center; padding: 7px 4px; font-size: 11px; font-weight: 700;
+  border: 1.5px solid var(--border); color: var(--muted); cursor: pointer;
+  transition: all .15s; first-child:border-radius: 8px 0 0 8px;
+}
+.step:first-child { border-radius: 8px 0 0 8px; }
+.step:last-child  { border-radius: 0 8px 8px 0; }
+.step:not(:first-child) { border-left: none; }
+.step.active.pending  { background: rgba(251,191,36,.15); border-color: var(--s-pending);  color: var(--s-pending); }
+.step.active.progress { background: rgba(249,115,22,.15); border-color: var(--s-progress); color: var(--s-progress); }
+.step.active.shipped  { background: rgba(6,182,212,.15);  border-color: var(--s-shipped);  color: var(--s-shipped); }
+.step.active.done     { background: rgba(52,211,153,.15); border-color: var(--s-done);     color: var(--s-done); }
+
+/* ── Modal ── */
+.modal-overlay {
+  position: fixed; inset: 0; background: rgba(0,0,0,.7);
+  z-index: 200; display: none; align-items: flex-end;
+}
+.modal-overlay.open { display: flex; }
+.modal {
+  background: var(--surface); border-radius: 20px 20px 0 0;
+  width: 100%; max-height: 90vh; overflow-y: auto;
+  padding: 20px 20px calc(20px + var(--safe-bottom));
+  animation: slideUp .25s ease;
+}
+@keyframes slideUp { from{transform:translateY(100%)} to{transform:translateY(0)} }
+.modal-handle { width: 36px; height: 4px; background: var(--border); border-radius: 2px; margin: 0 auto 16px; }
+.modal-title { font-size: 17px; font-weight: 800; margin-bottom: 16px; }
+
+/* ── Danger btn ── */
+.danger-btn {
+  width: 100%; padding: 13px; background: none; color: #f87171;
+  border: 1.5px solid rgba(248,113,113,.3); border-radius: 10px;
+  font-size: 14px; font-weight: 700; font-family: inherit; cursor: pointer;
+  transition: all .15s; margin-top: 8px;
+}
+.danger-btn:hover { background: rgba(248,113,113,.1); }
+
+/* ── Icon btn ── */
+.icon-btn { background: none; border: none; cursor: pointer; padding: 6px; color: var(--muted); font-size: 18px; transition: color .15s; }
+.icon-btn:hover { color: var(--text); }
+
+/* ── Empty state ── */
+.empty { text-align: center; color: var(--muted); padding: 48px 16px; }
+.empty-icon { font-size: 48px; margin-bottom: 12px; }
+.empty-text { font-size: 14px; }
+
+/* ── Master list ── */
+.master-item {
+  display: flex; align-items: center; justify-content: space-between;
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 12px; padding: 14px 16px; margin-bottom: 8px;
+}
+.master-item-info { flex: 1; }
+.master-item-name { font-size: 15px; font-weight: 700; }
+.master-item-sub  { font-size: 12px; color: var(--muted); margin-top: 2px; }
+.master-actions { display: flex; gap: 4px; }
+
+/* ── Toast ── */
+#toast {
+  position: fixed; bottom: calc(var(--nav-h) + var(--safe-bottom) + 12px); left: 50%; transform: translateX(-50%) translateY(20px);
+  background: #1e293b; color: var(--text); padding: 10px 20px; border-radius: 999px;
+  font-size: 13px; font-weight: 700; white-space: nowrap; z-index: 300;
+  opacity: 0; transition: all .25s; pointer-events: none; border: 1px solid var(--border);
+}
+#toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+/* ── Section header ── */
+.section-head { font-size: 11px; font-weight: 800; color: var(--muted); letter-spacing: .12em; text-transform: uppercase; margin: 18px 0 10px; }
+
+/* ── Delivery warning ── */
+.warning-text { color: #f87171; font-size: 11px; font-weight: 700; }
+</style>
+</head>
+<body>
+<div id="app">
+  <div class="header">
+    <div class="header-title" id="header-title">発注管理</div>
+    <button class="header-action hidden" id="header-action" onclick="headerAction()"></button>
+  </div>
+
+  <div class="content" id="content">
+
+    <!-- ① ホーム -->
+    <div class="screen active" id="screen-home">
+      <div class="stats-grid" id="home-stats"></div>
+      <div class="section-head">工場別 発注状況</div>
+      <div id="factory-summary"></div>
+    </div>
+
+    <!-- ② 新規発注 -->
+    <div class="screen" id="screen-new">
+      <div class="form-section">
+        <label class="form-label">工場</label>
+        <select class="form-select" id="f-factory"></select>
+      </div>
+      <div class="form-row form-section">
+        <div>
+          <label class="form-label">品番</label>
+          <input class="form-input" id="f-code" list="item-list" placeholder="例: ABC-001" oninput="autoFillItem()">
+          <datalist id="item-list"></datalist>
+        </div>
+        <div>
+          <label class="form-label">品名</label>
+          <input class="form-input" id="f-name" placeholder="例: Tシャツ">
+        </div>
+      </div>
+      <div class="form-row form-section">
+        <div>
+          <label class="form-label">カラー</label>
+          <div class="voice-wrap">
+            <input class="form-input" id="f-color" placeholder="例: ブラック">
+            <button class="voice-btn" onclick="startVoice('f-color',this)" title="音声入力">🎤</button>
+          </div>
+        </div>
+        <div>
+          <label class="form-label">サイズ</label>
+          <input class="form-input" id="f-size" placeholder="例: M">
+        </div>
+      </div>
+      <div class="form-row form-section">
+        <div>
+          <label class="form-label">数量</label>
+          <input class="form-input" id="f-qty" type="number" placeholder="0" min="1">
+        </div>
+        <div>
+          <label class="form-label">納期</label>
+          <input class="form-input" id="f-delivery" type="date">
+        </div>
+      </div>
+      <div class="form-section">
+        <label class="form-label">メモ</label>
+        <div class="voice-wrap">
+          <textarea class="form-textarea" id="f-memo" placeholder="備考・特記事項など（音声入力可）" style="padding-right:44px"></textarea>
+          <button class="voice-btn" style="top:20px;transform:none;" onclick="startVoice('f-memo',this)" title="音声入力">🎤</button>
+        </div>
+      </div>
+      <button class="submit-btn" onclick="submitOrder()">＋ 発注を登録する</button>
+    </div>
+
+    <!-- ③ 発注一覧 -->
+    <div class="screen" id="screen-orders">
+      <div class="filter-tabs" id="order-filters"></div>
+      <input class="search-box" id="order-search" placeholder="🔍  品番・品名・工場で検索..." oninput="renderOrders()">
+      <div id="order-list"></div>
+    </div>
+
+    <!-- ④ 工場マスタ -->
+    <div class="screen" id="screen-factories">
+      <div id="factory-list"></div>
+    </div>
+
+    <!-- ⑤ 品番マスタ -->
+    <div class="screen" id="screen-items">
+      <input class="search-box" id="item-search" placeholder="🔍  品番・品名で検索..." oninput="renderItems()">
+      <div id="item-list-el"></div>
+    </div>
+
+  </div><!-- /content -->
+
+  <!-- Bottom nav -->
+  <nav class="bottom-nav">
+    <button class="nav-item active" data-screen="home"      onclick="navigate('home')">      <span class="nav-icon">🏠</span>ホーム</button>
+    <button class="nav-item"        data-screen="new"       onclick="navigate('new')">       <span class="nav-icon">✏️</span>新規発注</button>
+    <button class="nav-item"        data-screen="orders"    onclick="navigate('orders')">    <span class="nav-icon">📋</span>一覧</button>
+    <button class="nav-item"        data-screen="factories" onclick="navigate('factories')"> <span class="nav-icon">🏭</span>工場</button>
+    <button class="nav-item"        data-screen="items"     onclick="navigate('items')">     <span class="nav-icon">📦</span>品番</button>
+  </nav>
+</div>
+
+<!-- Modal -->
+<div class="modal-overlay" id="modal-overlay" onclick="closeModal(event)">
+  <div class="modal" id="modal-body">
+    <div class="modal-handle"></div>
+    <div id="modal-content"></div>
+  </div>
+</div>
+
+<!-- Toast -->
+<div id="toast"></div>
+
+<script>
+// ══════════════════════════════════════════
+//  Constants
+// ══════════════════════════════════════════
+const STATUSES = [
+  { key: 'pending',  label: '発注待ち', cls: 'pending' },
+  { key: 'progress', label: '生産中',   cls: 'progress' },
+  { key: 'shipped',  label: '出荷済み', cls: 'shipped' },
+  { key: 'done',     label: '完了',     cls: 'done' },
+];
+const STATUS_MAP = Object.fromEntries(STATUSES.map(s => [s.key, s]));
+
+const DEFAULT_FACTORIES = ['坂本繊維','V-TEC','松田染工場','神共ニット','コンセプト','メリット'];
+
+const SCREEN_TITLES = {
+  home: '発注管理', new: '新規発注', orders: '発注一覧',
+  factories: '工場マスタ', items: '品番マスタ',
+};
+const SCREEN_ACTIONS = {
+  factories: '＋ 追加', items: '＋ 追加',
+};
+
+// ══════════════════════════════════════════
+//  Storage helpers
+// ══════════════════════════════════════════
+const db = {
+  get: key => JSON.parse(localStorage.getItem('om_' + key) || '[]'),
+  set: (key, val) => localStorage.setItem('om_' + key, JSON.stringify(val)),
+  uid: () => Date.now().toString(36) + Math.random().toString(36).slice(2, 7),
+};
+
+function getOrders()    { return db.get('orders'); }
+function getFactories() { return db.get('factories'); }
+function getItems()     { return db.get('items'); }
+function saveOrders(d)    { db.set('orders', d); }
+function saveFactories(d) { db.set('factories', d); }
+function saveItems(d)     { db.set('items', d); }
+
+// ══════════════════════════════════════════
+//  Navigation
+// ══════════════════════════════════════════
+let currentScreen = 'home';
+let orderFilter = 'all';
+
+function navigate(screen) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  document.getElementById('screen-' + screen).classList.add('active');
+  document.querySelector(`[data-screen="${screen}"]`).classList.add('active');
+  currentScreen = screen;
+
+  document.getElementById('header-title').textContent = SCREEN_TITLES[screen];
+  const actionBtn = document.getElementById('header-action');
+  if (SCREEN_ACTIONS[screen]) {
+    actionBtn.textContent = SCREEN_ACTIONS[screen];
+    actionBtn.classList.remove('hidden');
+  } else {
+    actionBtn.classList.add('hidden');
+  }
+
+  // Scroll to top
+  document.getElementById('content').scrollTop = 0;
+
+  if (screen === 'home')      renderHome();
+  if (screen === 'orders')    { orderFilter = 'all'; renderOrders(); }
+  if (screen === 'factories') renderFactories();
+  if (screen === 'items')     renderItems();
+  if (screen === 'new')       initNewOrderForm();
+}
+
+function headerAction() {
+  if (currentScreen === 'factories') openFactoryModal();
+  if (currentScreen === 'items')     openItemModal();
+}
+
+// ══════════════════════════════════════════
+//  Home Screen
+// ══════════════════════════════════════════
+function renderHome() {
+  const orders = getOrders();
+  const total = orders.length;
+  const byStatus = s => orders.filter(o => o.status === s).length;
+
+  document.getElementById('home-stats').innerHTML = `
+    <div class="stat-card"><div class="stat-num" style="color:var(--text)">${total}</div><div class="stat-label">総発注数</div></div>
+    <div class="stat-card"><div class="stat-num" style="color:var(--s-pending)">${byStatus('pending')}</div><div class="stat-label">発注待ち</div></div>
+    <div class="stat-card"><div class="stat-num" style="color:var(--s-progress)">${byStatus('progress')}</div><div class="stat-label">生産中</div></div>
+    <div class="stat-card"><div class="stat-num" style="color:var(--s-done)">${byStatus('done')}</div><div class="stat-label">完了</div></div>
+  `;
+
+  const factories = getFactories();
+  const html = factories.map(f => {
+    const fo = orders.filter(o => o.factory === f.name);
+    if (!fo.length) return `
+      <div class="factory-card">
+        <div class="factory-name">${f.name}</div>
+        <div style="font-size:12px;color:var(--muted)">発注なし</div>
+      </div>`;
+    const stats = STATUSES.map(s => {
+      const n = fo.filter(o => o.status === s.key).length;
+      return n ? `<div class="fstat"><div class="fstat-dot" style="background:var(--s-${s.cls})"></div>${s.label} ${n}件</div>` : '';
+    }).join('');
+    return `
+      <div class="factory-card" onclick="navigate('orders');filterByFactory('${f.name}')" style="cursor:pointer">
+        <div class="card-row" style="margin-bottom:8px">
+          <div class="factory-name">${f.name}</div>
+          <div style="font-size:12px;color:var(--muted)">${fo.length}件</div>
+        </div>
+        <div class="factory-stats">${stats}</div>
+      </div>`;
+  }).join('');
+
+  document.getElementById('factory-summary').innerHTML = html || '<div class="empty"><div class="empty-icon">🏭</div><div class="empty-text">工場マスタを登録してください</div></div>';
+}
+
+// ══════════════════════════════════════════
+//  New Order Form
+// ══════════════════════════════════════════
+function initNewOrderForm() {
+  const factories = getFactories();
+  const fSel = document.getElementById('f-factory');
+  fSel.innerHTML = '<option value="">工場を選択</option>' +
+    factories.map(f => `<option value="${esc(f.name)}">${esc(f.name)}</option>`).join('');
+
+  const items = getItems();
+  const dl = document.getElementById('item-list');
+  dl.innerHTML = items.map(i => `<option value="${esc(i.code)}" data-name="${esc(i.name)}">`).join('');
+
+  // Default delivery: 30 days from now
+  const d = new Date(); d.setDate(d.getDate() + 30);
+  document.getElementById('f-delivery').value = d.toISOString().slice(0,10);
+
+  // Clear fields
+  ['f-code','f-name','f-color','f-size','f-qty','f-memo'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.value = '';
+  });
+}
+
+function autoFillItem() {
+  const code = document.getElementById('f-code').value;
+  const items = getItems();
+  const found = items.find(i => i.code === code);
+  if (found) document.getElementById('f-name').value = found.name;
+}
+
+function submitOrder() {
+  const factory  = document.getElementById('f-factory').value;
+  const code     = document.getElementById('f-code').value.trim();
+  const name     = document.getElementById('f-name').value.trim();
+  const color    = document.getElementById('f-color').value.trim();
+  const size     = document.getElementById('f-size').value.trim();
+  const qty      = parseInt(document.getElementById('f-qty').value) || 0;
+  const delivery = document.getElementById('f-delivery').value;
+  const memo     = document.getElementById('f-memo').value.trim();
+
+  if (!factory) { toast('⚠️ 工場を選択してください'); return; }
+  if (!code)    { toast('⚠️ 品番を入力してください'); return; }
+  if (!qty)     { toast('⚠️ 数量を入力してください'); return; }
+
+  const orders = getOrders();
+  orders.push({
+    id: db.uid(), factory, itemCode: code, itemName: name,
+    color, size, quantity: qty, deliveryDate: delivery, memo,
+    status: 'pending',
+    orderDate: new Date().toISOString().slice(0,10),
+    createdAt: Date.now(),
+  });
+  saveOrders(orders);
+  toast('✅ 発注を登録しました');
+  navigate('orders');
+}
+
+// ══════════════════════════════════════════
+//  Order List
+// ══════════════════════════════════════════
+function filterByFactory(name) {
+  orderFilter = name;
+  renderOrders();
+}
+
+function renderOrders() {
+  let orders = getOrders();
+  const q = (document.getElementById('order-search')?.value || '').toLowerCase();
+
+  // Build filter tabs
+  const counts = { all: orders.length };
+  STATUSES.forEach(s => { counts[s.key] = orders.filter(o => o.status === s.key).length; });
+
+  const filtersEl = document.getElementById('order-filters');
+  const allTabs = [{ key:'all', label:'すべて' }, ...STATUSES];
+  filtersEl.innerHTML = allTabs.map(s =>
+    `<button class="ftab${orderFilter===s.key?' active':''}" onclick="orderFilter='${s.key}';renderOrders()">
+      ${s.label} ${counts[s.key] ?? 0}
+    </button>`
+  ).join('');
+
+  // Filter
+  if (orderFilter !== 'all') orders = orders.filter(o => o.status === orderFilter);
+  if (q) orders = orders.filter(o =>
+    [o.factory, o.itemCode, o.itemName, o.color, o.size].some(v => (v||'').toLowerCase().includes(q))
+  );
+
+  // Sort by deliveryDate
+  orders.sort((a,b) => (a.deliveryDate||'').localeCompare(b.deliveryDate||''));
+
+  const today = new Date().toISOString().slice(0,10);
+
+  const html = orders.map(o => {
+    const st = STATUS_MAP[o.status] || STATUS_MAP.pending;
+    const overdue = o.deliveryDate && o.deliveryDate < today && o.status !== 'done';
+    return `
+    <div class="order-card" onclick="openOrderDetail('${o.id}')">
+      <div class="order-top">
+        <div>
+          <div class="order-factory">${esc(o.factory)}</div>
+          <div class="order-code">${esc(o.itemCode)}${o.itemName ? ' <span class="order-name">'+esc(o.itemName)+'</span>' : ''}</div>
+        </div>
+        <span class="badge ${st.cls}">${st.label}</span>
+      </div>
+      <div class="order-detail">
+        ${[o.color, o.size, o.quantity ? o.quantity+'枚' : ''].filter(Boolean).join(' · ')}
+      </div>
+      <div class="order-date" style="margin-top:6px">
+        納期: ${o.deliveryDate || '未設定'}
+        ${overdue ? '<span class="warning-text"> ⚠️ 期限超過</span>' : ''}
+      </div>
+    </div>`;
+  }).join('');
+
+  document.getElementById('order-list').innerHTML = html ||
+    '<div class="empty"><div class="empty-icon">📋</div><div class="empty-text">発注が見つかりません</div></div>';
+}
+
+// ── Order Detail Modal ──
+function openOrderDetail(id) {
+  const orders = getOrders();
+  const o = orders.find(x => x.id === id);
+  if (!o) return;
+  const st = STATUS_MAP[o.status] || STATUS_MAP.pending;
+
+  const stepHTML = STATUSES.map(s =>
+    `<div class="step${o.status===s.key?' active '+s.cls:''}" onclick="updateStatus('${id}','${s.key}')">${s.label}</div>`
+  ).join('');
+
+  document.getElementById('modal-content').innerHTML = `
+    <div class="modal-title">${esc(o.itemCode)} ${esc(o.itemName||'')}</div>
+    <div class="stepper">${stepHTML}</div>
+    <div class="section-head" style="margin-top:16px">詳細情報</div>
+    ${detailRow('工場', o.factory)}
+    ${detailRow('品番', o.itemCode)}
+    ${detailRow('品名', o.itemName)}
+    ${detailRow('カラー', o.color)}
+    ${detailRow('サイズ', o.size)}
+    ${detailRow('数量', o.quantity ? o.quantity + ' 枚' : '')}
+    ${detailRow('発注日', o.orderDate)}
+    ${detailRow('納期', o.deliveryDate)}
+    ${o.memo ? detailRow('メモ', o.memo) : ''}
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:16px">
+      <button class="submit-btn" style="margin-top:0" onclick="openEditOrder('${id}')">✏️ 編集</button>
+      <button class="danger-btn" style="margin-top:0" onclick="deleteOrder('${id}')">🗑 削除</button>
+    </div>
+  `;
+  openModal();
+}
+
+function detailRow(label, val) {
+  if (!val) return '';
+  return `<div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border);font-size:13px">
+    <span style="color:var(--muted)">${label}</span>
+    <span style="font-weight:600">${esc(String(val))}</span>
+  </div>`;
+}
+
+function updateStatus(id, status) {
+  const orders = getOrders();
+  const o = orders.find(x => x.id === id);
+  if (!o) return;
+  o.status = status;
+  saveOrders(orders);
+  closeModal();
+  renderOrders();
+  renderHome();
+  toast('✅ ステータスを更新しました');
+}
+
+function deleteOrder(id) {
+  if (!confirm('この発注を削除しますか？')) return;
+  saveOrders(getOrders().filter(o => o.id !== id));
+  closeModal();
+  renderOrders();
+  renderHome();
+  toast('🗑 削除しました');
+}
+
+// ── Edit Order Modal ──
+function openEditOrder(id) {
+  const orders = getOrders();
+  const o = orders.find(x => x.id === id);
+  if (!o) return;
+  const factories = getFactories();
+  const fOptions = factories.map(f =>
+    `<option value="${esc(f.name)}"${f.name===o.factory?' selected':''}>${esc(f.name)}</option>`
+  ).join('');
+
+  document.getElementById('modal-content').innerHTML = `
+    <div class="modal-title">発注を編集</div>
+    <div class="form-section">
+      <label class="form-label">工場</label>
+      <select class="form-select" id="ef-factory"><option value="">工場を選択</option>${fOptions}</select>
+    </div>
+    <div class="form-row form-section">
+      <div><label class="form-label">品番</label><input class="form-input" id="ef-code" value="${esc(o.itemCode||'')}"></div>
+      <div><label class="form-label">品名</label><input class="form-input" id="ef-name" value="${esc(o.itemName||'')}"></div>
+    </div>
+    <div class="form-row form-section">
+      <div><label class="form-label">カラー</label><input class="form-input" id="ef-color" value="${esc(o.color||'')}"></div>
+      <div><label class="form-label">サイズ</label><input class="form-input" id="ef-size" value="${esc(o.size||'')}"></div>
+    </div>
+    <div class="form-row form-section">
+      <div><label class="form-label">数量</label><input class="form-input" type="number" id="ef-qty" value="${o.quantity||''}"></div>
+      <div><label class="form-label">納期</label><input class="form-input" type="date" id="ef-delivery" value="${o.deliveryDate||''}"></div>
+    </div>
+    <div class="form-section">
+      <label class="form-label">メモ</label>
+      <textarea class="form-textarea" id="ef-memo">${esc(o.memo||'')}</textarea>
+    </div>
+    <button class="submit-btn" onclick="saveEditOrder('${id}')">保存する</button>
+  `;
+  openModal();
+}
+
+function saveEditOrder(id) {
+  const orders = getOrders();
+  const o = orders.find(x => x.id === id);
+  if (!o) return;
+  o.factory      = document.getElementById('ef-factory').value || o.factory;
+  o.itemCode     = document.getElementById('ef-code').value.trim();
+  o.itemName     = document.getElementById('ef-name').value.trim();
+  o.color        = document.getElementById('ef-color').value.trim();
+  o.size         = document.getElementById('ef-size').value.trim();
+  o.quantity     = parseInt(document.getElementById('ef-qty').value) || 0;
+  o.deliveryDate = document.getElementById('ef-delivery').value;
+  o.memo         = document.getElementById('ef-memo').value.trim();
+  saveOrders(orders);
+  closeModal();
+  renderOrders();
+  renderHome();
+  toast('✅ 更新しました');
+}
+
+// ══════════════════════════════════════════
+//  Factory Master
+// ══════════════════════════════════════════
+function renderFactories() {
+  const factories = getFactories();
+  const html = factories.map(f => `
+    <div class="master-item">
+      <div class="master-item-info">
+        <div class="master-item-name">${esc(f.name)}</div>
+        ${f.contact ? `<div class="master-item-sub">${esc(f.contact)}</div>` : ''}
+        ${f.memo    ? `<div class="master-item-sub">${esc(f.memo)}</div>`    : ''}
+      </div>
+      <div class="master-actions">
+        <button class="icon-btn" onclick="openFactoryModal('${f.id}')" title="編集">✏️</button>
+        <button class="icon-btn" onclick="deleteFactory('${f.id}')" title="削除">🗑</button>
+      </div>
+    </div>`).join('');
+
+  document.getElementById('factory-list').innerHTML = html ||
+    '<div class="empty"><div class="empty-icon">🏭</div><div class="empty-text">工場を追加してください</div></div>';
+}
+
+function openFactoryModal(id) {
+  const factories = getFactories();
+  const f = id ? factories.find(x => x.id === id) : null;
+  document.getElementById('modal-content').innerHTML = `
+    <div class="modal-title">${f ? '工場を編集' : '工場を追加'}</div>
+    <div class="form-section"><label class="form-label">工場名 *</label>
+      <input class="form-input" id="ff-name" value="${esc(f?.name||'')}" placeholder="例: 坂本繊維"></div>
+    <div class="form-section"><label class="form-label">担当者・連絡先</label>
+      <input class="form-input" id="ff-contact" value="${esc(f?.contact||'')}" placeholder="電話番号・メールなど"></div>
+    <div class="form-section"><label class="form-label">メモ</label>
+      <textarea class="form-textarea" id="ff-memo">${esc(f?.memo||'')}</textarea></div>
+    <button class="submit-btn" onclick="saveFactory('${id||''}')">保存する</button>
+    ${f ? `<button class="danger-btn" onclick="deleteFactory('${id}')">削除する</button>` : ''}
+  `;
+  openModal();
+}
+
+function saveFactory(id) {
+  const name    = document.getElementById('ff-name').value.trim();
+  const contact = document.getElementById('ff-contact').value.trim();
+  const memo    = document.getElementById('ff-memo').value.trim();
+  if (!name) { toast('⚠️ 工場名を入力してください'); return; }
+  const factories = getFactories();
+  if (id) {
+    const f = factories.find(x => x.id === id);
+    if (f) { f.name = name; f.contact = contact; f.memo = memo; }
+  } else {
+    factories.push({ id: db.uid(), name, contact, memo });
+  }
+  saveFactories(factories);
+  closeModal();
+  renderFactories();
+  toast('✅ 保存しました');
+}
+
+function deleteFactory(id) {
+  if (!confirm('この工場を削除しますか？')) return;
+  saveFactories(getFactories().filter(f => f.id !== id));
+  closeModal();
+  renderFactories();
+  toast('🗑 削除しました');
+}
+
+// ══════════════════════════════════════════
+//  Item Master
+// ══════════════════════════════════════════
+function renderItems() {
+  const q = (document.getElementById('item-search')?.value || '').toLowerCase();
+  let items = getItems();
+  if (q) items = items.filter(i => [i.code, i.name, i.category].some(v => (v||'').toLowerCase().includes(q)));
+
+  const html = items.map(i => `
+    <div class="master-item">
+      <div class="master-item-info">
+        <div class="master-item-name">${esc(i.code)} ${esc(i.name)}</div>
+        ${i.category ? `<div class="master-item-sub">${esc(i.category)}</div>` : ''}
+        ${i.memo     ? `<div class="master-item-sub">${esc(i.memo)}</div>`     : ''}
+      </div>
+      <div class="master-actions">
+        <button class="icon-btn" onclick="openItemModal('${i.id}')" title="編集">✏️</button>
+        <button class="icon-btn" onclick="deleteItem('${i.id}')" title="削除">🗑</button>
+      </div>
+    </div>`).join('');
+
+  document.getElementById('item-list-el').innerHTML = html ||
+    '<div class="empty"><div class="empty-icon">📦</div><div class="empty-text">品番を追加してください</div></div>';
+}
+
+function openItemModal(id) {
+  const items = getItems();
+  const item = id ? items.find(x => x.id === id) : null;
+  document.getElementById('modal-content').innerHTML = `
+    <div class="modal-title">${item ? '品番を編集' : '品番を追加'}</div>
+    <div class="form-row form-section">
+      <div><label class="form-label">品番 *</label>
+        <input class="form-input" id="fi-code" value="${esc(item?.code||'')}" placeholder="例: ABC-001"></div>
+      <div><label class="form-label">品名 *</label>
+        <input class="form-input" id="fi-name" value="${esc(item?.name||'')}" placeholder="例: Tシャツ"></div>
+    </div>
+    <div class="form-section"><label class="form-label">カテゴリ</label>
+      <input class="form-input" id="fi-category" value="${esc(item?.category||'')}" placeholder="例: トップス"></div>
+    <div class="form-section"><label class="form-label">メモ</label>
+      <textarea class="form-textarea" id="fi-memo">${esc(item?.memo||'')}</textarea></div>
+    <button class="submit-btn" onclick="saveItem('${id||''}')">保存する</button>
+    ${item ? `<button class="danger-btn" onclick="deleteItem('${id}')">削除する</button>` : ''}
+  `;
+  openModal();
+}
+
+function saveItem(id) {
+  const code     = document.getElementById('fi-code').value.trim();
+  const name     = document.getElementById('fi-name').value.trim();
+  const category = document.getElementById('fi-category').value.trim();
+  const memo     = document.getElementById('fi-memo').value.trim();
+  if (!code) { toast('⚠️ 品番を入力してください'); return; }
+  if (!name) { toast('⚠️ 品名を入力してください'); return; }
+  const items = getItems();
+  if (id) {
+    const i = items.find(x => x.id === id);
+    if (i) { i.code = code; i.name = name; i.category = category; i.memo = memo; }
+  } else {
+    items.push({ id: db.uid(), code, name, category, memo });
+  }
+  saveItems(items);
+  closeModal();
+  renderItems();
+  toast('✅ 保存しました');
+}
+
+function deleteItem(id) {
+  if (!confirm('この品番を削除しますか？')) return;
+  saveItems(getItems().filter(i => i.id !== id));
+  closeModal();
+  renderItems();
+  toast('🗑 削除しました');
+}
+
+// ══════════════════════════════════════════
+//  Modal
+// ══════════════════════════════════════════
+function openModal() {
+  document.getElementById('modal-overlay').classList.add('open');
+}
+function closeModal(e) {
+  if (e && e.target !== document.getElementById('modal-overlay')) return;
+  document.getElementById('modal-overlay').classList.remove('open');
+}
+// Close on back gesture / ESC
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeModal(); });
+
+// ══════════════════════════════════════════
+//  Voice Input
+// ══════════════════════════════════════════
+let recognition = null;
+
+function startVoice(targetId, btn) {
+  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SpeechRecognition) { toast('⚠️ このブラウザは音声入力に対応していません'); return; }
+
+  if (recognition) { recognition.stop(); return; }
+
+  recognition = new SpeechRecognition();
+  recognition.lang = 'ja-JP';
+  recognition.continuous = false;
+  recognition.interimResults = false;
+
+  btn.classList.add('recording');
+
+  recognition.onresult = e => {
+    const text = e.results[0][0].transcript;
+    const el = document.getElementById(targetId);
+    if (el) {
+      if (el.tagName === 'TEXTAREA') el.value += (el.value ? ' ' : '') + text;
+      else el.value = text;
+    }
+    toast('🎤 ' + text);
+  };
+  recognition.onerror = () => toast('⚠️ 音声認識エラー');
+  recognition.onend = () => {
+    btn.classList.remove('recording');
+    recognition = null;
+  };
+  recognition.start();
+}
+
+// ══════════════════════════════════════════
+//  Toast
+// ══════════════════════════════════════════
+let toastTimer = null;
+function toast(msg) {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => el.classList.remove('show'), 2200);
+}
+
+// ══════════════════════════════════════════
+//  Utils
+// ══════════════════════════════════════════
+function esc(s) {
+  return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// ══════════════════════════════════════════
+//  Init
+// ══════════════════════════════════════════
+(function init() {
+  // Seed factories if empty
+  if (!getFactories().length) {
+    saveFactories(DEFAULT_FACTORIES.map(name => ({ id: db.uid(), name, contact: '', memo: '' })));
+  }
+  renderHome();
+})();
+</script>
+</body>
+</html>
