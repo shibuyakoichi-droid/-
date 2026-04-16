@@ -456,13 +456,20 @@ let _sheetName = '';
   });
 });
 
-// ── CSV parse (Shift-JIS) ──
-async function readShiftJISCSV(file) {
+// ── CSV parse (Shift-JIS → UTF-8 フォールバック) ──
+async function readCSVAuto(file) {
   const buf = await file.arrayBuffer();
-  const text = new TextDecoder('shift-jis').decode(buf);
+  let text;
+  try {
+    text = new TextDecoder('shift-jis', { fatal: true }).decode(buf);
+  } catch {
+    text = new TextDecoder('utf-8').decode(buf);
+  }
   const lines = text.split(/\r?\n/).filter(l => l.trim());
   return lines.map(parseLine);
 }
+// 後方互換
+async function readShiftJISCSV(file) { return readCSVAuto(file); }
 
 function parseLine(line) {
   const result = [];
@@ -546,15 +553,42 @@ async function runProcess() {
     const ws = wb.Sheets[_sheetName];
     const allData = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' });
 
-    _headers = (allData[2] || []).map(v => String(v));
-    const dataRows = allData.slice(3).filter(r => r[0] !== '' && r[0] != null);
+    if (allData.length === 0) throw new Error(`シート「${_sheetName}」にデータが見つかりません`);
 
-    const mgmtCodes = new Set(dataRows.map(r => String(r[0])));
+    // ── ヘッダー行を自動検出（非空セルが最も多い行、最初の10行内）──
+    let headerIdx = 0;
+    let maxNonEmpty = 0;
+    for (let i = 0; i < Math.min(10, allData.length); i++) {
+      const n = allData[i].filter(v => v !== '' && v != null).length;
+      if (n > maxNonEmpty) { maxNonEmpty = n; headerIdx = i; }
+    }
+    _headers = allData[headerIdx].map(v => String(v ?? ''));
+    const dataRows = allData.slice(headerIdx + 1).filter(r => r[0] !== '' && r[0] != null);
 
-    // Read CSVs
+    if (dataRows.length === 0) throw new Error(`データ行が見つかりません（ヘッダー行: ${headerIdx + 1}行目と判定）`);
+
+    // ── 列インデックスを自動検出 ──
+    const findCol = (...keywords) => {
+      const idx = _headers.findIndex(h => keywords.some(k => String(h).includes(k)));
+      return idx >= 0 ? idx : -1;
+    };
+    const hinbanCol = findCol('品番', '商品コード', '品番コード');
+    const attr1Col  = findCol('属性１名', '属性1名', '属性１', '属性1', 'カラー', '色');
+    const attr2Col  = findCol('属性２名', '属性2名', '属性２', '属性2', 'サイズ');
+
+    // Pythonスクリプトのデフォルト（col1=0, col4=3, col6=5）にフォールバック
+    const hIdx  = hinbanCol >= 0 ? hinbanCol : 0;
+    const a1Idx = attr1Col  >= 0 ? attr1Col  : 3;
+    const a2Idx = attr2Col  >= 0 ? attr2Col  : 5;
+
+    console.log(`シート: ${_sheetName} | ヘッダー行: ${headerIdx+1} | 品番列: ${hIdx} | 属性１列: ${a1Idx} | 属性２列: ${a2Idx} | データ行数: ${dataRows.length}`);
+
+    const mgmtCodes = new Set(dataRows.map(r => String(r[hIdx] ?? '')).filter(Boolean));
+
+    // Read CSVs (Shift-JIS → fallback UTF-8)
     const [salesRows, setsRows] = await Promise.all([
-      readShiftJISCSV(files.sales),
-      readShiftJISCSV(files.sets),
+      readCSVAuto(files.sales),
+      readCSVAuto(files.sets),
     ]);
 
     const salesRaw = loadSales(salesRows);
@@ -563,9 +597,9 @@ async function runProcess() {
 
     // Attach qty
     _allRows = dataRows.map(row => {
-      const hinban = String(row[0]);
-      const attr1  = String(row[3] || '');
-      const attr2  = String(row[5] || '');
+      const hinban = String(row[hIdx] ?? '');
+      const attr1  = String(row[a1Idx] ?? '');
+      const attr2  = String(row[a2Idx] ?? '');
       const k1 = `${hinban}|${attr1}|${attr2}`;
       const k2 = `${hinban}|${attr1}|`;
       const qty = salesSKU[k1] ?? salesSKU[k2] ?? 0;
@@ -581,11 +615,11 @@ async function runProcess() {
     applyFilter();
 
     document.getElementById('results-meta').textContent =
-      `${_allRows.length.toLocaleString()} SKU  /  シート: ${_sheetName}`;
+      `${_allRows.length.toLocaleString()} SKU  /  シート: ${_sheetName}  /  ヘッダー: ${headerIdx+1}行目`;
     document.getElementById('results').style.display = '';
 
   } catch (e) {
-    alert('エラー: ' + e.message);
+    alert('エラー: ' + e.message + '\n\nブラウザの開発者ツール(F12)のコンソールに詳細が表示されます。');
     console.error(e);
   }
 
