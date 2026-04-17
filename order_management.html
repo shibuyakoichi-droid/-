@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>発注管理 — mofmofu</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
 body{font-family:'Helvetica Neue',Arial,'Hiragino Kaku Gothic ProN','Hiragino Sans',Meiryo,sans-serif;font-size:14px;color:#1a1a1a;background:#f5f4f0;min-height:100vh}
@@ -280,33 +281,38 @@ const CAT_STYLE={
 };
 const UNIT={編み:'反',染色:'反',裁断:'点',縫製:'点',糸:'',靴下:'',その他:'点'};
 
-const KEYS={orders:'mof_orders2',factories:'mof_factories'};
+const SUPABASE_URL='https://yukcdqnnevomhdcpsvms.supabase.co';
+const SUPABASE_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inl1a2NkcW5uZXZvbWhkY3Bzdm1zIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY0Mjc2MTUsImV4cCI6MjA5MjAwMzYxNX0.XBSc2kQNwR_bleSwrfYZD8l0fbKTbL1Z3S7ewEtSkDc';
+const sb=supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
+
 let D={orders:[],factories:[]};
 let currentSchema=[];
 let historyView='month';
 let analyticsView='factory';
-// ソート状態: {col, dir}
 let histSort={col:'date',dir:'desc'};
 
-// ── データ読み書き ──────────────────────────────────
-function load(){
-  try{D.orders=JSON.parse(localStorage.getItem(KEYS.orders)||'[]')}catch(e){D.orders=[]}
-  try{D.factories=JSON.parse(localStorage.getItem(KEYS.factories)||'[]')}catch(e){D.factories=[]}
-  if(!D.factories.length){
-    D.factories=[
-      {id:'f1',name:'坂本繊維',  contact:'坂本様',category:'編み', tel:'',email:''},
-      {id:'f2',name:'V-TEC',     contact:'',      category:'染色', tel:'',email:''},
-      {id:'f3',name:'松田染工場',contact:'',      category:'染色', tel:'',email:''},
-      {id:'f4',name:'神共ニット',contact:'',      category:'裁断', tel:'',email:''},
-      {id:'f5',name:'コンセプト',contact:'',      category:'縫製', tel:'',email:''},
-      {id:'f6',name:'メリット',  contact:'',      category:'縫製', tel:'',email:''},
-    ];
-    save();
-  }
+// ── データ読み込み ──────────────────────────────────
+async function load(){
+  const[r1,r2]=await Promise.all([
+    sb.from('orders').select('*').order('date',{ascending:false}),
+    sb.from('factories').select('*').order('name')
+  ]);
+  if(r1.error||r2.error){showAlert('データ読み込みに失敗しました','err');return;}
+  D.orders=(r1.data||[]).map(o=>({...o,factoryId:o.factory_id,createdAt:o.created_at}));
+  D.factories=r2.data||[];
+  if(!D.factories.length){await seedFactories();}
 }
-function save(){
-  localStorage.setItem(KEYS.orders,JSON.stringify(D.orders));
-  localStorage.setItem(KEYS.factories,JSON.stringify(D.factories));
+async function seedFactories(){
+  const defaults=[
+    {id:'f1',name:'坂本繊維',contact:'坂本様',category:'編み',tel:'',email:''},
+    {id:'f2',name:'V-TEC',contact:'',category:'染色',tel:'',email:''},
+    {id:'f3',name:'松田染工場',contact:'',category:'染色',tel:'',email:''},
+    {id:'f4',name:'神共ニット',contact:'',category:'裁断',tel:'',email:''},
+    {id:'f5',name:'コンセプト',contact:'',category:'縫製',tel:'',email:''},
+    {id:'f6',name:'メリット',contact:'',category:'縫製',tel:'',email:''},
+  ];
+  const{error}=await sb.from('factories').insert(defaults);
+  if(!error)D.factories=defaults;
 }
 
 // ── ユーティリティ ──────────────────────────────────
@@ -645,18 +651,22 @@ function renderFactories(){
     </tr>`).join('')}</tbody>
   </table></div>`;
 }
-function addFactory(){
+async function addFactory(){
   const name=document.getElementById('f-name').value.trim();
   if(!name){showAlert('工場名を入力してください','err');return;}
-  D.factories.push({id:'f'+Date.now(),name,contact:document.getElementById('f-contact').value.trim(),category:document.getElementById('f-cat').value,tel:document.getElementById('f-tel').value.trim(),email:document.getElementById('f-email').value.trim()});
-  save();
+  const factory={id:'f'+Date.now(),name,contact:document.getElementById('f-contact').value.trim(),category:document.getElementById('f-cat').value,tel:document.getElementById('f-tel').value.trim(),email:document.getElementById('f-email').value.trim()};
+  const{error}=await sb.from('factories').insert(factory);
+  if(error){showAlert('追加に失敗しました','err');return;}
+  D.factories.push(factory);
   ['f-name','f-contact','f-tel','f-email'].forEach(id=>document.getElementById(id).value='');
   renderFactories();showAlert(`「${name}」を追加しました`);
 }
-function deleteFactory(id){
+async function deleteFactory(id){
   if(!confirm('この工場を削除しますか？'))return;
+  const{error}=await sb.from('factories').delete().eq('id',id);
+  if(error){showAlert('削除に失敗しました','err');return;}
   D.factories=D.factories.filter(f=>f.id!==id);
-  save();renderFactories();
+  renderFactories();
 }
 
 // ── モーダル ───────────────────────────────────────
@@ -718,7 +728,7 @@ function addItemRow(){
   tr.innerHTML=cells+`<td style="text-align:center"><button class="btn sm danger" onclick="this.closest('tr').remove()">×</button></td>`;
   document.getElementById('items-body').appendChild(tr);
 }
-function saveOrder(){
+async function saveOrder(){
   const factoryId=document.getElementById('o-factory').value;
   const date=document.getElementById('o-date').value;
   if(!factoryId){showAlert('工場を選択してください','err');return;}
@@ -732,9 +742,21 @@ function saveOrder(){
   }).filter(i=>Object.values(i).some(v=>v!==''&&v!=='kg'));
   if(!items.length){showAlert('明細を1行以上入力してください','err');return;}
   const f=D.factories.find(f=>f.id===factoryId);
-  D.orders.push({id:genId(),number:document.getElementById('o-number').value,factoryId,category:f?f.category:'その他',date,due:document.getElementById('o-due').value,memo:document.getElementById('o-memo').value,items,createdAt:new Date().toISOString()});
-  save();closeModal();renderDashboard();
-  showAlert(`発注書 ${D.orders[D.orders.length-1].number} を保存しました`);
+  const order={
+    id:genId(),
+    number:document.getElementById('o-number').value,
+    factory_id:factoryId,
+    category:f?f.category:'その他',
+    date,
+    due:document.getElementById('o-due').value,
+    memo:document.getElementById('o-memo').value,
+    items
+  };
+  const{error}=await sb.from('orders').insert(order);
+  if(error){showAlert('保存に失敗しました','err');return;}
+  D.orders.push({...order,factoryId,createdAt:new Date().toISOString()});
+  closeModal();renderDashboard();
+  showAlert(`発注書 ${order.number} を保存しました`);
 }
 
 // ── 印刷 ───────────────────────────────────────────
@@ -800,7 +822,7 @@ function showAlert(msg,type='ok'){
   setTimeout(()=>el.innerHTML='',3000);
 }
 
-load();renderDashboard();
+(async()=>{await load();renderDashboard();})();
 </script>
 </body>
 </html>

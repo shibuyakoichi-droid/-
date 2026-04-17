@@ -1,0 +1,813 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>生産予測 — mofmofu</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Helvetica Neue',Arial,'Hiragino Kaku Gothic ProN','Hiragino Sans',Meiryo,sans-serif;font-size:14px;color:#1a1a1a;background:#f5f4f0;min-height:100vh}
+.topbar{background:#fff;border-bottom:1px solid #e8e6e0;padding:0 24px;display:flex;align-items:center;justify-content:space-between;height:56px;position:sticky;top:0;z-index:100}
+.topbar-title{font-size:15px;font-weight:600;letter-spacing:.02em}
+.topbar-sub{font-size:11px;color:#888;margin-top:2px}
+.container{max-width:1100px;margin:0 auto;padding:24px 20px}
+.tabs{display:flex;gap:2px;background:#e8e6e0;border-radius:8px;padding:3px;margin-bottom:24px;width:fit-content;flex-wrap:wrap}
+.tab{padding:7px 16px;font-size:13px;cursor:pointer;border:none;background:none;color:#666;border-radius:6px;font-family:inherit}
+.tab.active{background:#fff;color:#1a1a1a;font-weight:500;box-shadow:0 1px 3px rgba(0,0,0,.08)}
+.panel{display:none}.panel.active{display:block}
+.card{background:#fff;border:1px solid #e8e6e0;border-radius:12px;padding:20px;margin-bottom:16px}
+.section-label{font-size:11px;font-weight:600;color:#999;text-transform:uppercase;letter-spacing:.08em;margin-bottom:10px}
+.table-wrap{background:#fff;border:1px solid #e8e6e0;border-radius:12px;overflow:hidden;margin-bottom:16px}
+table.list{width:100%;border-collapse:collapse}
+table.list th{font-size:11px;font-weight:600;color:#999;text-transform:uppercase;letter-spacing:.05em;padding:10px 14px;border-bottom:1px solid #e8e6e0;text-align:left;background:#faf9f7;white-space:nowrap}
+table.list td{padding:10px 14px;border-bottom:1px solid #f0ede8;font-size:13px;vertical-align:middle}
+table.list tr:last-child td{border-bottom:none}
+table.list tr:hover td{background:#faf9f7}
+.btn{padding:8px 18px;border:1px solid #d8d5cf;border-radius:8px;font-size:13px;cursor:pointer;background:#fff;color:#1a1a1a;font-family:inherit;transition:background .15s}
+.btn:hover{background:#f5f4f0}
+.btn.primary{background:#1a1a1a;color:#fff;border-color:#1a1a1a}
+.btn.primary:hover{background:#333}
+.btn.danger{color:#a32d2d;border-color:#f0c0c0}
+.btn.danger:hover{background:#fcebeb}
+.btn.sm{padding:4px 10px;font-size:12px}
+.form-row{display:grid;gap:10px;margin-bottom:12px}
+.form-row.col2{grid-template-columns:1fr 1fr}
+.form-row.col3{grid-template-columns:1fr 1fr 1fr}
+.form-row.col4{grid-template-columns:1fr 1fr 1fr 1fr}
+.form-group label{display:block;font-size:12px;font-weight:500;color:#666;margin-bottom:4px}
+input,select,textarea{width:100%;padding:8px 10px;border:1px solid #d8d5cf;border-radius:7px;font-size:13px;background:#fff;color:#1a1a1a;font-family:inherit}
+input:focus,select:focus{outline:none;border-color:#999;box-shadow:0 0 0 3px rgba(0,0,0,.05)}
+.empty-state{text-align:center;padding:40px 0;color:#aaa;font-size:13px}
+.alert-box{padding:10px 16px;border-radius:8px;font-size:13px;margin-bottom:16px}
+.alert-ok{background:#eaf3de;color:#3a6d10;border:1px solid #b8d98a}
+.alert-err{background:#fcebeb;color:#a32d2d;border:1px solid #f0c0c0}
+.alert-info{background:#eef4fa;color:#1a5fa0;border:1px solid #b8d4f0}
+.filter-bar{display:flex;gap:8px;align-items:center;margin-bottom:14px;flex-wrap:wrap}
+.chip{display:inline-flex;align-items:center;padding:4px 12px;border-radius:20px;font-size:12px;font-weight:600;cursor:pointer;border:1px solid transparent}
+.chip-all{background:#f0ede8;color:#555}.chip-all.active,.chip-all:hover{background:#1a1a1a;color:#fff}
+.chip-red{background:#fdf0ef;color:#a32d2d;border-color:#f0c0c0}.chip-red.active,.chip-red:hover{background:#a32d2d;color:#fff;border-color:#a32d2d}
+.chip-yellow{background:#fef9ee;color:#8a5a00;border-color:#f0d890}.chip-yellow.active,.chip-yellow:hover{background:#c07a00;color:#fff;border-color:#c07a00}
+.chip-green{background:#eaf3de;color:#3a6d10;border-color:#b8d98a}.chip-green.active,.chip-green:hover{background:#3a6d10;color:#fff;border-color:#3a6d10}
+.chip-none{background:#f0ede8;color:#999;border-color:#e0ddd8}
+.status-dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:6px}
+.dot-red{background:#c0392b}.dot-yellow{background:#e0a800}.dot-green{background:#27ae60}.dot-none{background:#ccc}
+.upload-area{border:2px dashed #d8d5cf;border-radius:12px;padding:40px;text-align:center;cursor:pointer;transition:border-color .15s,background .15s}
+.upload-area:hover,.upload-area.dragover{border-color:#999;background:#faf9f7}
+.upload-area input[type=file]{display:none}
+.upload-icon{font-size:32px;margin-bottom:8px;color:#ccc}
+.upload-text{font-size:14px;color:#888;margin-bottom:4px}
+.upload-sub{font-size:12px;color:#bbb}
+.progress-bar-wrap{background:#f0ede8;border-radius:4px;height:6px;overflow:hidden;width:100px;display:inline-block;vertical-align:middle}
+.progress-bar{height:100%;border-radius:4px;transition:width .3s}
+.bar-red{background:#c0392b}.bar-yellow{background:#e0a800}.bar-green{background:#27ae60}
+.month-input{width:80px!important;padding:5px 6px!important;font-size:13px!important;text-align:right}
+.spinner{display:inline-block;width:16px;height:16px;border:2px solid #e0e0e0;border-top-color:#555;border-radius:50%;animation:spin .7s linear infinite;vertical-align:middle;margin-right:6px}
+@keyframes spin{to{transform:rotate(360deg)}}
+.yoy-badge{display:inline-block;font-size:11px;padding:2px 6px;border-radius:4px;margin-left:6px}
+.yoy-up{background:#eaf3de;color:#3a6d10}.yoy-down{background:#fcebeb;color:#a32d2d}.yoy-flat{background:#f0ede8;color:#888}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div>
+    <div class="topbar-title">生産予測</div>
+    <div class="topbar-sub">mofmofu — 在庫アラート & 生産管理</div>
+  </div>
+  <span id="last-import-info" style="font-size:12px;color:#aaa"></span>
+</div>
+
+<div class="container">
+  <div id="alert-area"></div>
+  <div class="tabs">
+    <button class="tab active" onclick="switchTab('alert')">アラート</button>
+    <button class="tab" onclick="switchTab('csv')">CSV取込</button>
+    <button class="tab" onclick="switchTab('forecast')">月別予測</button>
+    <button class="tab" onclick="switchTab('progress')">生産中</button>
+    <button class="tab" onclick="switchTab('sets')">セット構成</button>
+    <button class="tab" onclick="switchTab('sales')">色別販売</button>
+    <button class="tab" onclick="switchTab('hidden')">非表示設定</button>
+  </div>
+
+  <!-- アラート -->
+  <div class="panel active" id="tab-alert">
+    <div class="filter-bar">
+      <span class="chip chip-all active" onclick="setAlertFilter('all',this)">全て</span>
+      <span class="chip chip-red" onclick="setAlertFilter('red',this)">● 緊急発注</span>
+      <span class="chip chip-yellow" onclick="setAlertFilter('yellow',this)">● 要注意</span>
+      <span class="chip chip-green" onclick="setAlertFilter('green',this)">● 充足</span>
+      <span class="chip chip-none" onclick="setAlertFilter('none',this)">予測未設定</span>
+      <input id="alert-search" placeholder="品番・商品名で絞り込み" style="width:200px;margin-left:8px" oninput="renderAlert()">
+    </div>
+    <div id="alert-list"></div>
+  </div>
+
+  <!-- CSV取込 -->
+  <div class="panel" id="tab-csv">
+    <div class="card">
+      <div class="section-label">クロスモール CSVアップロード</div>
+      <p style="font-size:12px;color:#888;margin-bottom:16px">
+        「商品別受注集計CSV」（item_order_*.csv）を使用します。<br>
+        <b>集計年月を先に選んでから</b>ファイルをアップロードしてください。Shift-JIS自動対応。
+      </p>
+      <div class="form-row col2" style="max-width:400px;margin-bottom:16px">
+        <div class="form-group">
+          <label>集計年月 *</label>
+          <select id="import-year-month"></select>
+        </div>
+        <div class="form-group">
+          <label>月の日数 *</label>
+          <input type="number" id="import-days" min="1" max="31" value="30" style="width:80px">
+          <div style="font-size:11px;color:#aaa;margin-top:3px">例：4月=30日、1月=31日</div>
+        </div>
+      </div>
+      <div class="upload-area" id="upload-area" onclick="document.getElementById('csv-file').click()" ondragover="onDragOver(event)" ondragleave="onDragLeave(event)" ondrop="onDrop(event)">
+        <input type="file" id="csv-file" accept=".csv" onchange="onFileSelect(event)">
+        <div class="upload-icon">📄</div>
+        <div class="upload-text">クリックまたはドラッグ＆ドロップ</div>
+        <div class="upload-sub">item_order_*.csv</div>
+      </div>
+      <div id="csv-preview" style="margin-top:16px"></div>
+    </div>
+    <div class="card">
+      <div class="section-label">取込済み月一覧</div>
+      <div id="import-history"></div>
+    </div>
+  </div>
+
+  <!-- 月別予測 -->
+  <div class="panel" id="tab-forecast">
+    <div class="card">
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px">
+        <div class="section-label" style="margin-bottom:0">表示月</div>
+        <select id="forecast-base-month" onchange="renderForecast()" style="width:140px"></select>
+        <span style="font-size:12px;color:#888">を起点に3ヶ月分</span>
+        <button class="btn primary sm" onclick="saveAllForecasts()">一括保存</button>
+      </div>
+      <div id="forecast-table"></div>
+    </div>
+  </div>
+
+  <!-- 生産中 -->
+  <div class="panel" id="tab-progress">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+      <input id="progress-search" placeholder="品番・商品名で絞り込み" style="width:220px" oninput="renderProgress()">
+      <button class="btn primary" onclick="saveAllProgress()">一括保存</button>
+    </div>
+    <div id="progress-table"></div>
+  </div>
+
+  <!-- セット構成 -->
+  <div class="panel" id="tab-sets">
+    <div class="card" style="margin-bottom:16px">
+      <div class="section-label" style="margin-bottom:12px">セット構成を追加</div>
+      <div class="form-row col4">
+        <div class="form-group"><label>セット品番 *</label><input id="s-setcode" placeholder="例：baby-leg-k"></div>
+        <div class="form-group"><label>セット商品名</label><input id="s-setname" placeholder="例：選べる3足セット"></div>
+        <div class="form-group"><label>個別品番 *</label><input id="s-basecode" placeholder="例：baby-leg"></div>
+        <div class="form-group"><label>構成数 *</label><input id="s-mult" type="number" min="1" value="1"></div>
+      </div>
+      <div style="text-align:right"><button class="btn primary" onclick="addSetComposition()">追加する</button></div>
+    </div>
+    <div id="sets-list"></div>
+  </div>
+
+  <!-- 色別販売 -->
+  <div class="panel" id="tab-sales">
+    <div class="filter-bar">
+      <select id="sales-filter-month" onchange="renderSales()" style="width:160px"></select>
+      <select id="sales-filter-code" onchange="renderSales()" style="width:220px">
+        <option value="">全品番</option>
+      </select>
+      <input id="sales-search" placeholder="品番・商品名・色で絞り込み" style="width:220px" oninput="renderSales()">
+    </div>
+    <div id="sales-table"></div>
+  </div>
+
+  <!-- 非表示設定 -->
+  <div class="panel" id="tab-hidden">
+    <div class="card" style="margin-bottom:16px">
+      <div class="section-label" style="margin-bottom:6px">非表示設定</div>
+      <p style="font-size:12px;color:#888">廃番・取扱終了の品番をアラートや予測から非表示にできます。CSV取込時にも除外されます。</p>
+    </div>
+    <div class="filter-bar">
+      <input id="hidden-search" placeholder="品番・商品名で絞り込み" style="width:240px" oninput="renderHidden()">
+      <label style="font-size:13px;display:flex;align-items:center;gap:6px;cursor:pointer">
+        <input type="checkbox" id="hidden-show-only" onchange="renderHidden()"> 非表示のみ表示
+      </label>
+    </div>
+    <div id="hidden-list"></div>
+  </div>
+</div>
+
+<script>
+const SUPABASE_URL='https://yukcdqnnevomhdcpsvms.supabase.co';
+const SUPABASE_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inl1a2NkcW5uZXZvbWhkY3Bzdm1zIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY0Mjc2MTUsImV4cCI6MjA5MjAwMzYxNX0.XBSc2kQNwR_bleSwrfYZD8l0fbKTbL1Z3S7ewEtSkDc';
+const sb=supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
+
+let D={products:[],allProducts:[],setCompositions:[],currentStock:[],forecasts:[],progress:[],monthlySales:[]};
+let alertFilter='all';
+
+// ── ユーティリティ ──────────────────────────────────
+function ym(offset=0){
+  const d=new Date();d.setMonth(d.getMonth()+offset);
+  return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0');
+}
+function addMonth(ymStr,n){
+  const[y,m]=ymStr.split('-').map(Number);
+  const d=new Date(y,m-1+n,1);
+  return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0');
+}
+function fmtYM(s){if(!s)return '';const[y,m]=s.split('-');return `${y}年${parseInt(m)}月`;}
+function today(){return new Date().toISOString().split('T')[0];}
+function daysInMonth(ymStr){
+  const[y,m]=ymStr.split('-').map(Number);
+  return new Date(y,m,0).getDate();
+}
+function showAlert(msg,type='ok'){
+  const el=document.getElementById('alert-area');
+  el.innerHTML=`<div class="alert-box alert-${type}">${msg}</div>`;
+  setTimeout(()=>el.innerHTML='',4000);
+}
+
+// ── ページネーション付き全件取得 ────────────────────
+async function fetchAllRows(queryFn){
+  const PAGE=1000;let all=[];let from=0;
+  while(true){
+    const{data,error}=await queryFn(from,from+PAGE-1);
+    if(error)return{data:null,error};
+    all=all.concat(data||[]);
+    if(!data||data.length<PAGE)break;
+    from+=PAGE;
+  }
+  return{data:all,error:null};
+}
+
+// ── データ読み込み（軽量版） ────────────────────────
+async function loadAll(){
+  const[r1,r2,r3,r4,r5,r6]=await Promise.all([
+    fetchAllRows((f,t)=>sb.from('products').select('*').order('code').range(f,t)),
+    sb.from('set_compositions').select('*').order('set_code'),
+    fetchAllRows((f,t)=>sb.from('current_stock').select('*').range(f,t)),
+    fetchAllRows((f,t)=>sb.from('monthly_forecasts').select('*').range(f,t)),
+    sb.from('production_progress').select('*'),
+    fetchAllRows((f,t)=>sb.from('monthly_sales').select('*').order('year_month',{ascending:false}).range(f,t)),
+  ]);
+  if(r1.error||r2.error){showAlert('データ読み込みに失敗しました','err');return;}
+  D.allProducts=r1.data||[];
+  D.products=D.allProducts.filter(p=>p.active!==false);
+  D.setCompositions=r2.data||[];
+  D.currentStock=r3.data||[];
+  D.forecasts=r4.data||[];
+  D.progress=r5.data||[];
+  D.monthlySales=r6.data||[];
+  updateLastImportInfo();
+}
+
+function updateLastImportInfo(){
+  const months=[...new Set(D.monthlySales.map(s=>s.year_month))].sort().reverse();
+  if(months.length)document.getElementById('last-import-info').textContent=`最終取込：${fmtYM(months[0])}`;
+}
+
+// ── タブ切替 ───────────────────────────────────────
+function switchTab(t){
+  document.querySelectorAll('.tab').forEach((el,i)=>{
+    el.classList.toggle('active',['alert','csv','forecast','progress','sets','sales','hidden'][i]===t);
+  });
+  document.querySelectorAll('.panel').forEach(el=>el.classList.remove('active'));
+  document.getElementById('tab-'+t).classList.add('active');
+  if(t==='alert')renderAlert();
+  if(t==='csv')renderImportHistory();
+  if(t==='forecast')renderForecast();
+  if(t==='progress')renderProgress();
+  if(t==='sets')renderSets();
+  if(t==='sales')initSalesTab();
+  if(t==='hidden')renderHidden();
+}
+
+// ── アラート計算 ───────────────────────────────────
+function getLatestStock(code){
+  const s=D.currentStock.find(s=>s.code===code);
+  return s?Math.max(s.stock_qty,0):0;
+}
+function getInProduction(code){
+  const p=D.progress.find(p=>p.code===code);
+  return p?Math.max(p.qty,0):0;
+}
+function getMonthlySalesTotal(code,ymStr){
+  return D.monthlySales
+    .filter(s=>s.code===code&&s.year_month===ymStr)
+    .reduce((sum,s)=>sum+(Number(s.sales_qty)||0),0);
+}
+function get3MonthForecast(code,baseMonth){
+  const m0=baseMonth||ym(0),m1=addMonth(m0,1),m2=addMonth(m0,2);
+  const get=m=>{const f=D.forecasts.find(f=>f.code===code&&f.year_month===m);return f?f.forecast_qty:0;};
+  return{m0:get(m0),m1:get(m1),m2:get(m2),total:get(m0)+get(m1)+get(m2)};
+}
+function calcStatus(stock,inProd,forecast3m){
+  const avail=stock+inProd;
+  if(forecast3m===0)return 'none';
+  const avg=forecast3m/3;
+  if(avg===0)return 'none';
+  const months=avail/avg;
+  if(months<1)return 'red';
+  if(months<3)return 'yellow';
+  return 'green';
+}
+function statusLabel(s){
+  if(s==='red')return '<span class="status-dot dot-red"></span>緊急発注';
+  if(s==='yellow')return '<span class="status-dot dot-yellow"></span>要注意';
+  if(s==='green')return '<span class="status-dot dot-green"></span>充足';
+  return '<span class="status-dot dot-none"></span>予測未設定';
+}
+function getAlertProducts(){
+  const codes=new Set();
+  D.currentStock.forEach(s=>codes.add(s.code));
+  D.forecasts.forEach(f=>codes.add(f.code));
+  D.progress.forEach(p=>codes.add(p.code));
+  D.products.forEach(p=>codes.add(p.code));
+  const setCodes=new Set(D.setCompositions.map(s=>s.set_code));
+  const hiddenCodes=new Set(D.allProducts.filter(p=>p.active===false).map(p=>p.code));
+  return[...codes].filter(c=>!setCodes.has(c)&&!hiddenCodes.has(c)).sort();
+}
+function getProductName(code){
+  const p=D.products.find(p=>p.code===code);
+  if(p)return p.name;
+  const s=D.monthlySales.find(s=>s.code===code);
+  return s?s.name:'';
+}
+function setAlertFilter(f,el){
+  alertFilter=f;
+  document.querySelectorAll('.filter-bar .chip').forEach(c=>c.classList.remove('active'));
+  el.classList.add('active');
+  renderAlert();
+}
+function renderAlert(){
+  const el=document.getElementById('alert-list');
+  const search=(document.getElementById('alert-search')?.value||'').toLowerCase();
+  const curMonth=ym(0);
+  const codes=getAlertProducts();
+  let rows=codes.map(code=>{
+    const stock=getLatestStock(code);
+    const inProd=getInProduction(code);
+    const fc=get3MonthForecast(code,curMonth);
+    const status=calcStatus(stock,inProd,fc.total);
+    const name=getProductName(code);
+    return{code,name,stock,inProd,fc,status};
+  });
+  if(alertFilter!=='all')rows=rows.filter(r=>r.status===alertFilter);
+  if(search)rows=rows.filter(r=>r.code.toLowerCase().includes(search)||(r.name||'').toLowerCase().includes(search));
+  const order={red:0,yellow:1,green:2,none:3};
+  rows.sort((a,b)=>order[a.status]-order[b.status]||(a.code<b.code?-1:1));
+  if(!rows.length){el.innerHTML='<div class="empty-state">対象データがありません</div>';return;}
+  const m0=ym(0),m1=ym(1),m2=ym(2);
+  el.innerHTML=`<div class="table-wrap"><table class="list">
+    <thead><tr>
+      <th>状態</th><th>品番</th><th>商品名</th>
+      <th style="text-align:right">実在庫</th><th style="text-align:right">生産中</th>
+      <th style="text-align:right">${fmtYM(m0)}予測</th>
+      <th style="text-align:right">${fmtYM(m1)}予測</th>
+      <th style="text-align:right">${fmtYM(m2)}予測</th>
+      <th style="text-align:right">3ヶ月計</th><th>充足率</th>
+    </tr></thead>
+    <tbody>${rows.map(r=>{
+      const avail=r.stock+r.inProd;
+      const pct=r.fc.total>0?Math.min(Math.round(avail/r.fc.total*100),100):100;
+      const barClass=r.status==='red'?'bar-red':r.status==='yellow'?'bar-yellow':'bar-green';
+      return `<tr>
+        <td>${statusLabel(r.status)}</td>
+        <td style="font-family:monospace;font-size:12px">${r.code}</td>
+        <td style="font-size:12px;color:#555;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${r.name||'—'}</td>
+        <td style="text-align:right;font-weight:500">${r.stock.toLocaleString()}</td>
+        <td style="text-align:right;color:#888">${r.inProd.toLocaleString()}</td>
+        <td style="text-align:right;color:#888">${r.fc.m0.toLocaleString()}</td>
+        <td style="text-align:right;color:#888">${r.fc.m1.toLocaleString()}</td>
+        <td style="text-align:right;color:#888">${r.fc.m2.toLocaleString()}</td>
+        <td style="text-align:right;font-weight:500">${r.fc.total.toLocaleString()}</td>
+        <td><div style="display:flex;align-items:center;gap:6px">
+          <div class="progress-bar-wrap"><div class="progress-bar ${barClass}" style="width:${pct}%"></div></div>
+          <span style="font-size:11px;color:#888;min-width:32px">${r.fc.total>0?pct+'%':'—'}</span>
+        </div></td>
+      </tr>`;
+    }).join('')}</tbody></table></div>`;
+}
+
+// ── CSV取込 ────────────────────────────────────────
+function initImportYearMonth(){
+  const sel=document.getElementById('import-year-month');
+  const months=[];
+  for(let i=-13;i<=0;i++)months.push(ym(i));
+  sel.innerHTML=months.reverse().map(m=>`<option value="${m}"${m===ym(0)?' selected':''}>${fmtYM(m)}</option>`).join('');
+  sel.addEventListener('change',()=>{
+    document.getElementById('import-days').value=daysInMonth(sel.value);
+  });
+  document.getElementById('import-days').value=daysInMonth(ym(0));
+}
+function onDragOver(e){e.preventDefault();document.getElementById('upload-area').classList.add('dragover');}
+function onDragLeave(){document.getElementById('upload-area').classList.remove('dragover');}
+function onDrop(e){e.preventDefault();onDragLeave();const f=e.dataTransfer.files[0];if(f)processCSVFile(f);}
+function onFileSelect(e){const f=e.target.files[0];if(f)processCSVFile(f);}
+
+async function processCSVFile(file){
+  const preview=document.getElementById('csv-preview');
+  preview.innerHTML=`<div><span class="spinner"></span>解析中...</div>`;
+  const importYM=document.getElementById('import-year-month').value;
+  const importDays=parseInt(document.getElementById('import-days').value)||30;
+  try{
+    const buf=await file.arrayBuffer();
+    const text=new TextDecoder('shift-jis').decode(buf);
+    const rows=parseCSV(text);
+    if(rows.length<2){preview.innerHTML='<div class="alert-box alert-err">CSVの解析に失敗しました</div>';return;}
+    const header=rows[0];
+    const codeIdx=header.indexOf('商品コード');
+    const nameIdx=header.indexOf('商品名');
+    const stockIdx=header.indexOf('在庫数量');
+    const qtyIdx=header.indexOf('商品数量');
+    if(codeIdx===-1||stockIdx===-1){preview.innerHTML='<div class="alert-box alert-err">対応していないCSV形式です</div>';return;}
+
+    const stockMap={};
+    const salesRows=[];
+    const setMap={};
+    D.setCompositions.forEach(s=>setMap[s.set_code]={base:s.base_code,mult:s.multiplier});
+
+    for(let i=1;i<rows.length;i++){
+      const row=rows[i];
+      if(!row[codeIdx])continue;
+      const origCode=row[codeIdx].trim();
+      let code=origCode;
+      const name=nameIdx>=0?row[nameIdx]:'';
+      const stockQty=Math.max(parseInt(row[stockIdx])||0,0);
+      const salesQty=qtyIdx>=0?(parseInt(row[qtyIdx])||0):0;
+      const color=row[3]||'';
+      const sizeAttr=row[5]||'';
+      if(setMap[code])code=setMap[code].base;
+      if(!stockMap[code])stockMap[code]={name,qty:0};
+      stockMap[code].qty+=stockQty;
+      if(name&&!stockMap[code].name)stockMap[code].name=name;
+      if(salesQty>0)salesRows.push({code:origCode,name,color,size_attr:sizeAttr,year_month:importYM,sales_qty:salesQty});
+    }
+
+    // 同一キー（品番+色+サイズ+年月）を集計して重複を除去
+    const salesAgg={};
+    salesRows.forEach(s=>{
+      const key=`${s.code}|${s.color}|${s.size_attr}|${s.year_month}`;
+      if(!salesAgg[key])salesAgg[key]={...s};
+      else salesAgg[key].sales_qty+=s.sales_qty;
+    });
+    const dedupedSalesRows=Object.values(salesAgg);
+
+    // 月別予測の自動計算（販売実績÷日数×30）
+    const salesByCode={};
+    dedupedSalesRows.forEach(s=>{
+      let code=s.code;let mult=1;
+      const sc=D.setCompositions.find(c=>c.set_code===code);
+      if(sc){code=sc.base_code;mult=sc.multiplier;}
+      if(!salesByCode[code])salesByCode[code]=0;
+      salesByCode[code]+=s.sales_qty*mult;
+    });
+
+    // 前年同月データがあれば前年同月比も計算
+    const lastYearYM=addMonth(importYM,-12);
+    const forecasts=Object.entries(salesByCode)
+      .filter(([,total])=>total>0)
+      .map(([code,total])=>{
+        const baseQty=Math.ceil(total/importDays*30);
+        const lastYearTotal=getMonthlySalesTotal(code,lastYearYM);
+        let fcQty=baseQty;
+        let yoy=null;
+        if(lastYearTotal>0){
+          yoy=Math.round(total/lastYearTotal*100);
+          fcQty=Math.ceil(lastYearTotal*(yoy/100));
+        }
+        return{code,year_month:addMonth(importYM,1),forecast_qty:fcQty,yoy,updated_at:new Date().toISOString()};
+      });
+
+    window._pendingImport={
+      productEntries:Object.entries(stockMap),
+      salesRows:dedupedSalesRows,
+      forecasts,
+      importYM,
+    };
+
+    const yoyCount=forecasts.filter(f=>f.yoy!==null).length;
+    const fcNote=yoyCount>0
+      ?`前年同月比あり：${yoyCount}品番`
+      :`前年データなし（単純換算）`;
+
+    preview.innerHTML=`<div class="alert-box alert-info">
+      <b>${Object.keys(stockMap).length}品番</b>の在庫を検出<br>
+      <b>${dedupedSalesRows.length}件</b>の色別販売データ（${fmtYM(importYM)}）<br>
+      📊 <b>${forecasts.length}品番</b>の来月予測を自動計算（${fcNote}）
+    </div>
+    <div style="display:flex;gap:8px;margin-top:12px">
+      <button class="btn primary" onclick="importStock()">この内容で取込む</button>
+      <button class="btn" onclick="document.getElementById('csv-preview').innerHTML=''">キャンセル</button>
+    </div>`;
+  }catch(e){
+    preview.innerHTML=`<div class="alert-box alert-err">エラー: ${e.message}</div>`;
+  }
+}
+
+async function importStock(){
+  const{productEntries,salesRows,forecasts,importYM}=window._pendingImport||{};
+  if(!productEntries){showAlert('先にCSVを選択してください','err');return;}
+  const preview=document.getElementById('csv-preview');
+  preview.innerHTML=`<div><span class="spinner"></span>Supabaseに保存中...</div>`;
+
+  // products upsert（非表示フラグを保持）
+  const hiddenCodes=new Set(D.allProducts.filter(p=>p.active===false).map(p=>p.code));
+  const productRows=productEntries.map(([code,{name}])=>({code,name:name||code,active:!hiddenCodes.has(code),last_imported:new Date().toISOString()}));
+  for(let i=0;i<productRows.length;i+=100){
+    const{error}=await sb.from('products').upsert(productRows.slice(i,i+100),{onConflict:'code'});
+    if(error){preview.innerHTML=`<div class="alert-box alert-err">products保存エラー: ${error.message}</div>`;return;}
+  }
+
+  // current_stock upsert（常に最新値に上書き）
+  const stockRows=productEntries.map(([code,{qty}])=>({code,stock_qty:qty,updated_at:new Date().toISOString()}));
+  for(let i=0;i<stockRows.length;i+=100){
+    const{error}=await sb.from('current_stock').upsert(stockRows.slice(i,i+100),{onConflict:'code'});
+    if(error){preview.innerHTML=`<div class="alert-box alert-err">在庫保存エラー: ${error.message}</div>`;return;}
+  }
+
+  // monthly_sales: 同月分を削除してから挿入
+  await sb.from('monthly_sales').delete().eq('year_month',importYM);
+  for(let i=0;i<salesRows.length;i+=200){
+    const{error}=await sb.from('monthly_sales').insert(salesRows.slice(i,i+200));
+    if(error){preview.innerHTML=`<div class="alert-box alert-err">販売データ保存エラー: ${error.message}</div>`;return;}
+  }
+
+  // 13ヶ月以上古いmonthly_salesを削除
+  const cutoff=addMonth(importYM,-13);
+  await sb.from('monthly_sales').delete().lt('year_month',cutoff);
+
+  // 月別予測を保存（来月・再来月分）
+  const nextMonth=addMonth(importYM,1);
+  const nextNextMonth=addMonth(importYM,2);
+  const codes=forecasts.map(f=>f.code);
+  if(codes.length){
+    // 来月分は上書き保存
+    await sb.from('monthly_forecasts').delete().eq('year_month',nextMonth).in('code',codes);
+    for(let i=0;i<forecasts.length;i+=100){
+      const rows=forecasts.slice(i,i+100).map(({yoy:_,...f})=>f);
+      await sb.from('monthly_forecasts').insert(rows);
+    }
+    // 再来月分は未設定の品番のみ保存
+    const existingNN=new Set(D.forecasts.filter(f=>f.year_month===nextNextMonth).map(f=>f.code));
+    const forecasts2=forecasts.filter(f=>!existingNN.has(f.code)).map(({yoy:_,...f})=>({...f,year_month:nextNextMonth}));
+    if(forecasts2.length){
+      for(let i=0;i<forecasts2.length;i+=100){
+        await sb.from('monthly_forecasts').insert(forecasts2.slice(i,i+100));
+      }
+    }
+  }
+
+  preview.innerHTML=`<div class="alert-box alert-ok">
+    ✓ ${productEntries.length}品番の在庫・${salesRows.length}件の販売データを取込みました<br>
+    ✓ ${fmtYM(nextMonth)}〜${fmtYM(nextNextMonth)}の予測 ${forecasts.length}件を自動保存しました
+  </div>`;
+  await loadAll();
+  renderImportHistory();
+}
+
+function parseCSV(text){
+  const lines=text.split(/\r?\n/);
+  return lines.map(line=>{
+    const result=[];let cur='';let inQ=false;
+    for(let i=0;i<line.length;i++){
+      const c=line[i];
+      if(c==='"'){if(inQ&&line[i+1]==='"'){cur+='"';i++;}else inQ=!inQ;}
+      else if(c===','&&!inQ){result.push(cur);cur='';}
+      else cur+=c;
+    }
+    result.push(cur);
+    return result;
+  }).filter(r=>r.length>1||r[0]);
+}
+
+function renderImportHistory(){
+  const el=document.getElementById('import-history');
+  const months=[...new Set(D.monthlySales.map(s=>s.year_month))].sort().reverse();
+  if(!months.length){el.innerHTML='<div class="empty-state">取込履歴がありません</div>';return;}
+  el.innerHTML=`<div class="table-wrap"><table class="list">
+    <thead><tr><th>取込年月</th><th style="text-align:right">SKU数</th></tr></thead>
+    <tbody>${months.map(m=>{
+      const cnt=D.monthlySales.filter(s=>s.year_month===m).length;
+      return `<tr><td>${fmtYM(m)}</td><td style="text-align:right">${cnt}件</td></tr>`;
+    }).join('')}</tbody></table></div>`;
+}
+
+// ── 月別予測 ───────────────────────────────────────
+function initForecastMonths(){
+  const sel=document.getElementById('forecast-base-month');
+  const months=[];
+  for(let i=-1;i<=4;i++)months.push(ym(i));
+  sel.innerHTML=months.map(m=>`<option value="${m}"${m===ym(0)?' selected':''}>${fmtYM(m)}</option>`).join('');
+}
+function renderForecast(){
+  const el=document.getElementById('forecast-table');
+  const base=document.getElementById('forecast-base-month')?.value||ym(0);
+  const m0=base,m1=addMonth(base,1),m2=addMonth(base,2);
+  if(!D.products.length){el.innerHTML='<div class="empty-state">先にCSVを取込んでください</div>';return;}
+  const getFc=(code,month)=>{const f=D.forecasts.find(f=>f.code===code&&f.year_month===month);return f?f.forecast_qty:0;};
+  const getLY=(code,month)=>{const lym=addMonth(month,-12);return getMonthlySalesTotal(code,lym);};
+  el.innerHTML=`<div class="table-wrap"><table class="list">
+    <thead><tr>
+      <th>品番</th><th>商品名</th>
+      <th style="text-align:right">${fmtYM(m0)}<br><span style="font-size:10px;color:#ccc">前年同月</span></th>
+      <th style="text-align:right">${fmtYM(m1)}</th>
+      <th style="text-align:right">${fmtYM(m2)}</th>
+    </tr></thead>
+    <tbody>${D.products.map(p=>{
+      const ly0=getLY(p.code,m0);
+      return `<tr>
+        <td style="font-family:monospace;font-size:12px">${p.code}</td>
+        <td style="font-size:12px;color:#555">${p.name||'—'}</td>
+        <td style="text-align:right">
+          <input class="month-input" type="number" min="0" data-code="${p.code}" data-month="${m0}" value="${getFc(p.code,m0)}">
+          ${ly0>0?`<div style="font-size:10px;color:#aaa;margin-top:2px">前年：${ly0}</div>`:''}
+        </td>
+        <td style="text-align:right"><input class="month-input" type="number" min="0" data-code="${p.code}" data-month="${m1}" value="${getFc(p.code,m1)}"></td>
+        <td style="text-align:right"><input class="month-input" type="number" min="0" data-code="${p.code}" data-month="${m2}" value="${getFc(p.code,m2)}"></td>
+      </tr>`;
+    }).join('')}</tbody></table></div>`;
+}
+async function saveAllForecasts(){
+  const inputs=document.querySelectorAll('#forecast-table input[data-code]');
+  const rows=[];
+  inputs.forEach(inp=>rows.push({code:inp.dataset.code,year_month:inp.dataset.month,forecast_qty:parseInt(inp.value)||0,updated_at:new Date().toISOString()}));
+  if(!rows.length){showAlert('保存するデータがありません','err');return;}
+  await sb.from('monthly_forecasts').delete().in('code',rows.map(r=>r.code)).in('year_month',[...new Set(rows.map(r=>r.year_month))]);
+  const{error}=await sb.from('monthly_forecasts').insert(rows);
+  if(error){showAlert('保存に失敗しました: '+error.message,'err');return;}
+  rows.forEach(r=>{
+    const idx=D.forecasts.findIndex(f=>f.code===r.code&&f.year_month===r.year_month);
+    if(idx>=0)D.forecasts[idx].forecast_qty=r.forecast_qty;else D.forecasts.push(r);
+  });
+  showAlert(`${rows.length}件の予測を保存しました`);
+}
+
+// ── 生産中 ─────────────────────────────────────────
+function renderProgress(){
+  const el=document.getElementById('progress-table');
+  const search=(document.getElementById('progress-search')?.value||'').toLowerCase();
+  let products=D.products;
+  if(search)products=products.filter(p=>p.code.toLowerCase().includes(search)||(p.name||'').toLowerCase().includes(search));
+  if(!products.length){el.innerHTML='<div class="empty-state">先にCSVを取込んでください</div>';return;}
+  const getQty=c=>{const p=D.progress.find(p=>p.code===c);return p?p.qty:0;};
+  const getNote=c=>{const p=D.progress.find(p=>p.code===c);return p?p.note:'';};
+  const getUpd=c=>{const p=D.progress.find(p=>p.code===c);return p?p.updated_at?.split('T')[0]:'';};
+  el.innerHTML=`<div class="table-wrap"><table class="list">
+    <thead><tr><th>品番</th><th>商品名</th><th style="text-align:right">実在庫</th><th style="text-align:right">生産中数量</th><th>メモ</th><th style="color:#ccc">更新日</th></tr></thead>
+    <tbody>${products.map(p=>`<tr>
+      <td style="font-family:monospace;font-size:12px">${p.code}</td>
+      <td style="font-size:12px;color:#555">${p.name||'—'}</td>
+      <td style="text-align:right;color:#888">${getLatestStock(p.code).toLocaleString()}</td>
+      <td style="text-align:right"><input class="month-input" type="number" min="0" data-code="${p.code}" data-field="qty" value="${getQty(p.code)}"></td>
+      <td><input type="text" data-code="${p.code}" data-field="note" value="${getNote(p.code)}" placeholder="工場名など" style="width:160px;padding:5px 8px;font-size:12px"></td>
+      <td style="font-size:11px;color:#ccc">${getUpd(p.code)}</td>
+    </tr>`).join('')}</tbody></table></div>`;
+}
+async function saveAllProgress(){
+  const qtyInputs=document.querySelectorAll('#progress-table input[data-field="qty"]');
+  const rows=[];
+  qtyInputs.forEach(inp=>{
+    const code=inp.dataset.code;
+    const qty=parseInt(inp.value)||0;
+    const noteEl=document.querySelector(`#progress-table input[data-code="${code}"][data-field="note"]`);
+    rows.push({code,qty,note:noteEl?noteEl.value.trim():'',updated_at:new Date().toISOString()});
+  });
+  if(!rows.length){showAlert('データがありません','err');return;}
+  const{error}=await sb.from('production_progress').upsert(rows,{onConflict:'code'});
+  if(error){showAlert('保存に失敗しました: '+error.message,'err');return;}
+  D.progress=rows;
+  showAlert(`${rows.length}件の生産中数量を保存しました`);
+}
+
+// ── セット構成 ─────────────────────────────────────
+async function addSetComposition(){
+  const setCode=document.getElementById('s-setcode').value.trim();
+  const setName=document.getElementById('s-setname').value.trim();
+  const baseCode=document.getElementById('s-basecode').value.trim();
+  const mult=parseInt(document.getElementById('s-mult').value)||1;
+  if(!setCode||!baseCode){showAlert('セット品番と個別品番は必須です','err');return;}
+  const{data,error}=await sb.from('set_compositions').insert({set_code:setCode,set_name:setName,base_code:baseCode,multiplier:mult}).select().single();
+  if(error){showAlert('追加に失敗しました: '+error.message,'err');return;}
+  D.setCompositions.push(data);
+  ['s-setcode','s-setname','s-basecode'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('s-mult').value='1';
+  renderSets();showAlert(`「${setCode}」を追加しました`);
+}
+async function deleteSetComposition(id){
+  if(!confirm('削除しますか？'))return;
+  const{error}=await sb.from('set_compositions').delete().eq('id',id);
+  if(error){showAlert('削除に失敗しました','err');return;}
+  D.setCompositions=D.setCompositions.filter(s=>s.id!==id);
+  renderSets();
+}
+function renderSets(){
+  const el=document.getElementById('sets-list');
+  if(!D.setCompositions.length){el.innerHTML='<div class="empty-state">セット構成が登録されていません</div>';return;}
+  el.innerHTML=`<div class="table-wrap"><table class="list">
+    <thead><tr><th>セット品番</th><th>セット商品名</th><th>→ 個別品番</th><th style="text-align:center">構成数</th><th></th></tr></thead>
+    <tbody>${D.setCompositions.map(s=>`<tr>
+      <td style="font-family:monospace;font-size:12px">${s.set_code}</td>
+      <td style="font-size:12px;color:#555">${s.set_name||'—'}</td>
+      <td style="font-family:monospace;font-size:12px;color:#1a5fa0">${s.base_code}</td>
+      <td style="text-align:center;font-weight:600">${s.multiplier}個</td>
+      <td><button class="btn sm danger" onclick="deleteSetComposition(${s.id})">削除</button></td>
+    </tr>`).join('')}</tbody></table></div>`;
+}
+
+// ── 色別販売 ───────────────────────────────────────
+function initSalesTab(){
+  const months=[...new Set(D.monthlySales.map(s=>s.year_month))].sort().reverse();
+  const msel=document.getElementById('sales-filter-month');
+  const mcur=msel.value||months[0]||'';
+  msel.innerHTML=months.map(m=>`<option value="${m}"${m===mcur?' selected':''}>${fmtYM(m)}</option>`).join('');
+
+  const codes=[...new Set(D.monthlySales.map(s=>s.code))].sort();
+  const csel=document.getElementById('sales-filter-code');
+  const ccur=csel.value;
+  csel.innerHTML='<option value="">全品番</option>'+codes.map(c=>`<option value="${c}"${c===ccur?' selected':''}>${c}</option>`).join('');
+  renderSales();
+}
+function renderSales(){
+  const el=document.getElementById('sales-table');
+  const monthFilter=document.getElementById('sales-filter-month')?.value||'';
+  const codeFilter=document.getElementById('sales-filter-code')?.value||'';
+  const search=(document.getElementById('sales-search')?.value||'').toLowerCase();
+  let items=D.monthlySales;
+  if(monthFilter)items=items.filter(s=>s.year_month===monthFilter);
+  if(codeFilter)items=items.filter(s=>s.code===codeFilter);
+  if(search)items=items.filter(s=>s.code.toLowerCase().includes(search)||(s.name||'').toLowerCase().includes(search)||(s.color||'').toLowerCase().includes(search));
+  items=[...items].sort((a,b)=>(Number(b.sales_qty)||0)-(Number(a.sales_qty)||0));
+  if(!items.length){el.innerHTML='<div class="empty-state">データがありません</div>';return;}
+  const maxQty=Number(items[0]?.sales_qty)||1;
+  el.innerHTML=`<div class="table-wrap"><table class="list">
+    <thead><tr><th>品番</th><th>商品名</th><th>色</th><th>サイズ</th><th style="text-align:right">販売数</th><th style="min-width:140px">比率</th></tr></thead>
+    <tbody>${items.map(s=>{
+      const pct=Math.round(Number(s.sales_qty)/maxQty*100);
+      return `<tr>
+        <td style="font-family:monospace;font-size:12px">${s.code}</td>
+        <td style="font-size:12px;color:#555;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${s.name||'—'}</td>
+        <td style="font-size:12px">${s.color||'—'}</td>
+        <td style="font-size:12px;color:#888">${s.size_attr||'—'}</td>
+        <td style="text-align:right;font-weight:600">${Number(s.sales_qty).toLocaleString()}</td>
+        <td><div style="display:flex;align-items:center;gap:6px">
+          <div class="progress-bar-wrap" style="width:120px"><div class="progress-bar bar-green" style="width:${pct}%"></div></div>
+          <span style="font-size:11px;color:#888">${s.sales_qty}</span>
+        </div></td>
+      </tr>`;
+    }).join('')}</tbody></table></div>`;
+}
+
+// ── 非表示設定 ─────────────────────────────────────
+function renderHidden(){
+  const el=document.getElementById('hidden-list');
+  const search=(document.getElementById('hidden-search')?.value||'').toLowerCase();
+  const showOnly=document.getElementById('hidden-show-only')?.checked;
+  let prods=[...D.allProducts];
+  if(showOnly)prods=prods.filter(p=>p.active===false);
+  if(search)prods=prods.filter(p=>p.code.toLowerCase().includes(search)||(p.name||'').toLowerCase().includes(search));
+  if(!prods.length){el.innerHTML='<div class="empty-state">品番がありません</div>';return;}
+  el.innerHTML=`<div class="table-wrap"><table class="list">
+    <thead><tr><th>品番</th><th>商品名</th><th style="text-align:center">状態</th><th style="text-align:center">操作</th></tr></thead>
+    <tbody>${prods.map(p=>{
+      const hidden=p.active===false;
+      return`<tr style="${hidden?'opacity:.5':''}">
+        <td style="font-family:monospace;font-size:12px">${p.code}</td>
+        <td style="font-size:12px;color:#555">${p.name||'—'}</td>
+        <td style="text-align:center">${hidden
+          ?'<span style="font-size:11px;padding:2px 8px;border-radius:4px;background:#f0ede8;color:#999">非表示</span>'
+          :'<span style="font-size:11px;padding:2px 8px;border-radius:4px;background:#eaf3de;color:#3a6d10">表示中</span>'
+        }</td>
+        <td style="text-align:center">
+          ${hidden
+            ?`<button class="btn sm" onclick="toggleHidden('${p.code}',false)">表示に戻す</button>`
+            :`<button class="btn sm danger" onclick="toggleHidden('${p.code}',true)">非表示にする</button>`
+          }
+        </td>
+      </tr>`;
+    }).join('')}</tbody></table></div>`;
+}
+async function toggleHidden(code,hide){
+  const{error}=await sb.from('products').update({active:!hide}).eq('code',code);
+  if(error){showAlert('更新に失敗しました: '+error.message,'err');return;}
+  const p=D.allProducts.find(p=>p.code===code);
+  if(p)p.active=!hide;
+  D.products=D.allProducts.filter(p=>p.active!==false);
+  renderHidden();
+  showAlert(hide?`「${code}」を非表示にしました`:`「${code}」を表示に戻しました`);
+}
+
+// ── 初期化 ─────────────────────────────────────────
+(async()=>{
+  initImportYearMonth();
+  initForecastMonths();
+  await loadAll();
+  renderAlert();
+})();
+</script>
+</body>
+</html>
