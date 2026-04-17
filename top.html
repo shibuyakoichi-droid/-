@@ -217,6 +217,16 @@ h1 span {
   color: var(--card-accent);
 }
 
+/* Section label */
+.section-label {
+  font-family: 'DM Mono', monospace;
+  font-size: 11px;
+  letter-spacing: .15em;
+  color: var(--muted);
+  text-transform: uppercase;
+  margin-bottom: 16px;
+}
+
 /* Footer */
 .footer {
   margin-top: 64px;
@@ -256,17 +266,17 @@ h1 span {
 <body>
 <div class="container">
 
-  <div class="eyebrow">mofmofu / 楽天RMS 分析ツール集</div>
+  <div class="eyebrow">mofmofu / 社内ツール集</div>
 
-  <h1>データ分析を、<br><span>もっとはやく。</span></h1>
+  <h1>業務を、<br><span>もっとはやく。</span></h1>
 
   <p class="subtitle">
-    楽天RMSのデータをコピペ・アップロードするだけで<br>
-    昨対比較・販促費計算が自動で完了するツール集です。
+    各種データ分析・納品管理ツールをまとめたポータルです。
   </p>
 
   <div class="divider"></div>
 
+  <div class="section-label">📊 楽天RMS 分析</div>
   <div class="tools">
 
     <a href="flow.html" class="tool-card orange">
@@ -341,38 +351,24 @@ h1 span {
       <div class="tool-arrow">→</div>
     </a>
 
+  </div>
 
-    <a href="order_management.html" class="tool-card yellow">
-      <div class="tool-icon">🗂️</div>
+  <div class="section-label" style="margin-top:40px;">📦 納品管理</div>
+  <div class="tools">
+
+    <a href="https://shibuyakoichi-droid.github.io/mofmofu-delivery/" class="tool-card cyan" target="_blank">
+      <div class="tool-icon">🧾</div>
       <div class="tool-body">
-        <div class="tool-name">発注管理システム</div>
+        <div class="tool-name">納品書管理システム</div>
         <div class="tool-desc">
-          工場別の発注状況をリアルタイム管理。<br>
-          新規発注・進捗更新・品番マスタ管理をスマホでも操作できます。
+          工場別の納品書を入力・蓄積・集計。<br>
+          月別・工場別・工程別の金額サマリーをリアルタイムで確認できます。
         </div>
         <div class="tool-tags">
-          <span class="tag">発注登録</span>
-          <span class="tag">進捗管理</span>
-          <span class="tag">音声入力</span>
-          <span class="tag">工場マスタ</span>
-        </div>
-      </div>
-      <div class="tool-arrow">→</div>
-    </a>
-
-    <a href="production_sort.html" class="tool-card cyan">
-      <div class="tool-icon">📋</div>
-      <div class="tool-body">
-        <div class="tool-name">生産管理 販売数順ソート</div>
-        <div class="tool-desc">
-          生産管理xlsx・販売CSV・セットCSVをアップロードするだけ。<br>
-          販売数の多いSKU順にブラウザ上で一覧表示。セット商品の按分にも対応。
-        </div>
-        <div class="tool-tags">
-          <span class="tag">XLSXアップロード</span>
-          <span class="tag">販売数ソート</span>
-          <span class="tag">セット按分</span>
-          <span class="tag">絞り込み対応</span>
+          <span class="tag">納品書入力</span>
+          <span class="tag">月別集計</span>
+          <span class="tag">工場別集計</span>
+          <span class="tag">Supabase連携</span>
         </div>
       </div>
       <div class="tool-arrow">→</div>
