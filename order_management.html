@@ -2,934 +2,805 @@
 <html lang="ja">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>発注管理システム</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>発注管理 — mofmofu</title>
 <style>
-:root {
-  --bg: #0f1117;
-  --surface: #181c27;
-  --surface2: #1e2433;
-  --surface3: #242938;
-  --border: #252a38;
-  --text: #f0f2f8;
-  --muted: #5a607a;
-  --accent: #6366f1;
-  --accent-dim: rgba(99,102,241,.15);
-  --s-pending:  #fbbf24;
-  --s-progress: #f97316;
-  --s-shipped:  #06b6d4;
-  --s-done:     #34d399;
-  --nav-h: 64px;
-  --safe-bottom: env(safe-area-inset-bottom, 0px);
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Helvetica Neue',Arial,'Hiragino Kaku Gothic ProN','Hiragino Sans',Meiryo,sans-serif;font-size:14px;color:#1a1a1a;background:#f5f4f0;min-height:100vh}
+.topbar{background:#fff;border-bottom:1px solid #e8e6e0;padding:0 24px;display:flex;align-items:center;justify-content:space-between;height:56px;position:sticky;top:0;z-index:100}
+.topbar-title{font-size:15px;font-weight:600;letter-spacing:.02em}
+.topbar-sub{font-size:11px;color:#888;margin-top:2px}
+.container{max-width:980px;margin:0 auto;padding:24px 20px}
+.tabs{display:flex;gap:2px;background:#e8e6e0;border-radius:8px;padding:3px;margin-bottom:24px;width:fit-content}
+.tab{padding:7px 18px;font-size:13px;cursor:pointer;border:none;background:none;color:#666;border-radius:6px;font-family:inherit}
+.tab.active{background:#fff;color:#1a1a1a;font-weight:500;box-shadow:0 1px 3px rgba(0,0,0,.08)}
+.panel{display:none}.panel.active{display:block}
+.section-label{font-size:11px;font-weight:600;color:#999;text-transform:uppercase;letter-spacing:.08em;margin-bottom:10px}
+.card{background:#fff;border:1px solid #e8e6e0;border-radius:12px;padding:20px}
+.stat-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:24px}
+.stat{background:#fff;border:1px solid #e8e6e0;border-radius:10px;padding:16px}
+.stat-label{font-size:11px;color:#999;margin-bottom:6px}
+.stat-value{font-size:26px;font-weight:600;color:#1a1a1a;line-height:1}
+.stat-unit{font-size:12px;color:#999;margin-top:4px}
+.month-chip{display:inline-block;background:#f0ede8;color:#555;font-size:12px;font-weight:600;padding:4px 12px;border-radius:20px;margin-bottom:12px}
+.table-wrap{background:#fff;border:1px solid #e8e6e0;border-radius:12px;overflow:hidden;margin-bottom:16px}
+table.list{width:100%;border-collapse:collapse}
+table.list th{font-size:11px;font-weight:600;color:#999;text-transform:uppercase;letter-spacing:.05em;padding:10px 14px;border-bottom:1px solid #e8e6e0;text-align:left;background:#faf9f7;white-space:nowrap}
+table.list th.sortable{cursor:pointer;user-select:none}
+table.list th.sortable:hover{color:#555}
+table.list td{padding:10px 14px;border-bottom:1px solid #f0ede8;font-size:13px;vertical-align:middle}
+table.list tr:last-child td{border-bottom:none}
+table.list tr:hover td{background:#faf9f7}
+.sort-arrow{font-size:10px;margin-left:3px;color:#bbb}
+.sort-arrow.active{color:#555}
+.badge{display:inline-block;padding:3px 9px;border-radius:20px;font-size:11px;font-weight:600}
+.badge-knit{background:#e1f5ee;color:#0a6b50}
+.badge-dye{background:#faeeda;color:#7a4d0a}
+.badge-cut{background:#e6f1fb;color:#1a5fa0}
+.badge-sew{background:#fbeaf0;color:#8a2244}
+.badge-other{background:#f0ede8;color:#555}
+.badge-yarn{background:#f3eafd;color:#6b2fa0}
+.badge-socks{background:#fde8f0;color:#a02060}
+.btn{padding:8px 18px;border:1px solid #d8d5cf;border-radius:8px;font-size:13px;cursor:pointer;background:#fff;color:#1a1a1a;font-family:inherit;transition:background .15s}
+.btn:hover{background:#f5f4f0}
+.btn.primary{background:#1a1a1a;color:#fff;border-color:#1a1a1a}
+.btn.primary:hover{background:#333}
+.btn.danger{color:#a32d2d;border-color:#f0c0c0}
+.btn.danger:hover{background:#fcebeb}
+.btn.sm{padding:4px 10px;font-size:12px}
+.btn.active-filter{background:#1a1a1a;color:#fff;border-color:#1a1a1a}
+.filter-bar{display:flex;gap:8px;align-items:center;margin-bottom:14px;flex-wrap:wrap}
+.filter-bar select{width:auto;padding:6px 10px;font-size:12px}
+.filter-bar label{font-size:12px;color:#888}
+.form-row{display:grid;gap:10px;margin-bottom:12px}
+.form-row.col2{grid-template-columns:1fr 1fr}
+.form-row.col3{grid-template-columns:1fr 1fr 1fr}
+.form-group label{display:block;font-size:12px;font-weight:500;color:#666;margin-bottom:4px}
+input,select,textarea{width:100%;padding:8px 10px;border:1px solid #d8d5cf;border-radius:7px;font-size:13px;background:#fff;color:#1a1a1a;font-family:inherit}
+input:focus,select:focus,textarea:focus{outline:none;border-color:#999;box-shadow:0 0 0 3px rgba(0,0,0,.05)}
+input[readonly]{background:#f5f4f0;color:#888}
+.empty-state{text-align:center;padding:40px 0;color:#aaa;font-size:13px}
+.month-section{margin-bottom:28px}
+.month-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px}
+.month-title{font-size:14px;font-weight:600}
+.month-summary{font-size:12px;color:#999}
+.alert{padding:10px 16px;border-radius:8px;font-size:13px;margin-bottom:16px}
+.alert-ok{background:#eaf3de;color:#3a6d10;border:1px solid #b8d98a}
+.alert-err{background:#fcebeb;color:#a32d2d;border:1px solid #f0c0c0}
+.subtabs{display:flex;gap:4px;margin-bottom:16px}
+.subtab{padding:5px 14px;font-size:12px;cursor:pointer;border:1px solid #d8d5cf;border-radius:6px;background:#fff;color:#666;font-family:inherit}
+.subtab.active{background:#1a1a1a;color:#fff;border-color:#1a1a1a}
+.modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:200;align-items:center;justify-content:center}
+.modal-overlay.open{display:flex}
+.modal{background:#fff;border-radius:16px;padding:24px;width:100%;max-width:700px;max-height:90vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,.2)}
+.modal-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:20px}
+.modal-title{font-size:16px;font-weight:600}
+.process-tag{display:inline-flex;align-items:center;padding:3px 12px;border-radius:20px;font-size:12px;font-weight:600;margin-left:10px}
+.items-tbl{width:100%;border-collapse:collapse;margin-bottom:6px;table-layout:fixed}
+.items-tbl th{font-size:11px;color:#999;font-weight:600;text-align:left;padding:5px 6px;border-bottom:1px solid #e8e6e0;white-space:nowrap}
+.items-tbl td{padding:4px 4px;border-bottom:1px solid #f0ede8;vertical-align:middle}
+.items-tbl td input{padding:5px 6px;font-size:12px;width:100%}
+.add-row-btn{background:none;border:none;font-size:12px;color:#999;cursor:pointer;padding:4px 6px;font-family:inherit}
+.add-row-btn:hover{color:#1a1a1a}
+/* ===== 印刷 ===== */
+@media print{
+  .topbar,.tabs,.no-print,
+  .modal-overlay,#alert-area,.container{display:none!important}
+  .print-doc{display:block!important;position:static}
 }
-* { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
-html, body { height: 100%; background: var(--bg); color: var(--text); font-family: 'Hiragino Kaku Gothic ProN','Noto Sans JP','Meiryo',sans-serif; font-size: 14px; overflow: hidden; }
-
-/* ── Layout ── */
-#app { display: flex; flex-direction: column; height: 100%; }
-.header {
-  display: flex; align-items: center; justify-content: space-between;
-  padding: 14px 16px 10px;
-  background: var(--surface);
-  border-bottom: 1px solid var(--border);
-  flex-shrink: 0;
-  padding-top: calc(14px + env(safe-area-inset-top, 0px));
-}
-.header-title { font-size: 17px; font-weight: 800; letter-spacing: -.02em; }
-.header-action {
-  padding: 7px 16px; background: var(--accent); color: #fff;
-  border: none; border-radius: 8px; font-size: 13px; font-weight: 700;
-  font-family: inherit; cursor: pointer; transition: background .15s;
-}
-.header-action:hover { background: #4f46e5; }
-.header-action.hidden { visibility: hidden; }
-
-.content {
-  flex: 1; overflow-y: auto; overflow-x: hidden;
-  padding: 16px 16px calc(var(--nav-h) + var(--safe-bottom) + 16px);
-}
-
-/* ── Bottom nav ── */
-.bottom-nav {
-  position: fixed; bottom: 0; left: 0; right: 0;
-  height: calc(var(--nav-h) + var(--safe-bottom));
-  padding-bottom: var(--safe-bottom);
-  background: var(--surface);
-  border-top: 1px solid var(--border);
-  display: flex;
-  z-index: 100;
-}
-.nav-item {
-  flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center;
-  gap: 3px; cursor: pointer; color: var(--muted); transition: color .15s; font-size: 10px;
-  padding: 6px 0; border: none; background: none; font-family: inherit;
-}
-.nav-item .nav-icon { font-size: 22px; line-height: 1; }
-.nav-item.active { color: var(--accent); }
-
-/* ── Screens ── */
-.screen { display: none; }
-.screen.active { display: block; }
-
-/* ── Cards ── */
-.card {
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: 14px;
-  padding: 14px 16px;
-  margin-bottom: 10px;
-}
-.card-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
-
-/* ── Status badge ── */
-.badge {
-  display: inline-flex; align-items: center; padding: 3px 10px;
-  border-radius: 999px; font-size: 11px; font-weight: 700; white-space: nowrap;
-}
-.badge.pending  { background: rgba(251,191,36,.15); color: var(--s-pending); }
-.badge.progress { background: rgba(249,115,22,.15); color: var(--s-progress); }
-.badge.shipped  { background: rgba(6,182,212,.15);  color: var(--s-shipped); }
-.badge.done     { background: rgba(52,211,153,.15); color: var(--s-done); }
-
-/* ── Stats bar ── */
-.stats-grid { display: grid; grid-template-columns: repeat(2,1fr); gap: 10px; margin-bottom: 16px; }
-.stat-card {
-  background: var(--surface); border: 1px solid var(--border);
-  border-radius: 12px; padding: 12px 14px;
-}
-.stat-num { font-size: 28px; font-weight: 800; line-height: 1; margin-bottom: 3px; }
-.stat-label { font-size: 11px; color: var(--muted); }
-
-/* ── Factory summary cards ── */
-.factory-card {
-  background: var(--surface); border: 1px solid var(--border);
-  border-radius: 14px; padding: 14px 16px; margin-bottom: 10px;
-}
-.factory-name { font-size: 15px; font-weight: 700; margin-bottom: 10px; }
-.factory-stats { display: flex; gap: 8px; flex-wrap: wrap; }
-.fstat {
-  display: flex; align-items: center; gap: 5px;
-  background: var(--surface2); border-radius: 8px; padding: 5px 10px;
-  font-size: 12px;
-}
-.fstat-dot { width: 7px; height: 7px; border-radius: 50%; }
-
-/* ── Form ── */
-.form-section { margin-bottom: 20px; }
-.form-label { font-size: 11px; font-weight: 700; color: var(--muted); letter-spacing: .08em; margin-bottom: 6px; display: block; }
-.form-input, .form-select, .form-textarea {
-  width: 100%; padding: 11px 14px;
-  background: var(--surface); border: 1.5px solid var(--border);
-  border-radius: 10px; color: var(--text); font-size: 14px; font-family: inherit;
-  outline: none; transition: border-color .15s; -webkit-appearance: none; appearance: none;
-}
-.form-input:focus, .form-select:focus, .form-textarea:focus { border-color: var(--accent); }
-.form-textarea { resize: vertical; min-height: 80px; }
-.form-select { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%235a607a' stroke-width='2' fill='none' stroke-linecap='round'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 14px center; padding-right: 36px; }
-.form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-.voice-wrap { position: relative; }
-.voice-wrap .form-input { padding-right: 44px; }
-.voice-btn {
-  position: absolute; right: 10px; top: 50%; transform: translateY(-50%);
-  background: none; border: none; cursor: pointer; font-size: 20px; padding: 4px;
-  color: var(--muted); transition: color .15s;
-}
-.voice-btn.recording { color: #ef4444; animation: pulse .8s infinite; }
-.voice-btn:hover { color: var(--text); }
-@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.4} }
-
-.submit-btn {
-  width: 100%; padding: 15px; background: var(--accent); color: #fff;
-  border: none; border-radius: 12px; font-size: 15px; font-weight: 700;
-  font-family: inherit; cursor: pointer; transition: background .15s; margin-top: 8px;
-}
-.submit-btn:hover { background: #4f46e5; }
-
-/* ── Filter tabs ── */
-.filter-tabs { display: flex; gap: 6px; margin-bottom: 14px; overflow-x: auto; padding-bottom: 2px; }
-.filter-tabs::-webkit-scrollbar { display: none; }
-.ftab {
-  padding: 6px 14px; border-radius: 999px; font-size: 12px; font-weight: 700;
-  border: 1.5px solid var(--border); color: var(--muted); white-space: nowrap;
-  cursor: pointer; background: none; font-family: inherit; transition: all .15s;
-}
-.ftab.active { border-color: var(--accent); color: var(--accent); background: var(--accent-dim); }
-
-/* ── Search ── */
-.search-box {
-  width: 100%; padding: 10px 14px; background: var(--surface);
-  border: 1.5px solid var(--border); border-radius: 10px;
-  color: var(--text); font-size: 14px; font-family: inherit;
-  outline: none; margin-bottom: 14px; transition: border-color .15s;
-}
-.search-box:focus { border-color: var(--accent); }
-.search-box::placeholder { color: var(--muted); }
-
-/* ── Order card ── */
-.order-card {
-  background: var(--surface); border: 1px solid var(--border);
-  border-radius: 14px; padding: 14px 16px; margin-bottom: 10px; cursor: pointer;
-  transition: border-color .15s;
-}
-.order-card:hover { border-color: var(--accent); }
-.order-top { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 8px; }
-.order-factory { font-size: 11px; color: var(--muted); font-weight: 700; letter-spacing: .05em; }
-.order-meta { display: flex; gap: 6px; align-items: center; margin-top: 4px; }
-.order-code { font-size: 15px; font-weight: 800; }
-.order-name { font-size: 13px; color: var(--muted); }
-.order-detail { font-size: 12px; color: var(--muted); margin-top: 6px; }
-.order-date { font-size: 11px; color: var(--muted); }
-
-/* ── Status stepper ── */
-.stepper { display: flex; gap: 0; margin: 10px 0 0; }
-.step {
-  flex: 1; text-align: center; padding: 7px 4px; font-size: 11px; font-weight: 700;
-  border: 1.5px solid var(--border); color: var(--muted); cursor: pointer;
-  transition: all .15s; first-child:border-radius: 8px 0 0 8px;
-}
-.step:first-child { border-radius: 8px 0 0 8px; }
-.step:last-child  { border-radius: 0 8px 8px 0; }
-.step:not(:first-child) { border-left: none; }
-.step.active.pending  { background: rgba(251,191,36,.15); border-color: var(--s-pending);  color: var(--s-pending); }
-.step.active.progress { background: rgba(249,115,22,.15); border-color: var(--s-progress); color: var(--s-progress); }
-.step.active.shipped  { background: rgba(6,182,212,.15);  border-color: var(--s-shipped);  color: var(--s-shipped); }
-.step.active.done     { background: rgba(52,211,153,.15); border-color: var(--s-done);     color: var(--s-done); }
-
-/* ── Modal ── */
-.modal-overlay {
-  position: fixed; inset: 0; background: rgba(0,0,0,.7);
-  z-index: 200; display: none; align-items: flex-end;
-}
-.modal-overlay.open { display: flex; }
-.modal {
-  background: var(--surface); border-radius: 20px 20px 0 0;
-  width: 100%; max-height: 90vh; overflow-y: auto;
-  padding: 20px 20px calc(20px + var(--safe-bottom));
-  animation: slideUp .25s ease;
-}
-@keyframes slideUp { from{transform:translateY(100%)} to{transform:translateY(0)} }
-.modal-handle { width: 36px; height: 4px; background: var(--border); border-radius: 2px; margin: 0 auto 16px; }
-.modal-title { font-size: 17px; font-weight: 800; margin-bottom: 16px; }
-
-/* ── Danger btn ── */
-.danger-btn {
-  width: 100%; padding: 13px; background: none; color: #f87171;
-  border: 1.5px solid rgba(248,113,113,.3); border-radius: 10px;
-  font-size: 14px; font-weight: 700; font-family: inherit; cursor: pointer;
-  transition: all .15s; margin-top: 8px;
-}
-.danger-btn:hover { background: rgba(248,113,113,.1); }
-
-/* ── Icon btn ── */
-.icon-btn { background: none; border: none; cursor: pointer; padding: 6px; color: var(--muted); font-size: 18px; transition: color .15s; }
-.icon-btn:hover { color: var(--text); }
-
-/* ── Empty state ── */
-.empty { text-align: center; color: var(--muted); padding: 48px 16px; }
-.empty-icon { font-size: 48px; margin-bottom: 12px; }
-.empty-text { font-size: 14px; }
-
-/* ── Master list ── */
-.master-item {
-  display: flex; align-items: center; justify-content: space-between;
-  background: var(--surface); border: 1px solid var(--border);
-  border-radius: 12px; padding: 14px 16px; margin-bottom: 8px;
-}
-.master-item-info { flex: 1; }
-.master-item-name { font-size: 15px; font-weight: 700; }
-.master-item-sub  { font-size: 12px; color: var(--muted); margin-top: 2px; }
-.master-actions { display: flex; gap: 4px; }
-
-/* ── Toast ── */
-#toast {
-  position: fixed; bottom: calc(var(--nav-h) + var(--safe-bottom) + 12px); left: 50%; transform: translateX(-50%) translateY(20px);
-  background: #1e293b; color: var(--text); padding: 10px 20px; border-radius: 999px;
-  font-size: 13px; font-weight: 700; white-space: nowrap; z-index: 300;
-  opacity: 0; transition: all .25s; pointer-events: none; border: 1px solid var(--border);
-}
-#toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
-
-/* ── Section header ── */
-.section-head { font-size: 11px; font-weight: 800; color: var(--muted); letter-spacing: .12em; text-transform: uppercase; margin: 18px 0 10px; }
-
-/* ── Delivery warning ── */
-.warning-text { color: #f87171; font-size: 11px; font-weight: 700; }
+.print-doc{display:none}
 </style>
 </head>
 <body>
-<div id="app">
-  <div class="header">
-    <div class="header-title" id="header-title">発注管理</div>
-    <button class="header-action hidden" id="header-action" onclick="headerAction()"></button>
+
+<div class="topbar no-print">
+  <div>
+    <div class="topbar-title">発注管理</div>
+    <div class="topbar-sub">株式会社エル・アイ・シー / mofmofu</div>
   </div>
-
-  <div class="content" id="content">
-
-    <!-- ① ホーム -->
-    <div class="screen active" id="screen-home">
-      <div class="stats-grid" id="home-stats"></div>
-      <div class="section-head">工場別 発注状況</div>
-      <div id="factory-summary"></div>
-    </div>
-
-    <!-- ② 新規発注 -->
-    <div class="screen" id="screen-new">
-      <div class="form-section">
-        <label class="form-label">工場</label>
-        <select class="form-select" id="f-factory"></select>
-      </div>
-      <div class="form-row form-section">
-        <div>
-          <label class="form-label">品番</label>
-          <input class="form-input" id="f-code" list="item-list" placeholder="例: ABC-001" oninput="autoFillItem()">
-          <datalist id="item-list"></datalist>
-        </div>
-        <div>
-          <label class="form-label">品名</label>
-          <input class="form-input" id="f-name" placeholder="例: Tシャツ">
-        </div>
-      </div>
-      <div class="form-row form-section">
-        <div>
-          <label class="form-label">カラー</label>
-          <div class="voice-wrap">
-            <input class="form-input" id="f-color" placeholder="例: ブラック">
-            <button class="voice-btn" onclick="startVoice('f-color',this)" title="音声入力">🎤</button>
-          </div>
-        </div>
-        <div>
-          <label class="form-label">サイズ</label>
-          <input class="form-input" id="f-size" placeholder="例: M">
-        </div>
-      </div>
-      <div class="form-row form-section">
-        <div>
-          <label class="form-label">数量</label>
-          <input class="form-input" id="f-qty" type="number" placeholder="0" min="1">
-        </div>
-        <div>
-          <label class="form-label">納期</label>
-          <input class="form-input" id="f-delivery" type="date">
-        </div>
-      </div>
-      <div class="form-section">
-        <label class="form-label">メモ</label>
-        <div class="voice-wrap">
-          <textarea class="form-textarea" id="f-memo" placeholder="備考・特記事項など（音声入力可）" style="padding-right:44px"></textarea>
-          <button class="voice-btn" style="top:20px;transform:none;" onclick="startVoice('f-memo',this)" title="音声入力">🎤</button>
-        </div>
-      </div>
-      <button class="submit-btn" onclick="submitOrder()">＋ 発注を登録する</button>
-    </div>
-
-    <!-- ③ 発注一覧 -->
-    <div class="screen" id="screen-orders">
-      <div class="filter-tabs" id="order-filters"></div>
-      <input class="search-box" id="order-search" placeholder="🔍  品番・品名・工場で検索..." oninput="renderOrders()">
-      <div id="order-list"></div>
-    </div>
-
-    <!-- ④ 工場マスタ -->
-    <div class="screen" id="screen-factories">
-      <div id="factory-list"></div>
-    </div>
-
-    <!-- ⑤ 品番マスタ -->
-    <div class="screen" id="screen-items">
-      <input class="search-box" id="item-search" placeholder="🔍  品番・品名で検索..." oninput="renderItems()">
-      <div id="item-list-el"></div>
-    </div>
-
-  </div><!-- /content -->
-
-  <!-- Bottom nav -->
-  <nav class="bottom-nav">
-    <button class="nav-item active" data-screen="home"      onclick="navigate('home')">      <span class="nav-icon">🏠</span>ホーム</button>
-    <button class="nav-item"        data-screen="new"       onclick="navigate('new')">       <span class="nav-icon">✏️</span>新規発注</button>
-    <button class="nav-item"        data-screen="orders"    onclick="navigate('orders')">    <span class="nav-icon">📋</span>一覧</button>
-    <button class="nav-item"        data-screen="factories" onclick="navigate('factories')"> <span class="nav-icon">🏭</span>工場</button>
-    <button class="nav-item"        data-screen="items"     onclick="navigate('items')">     <span class="nav-icon">📦</span>品番</button>
-  </nav>
+  <button class="btn primary" onclick="openNewOrder()">＋ 新規発注書</button>
 </div>
 
-<!-- Modal -->
-<div class="modal-overlay" id="modal-overlay" onclick="closeModal(event)">
-  <div class="modal" id="modal-body">
-    <div class="modal-handle"></div>
-    <div id="modal-content"></div>
+<div class="container no-print">
+  <div id="alert-area"></div>
+  <div class="tabs">
+    <button class="tab active" onclick="switchTab('dashboard')">概要</button>
+    <button class="tab" onclick="switchTab('history')">発注履歴</button>
+    <button class="tab" onclick="switchTab('analytics')">集計</button>
+    <button class="tab" onclick="switchTab('factories')">工場マスタ</button>
+  </div>
+
+  <!-- 概要 -->
+  <div class="panel active" id="tab-dashboard">
+    <div id="stats-area"></div>
+    <div class="section-label">今月の発注一覧</div>
+    <div id="recent-orders"></div>
+  </div>
+
+  <!-- 発注履歴 -->
+  <div class="panel" id="tab-history">
+    <div class="filter-bar">
+      <label>表示：</label>
+      <button class="subtab active" onclick="setHistoryView('month')">月別</button>
+      <button class="subtab" onclick="setHistoryView('factory')">工場別</button>
+      <button class="subtab" onclick="setHistoryView('fabric')">品番別</button>
+      <label style="margin-left:8px">絞り込み：</label>
+      <select id="hist-filter-month" onchange="renderHistory()">
+        <option value="">全期間</option>
+      </select>
+      <select id="hist-filter-factory" onchange="renderHistory()">
+        <option value="">全工場</option>
+      </select>
+    </div>
+    <div id="history-area"></div>
+  </div>
+
+  <!-- 集計 -->
+  <div class="panel" id="tab-analytics">
+    <div class="filter-bar">
+      <label>期間：</label>
+      <select id="ana-filter-month" onchange="renderAnalytics()">
+        <option value="">全期間</option>
+      </select>
+    </div>
+    <div class="subtabs">
+      <button class="subtab active" onclick="setAnalyticsView('factory')">工場別</button>
+      <button class="subtab" onclick="setAnalyticsView('fabric')">品番別</button>
+    </div>
+    <div id="analytics-area"></div>
+  </div>
+
+  <!-- 工場マスタ -->
+  <div class="panel" id="tab-factories">
+    <div class="card" style="margin-bottom:16px">
+      <div class="section-label" style="margin-bottom:12px">工場を追加</div>
+      <div class="form-row col3">
+        <div class="form-group"><label>工場名</label><input id="f-name" placeholder="例：坂本繊維"></div>
+        <div class="form-group"><label>担当者</label><input id="f-contact" placeholder="例：坂本様"></div>
+        <div class="form-group"><label>カテゴリ</label>
+          <select id="f-cat">
+            <option value="編み">編み</option>
+            <option value="染色">染色</option>
+            <option value="裁断">裁断</option>
+            <option value="縫製">縫製</option>
+            <option value="糸">糸</option>
+            <option value="靴下">靴下</option>
+            <option value="その他">その他</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-row col2">
+        <div class="form-group"><label>電話番号</label><input id="f-tel" placeholder="例：06-0000-0000"></div>
+        <div class="form-group"><label>メールアドレス</label><input id="f-email" placeholder="例：info@example.com"></div>
+      </div>
+      <div style="text-align:right"><button class="btn primary" onclick="addFactory()">追加する</button></div>
+    </div>
+    <div id="factory-list"></div>
   </div>
 </div>
 
-<!-- Toast -->
-<div id="toast"></div>
+<!-- モーダル -->
+<div class="modal-overlay no-print" id="order-modal">
+  <div class="modal">
+    <div class="modal-header">
+      <div style="display:flex;align-items:center">
+        <div class="modal-title">新規発注書</div>
+        <span id="process-tag"></span>
+      </div>
+      <button class="btn sm" onclick="closeModal()">閉じる</button>
+    </div>
+    <div class="form-row col2">
+      <div class="form-group"><label>発注先工場 *</label><select id="o-factory" onchange="onFactoryChange()"><option value="">選択してください</option></select></div>
+      <div class="form-group"><label>発注日 *</label><input type="date" id="o-date"></div>
+    </div>
+    <div class="form-row col2">
+      <div class="form-group"><label>希望納期</label><input type="date" id="o-due"></div>
+      <div class="form-group"><label>発注番号（自動）</label><input id="o-number" readonly></div>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label>備考</label><textarea id="o-memo" rows="2" placeholder="特記事項など"></textarea></div>
+    </div>
+    <div style="margin-bottom:12px">
+      <div class="section-label" style="margin-bottom:8px">発注明細</div>
+      <div id="items-hint" style="font-size:12px;color:#bbb;padding:16px 0">工場を選択すると工程に合わせた項目が表示されます</div>
+      <table class="items-tbl" id="items-table" style="display:none">
+        <thead id="items-head"></thead>
+        <tbody id="items-body"></tbody>
+      </table>
+      <button class="add-row-btn" id="add-row-btn" style="display:none" onclick="addItemRow()">＋ 行を追加</button>
+    </div>
+    <div style="display:flex;justify-content:flex-end;gap:8px;padding-top:16px;border-top:1px solid #e8e6e0">
+      <button class="btn" onclick="closeModal()">キャンセル</button>
+      <button class="btn primary" onclick="saveOrder()">保存する</button>
+    </div>
+  </div>
+</div>
+
+<!-- 印刷エリア（画面非表示・印刷時のみ表示） -->
+<div class="print-doc" id="print-content"></div>
 
 <script>
-// ══════════════════════════════════════════
-//  Constants
-// ══════════════════════════════════════════
-const STATUSES = [
-  { key: 'pending',  label: '発注待ち', cls: 'pending' },
-  { key: 'progress', label: '生産中',   cls: 'progress' },
-  { key: 'shipped',  label: '出荷済み', cls: 'shipped' },
-  { key: 'done',     label: '完了',     cls: 'done' },
-];
-const STATUS_MAP = Object.fromEntries(STATUSES.map(s => [s.key, s]));
-
-const DEFAULT_FACTORIES = ['坂本繊維','V-TEC','松田染工場','神共ニット','コンセプト','メリット'];
-
-const SCREEN_TITLES = {
-  home: '発注管理', new: '新規発注', orders: '発注一覧',
-  factories: '工場マスタ', items: '品番マスタ',
+// ── スキーマ定義 ────────────────────────────────────
+const SCHEMA={
+  '編み':[
+    {key:'fabricNo',label:'生地番号',w:32,type:'text'},
+    {key:'color',   label:'カラー名',w:32,type:'text'},
+    {key:'tan',     label:'反数',    w:18,type:'number'},
+  ],
+  '染色':[
+    {key:'fabricNo',label:'生地番号',w:32,type:'text'},
+    {key:'color',   label:'カラー名',w:32,type:'text'},
+    {key:'tan',     label:'反数',    w:18,type:'number'},
+  ],
+  '裁断':[
+    {key:'fabricNo',   label:'生地番号',w:20,type:'text'},
+    {key:'color',      label:'カラー名',w:20,type:'text'},
+    {key:'productName',label:'商品名',  w:22,type:'text'},
+    {key:'tan',        label:'反数',    w:12,type:'number'},
+    {key:'cutQty',     label:'裁断数',  w:12,type:'number'},
+  ],
+  '縫製':[
+    {key:'fabricNo',   label:'生地番号',w:26,type:'text'},
+    {key:'color',      label:'カラー名',w:26,type:'text'},
+    {key:'productName',label:'商品名',  w:28,type:'text'},
+    {key:'cutQty',     label:'裁断数',  w:14,type:'number'},
+  ],
+  'その他':[
+    {key:'fabricNo',label:'生地番号',w:26,type:'text'},
+    {key:'color',   label:'カラー名',w:26,type:'text'},
+    {key:'note',    label:'内容',    w:28,type:'text'},
+    {key:'qty',     label:'数量',    w:12,type:'number'},
+  ],
+  '糸':[
+    {key:'yarnNo',  label:'糸品番',  w:20,type:'text'},
+    {key:'color',   label:'色番/カラー名',w:20,type:'text'},
+    {key:'count',   label:'番手',    w:16,type:'text'},
+    {key:'qty',     label:'数量',    w:14,type:'number'},
+    {key:'qtyUnit', label:'単位',    w:12,type:'unit'},
+  ],
+  '靴下':[
+    {key:'yarnNo',      label:'糸品番',      w:16,type:'text'},
+    {key:'color',       label:'色番/カラー名',w:16,type:'text'},
+    {key:'count',       label:'番手',        w:12,type:'text'},
+    {key:'qty',         label:'数量',        w:12,type:'number'},
+    {key:'qtyUnit',     label:'単位',        w:10,type:'unit'},
+    {key:'productName', label:'商品名',      w:18,type:'text'},
+  ],
 };
-const SCREEN_ACTIONS = {
-  factories: '＋ 追加', items: '＋ 追加',
+const QTY_KEY={編み:'tan',染色:'tan',裁断:'cutQty',縫製:'cutQty',その他:'qty',糸:'qty',靴下:'qty'};
+const CAT_BADGE={編み:'knit',染色:'dye',裁断:'cut',縫製:'sew',その他:'other',糸:'yarn',靴下:'socks'};
+const CAT_STYLE={
+  編み:'background:#e1f5ee;color:#0a6b50',
+  染色:'background:#faeeda;color:#7a4d0a',
+  裁断:'background:#e6f1fb;color:#1a5fa0',
+  縫製:'background:#fbeaf0;color:#8a2244',
+  糸:'background:#f3eafd;color:#6b2fa0',
+  靴下:'background:#fde8f0;color:#a02060',
+  その他:'background:#f0ede8;color:#555',
 };
+const UNIT={編み:'反',染色:'反',裁断:'点',縫製:'点',糸:'',靴下:'',その他:'点'};
 
-// ══════════════════════════════════════════
-//  Storage helpers
-// ══════════════════════════════════════════
-const db = {
-  get: key => JSON.parse(localStorage.getItem('om_' + key) || '[]'),
-  set: (key, val) => localStorage.setItem('om_' + key, JSON.stringify(val)),
-  uid: () => Date.now().toString(36) + Math.random().toString(36).slice(2, 7),
-};
+const KEYS={orders:'mof_orders2',factories:'mof_factories'};
+let D={orders:[],factories:[]};
+let currentSchema=[];
+let historyView='month';
+let analyticsView='factory';
+// ソート状態: {col, dir}
+let histSort={col:'date',dir:'desc'};
 
-function getOrders()    { return db.get('orders'); }
-function getFactories() { return db.get('factories'); }
-function getItems()     { return db.get('items'); }
-function saveOrders(d)    { db.set('orders', d); }
-function saveFactories(d) { db.set('factories', d); }
-function saveItems(d)     { db.set('items', d); }
-
-// ══════════════════════════════════════════
-//  Navigation
-// ══════════════════════════════════════════
-let currentScreen = 'home';
-let orderFilter = 'all';
-
-function navigate(screen) {
-  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
-  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
-  document.getElementById('screen-' + screen).classList.add('active');
-  document.querySelector(`[data-screen="${screen}"]`).classList.add('active');
-  currentScreen = screen;
-
-  document.getElementById('header-title').textContent = SCREEN_TITLES[screen];
-  const actionBtn = document.getElementById('header-action');
-  if (SCREEN_ACTIONS[screen]) {
-    actionBtn.textContent = SCREEN_ACTIONS[screen];
-    actionBtn.classList.remove('hidden');
-  } else {
-    actionBtn.classList.add('hidden');
+// ── データ読み書き ──────────────────────────────────
+function load(){
+  try{D.orders=JSON.parse(localStorage.getItem(KEYS.orders)||'[]')}catch(e){D.orders=[]}
+  try{D.factories=JSON.parse(localStorage.getItem(KEYS.factories)||'[]')}catch(e){D.factories=[]}
+  if(!D.factories.length){
+    D.factories=[
+      {id:'f1',name:'坂本繊維',  contact:'坂本様',category:'編み', tel:'',email:''},
+      {id:'f2',name:'V-TEC',     contact:'',      category:'染色', tel:'',email:''},
+      {id:'f3',name:'松田染工場',contact:'',      category:'染色', tel:'',email:''},
+      {id:'f4',name:'神共ニット',contact:'',      category:'裁断', tel:'',email:''},
+      {id:'f5',name:'コンセプト',contact:'',      category:'縫製', tel:'',email:''},
+      {id:'f6',name:'メリット',  contact:'',      category:'縫製', tel:'',email:''},
+    ];
+    save();
   }
-
-  // Scroll to top
-  document.getElementById('content').scrollTop = 0;
-
-  if (screen === 'home')      renderHome();
-  if (screen === 'orders')    { orderFilter = 'all'; renderOrders(); }
-  if (screen === 'factories') renderFactories();
-  if (screen === 'items')     renderItems();
-  if (screen === 'new')       initNewOrderForm();
+}
+function save(){
+  localStorage.setItem(KEYS.orders,JSON.stringify(D.orders));
+  localStorage.setItem(KEYS.factories,JSON.stringify(D.factories));
 }
 
-function headerAction() {
-  if (currentScreen === 'factories') openFactoryModal();
-  if (currentScreen === 'items')     openItemModal();
+// ── ユーティリティ ──────────────────────────────────
+function genId(){return 'o'+Date.now()+'_'+Math.random().toString(36).slice(2,6)}
+function genNumber(){
+  const d=new Date(),y=d.getFullYear(),m=String(d.getMonth()+1).padStart(2,'0');
+  const n=D.orders.filter(o=>o.date&&o.date.startsWith(y+'-'+m)).length+1;
+  return `PO-${y}${m}-${String(n).padStart(3,'0')}`;
+}
+function getYM(s){return s?s.substring(0,7):''}
+function formatYM(ym){if(!ym)return '';const[y,m]=ym.split('-');return `${y}年${parseInt(m)}月`;}
+function catBadge(cat){return `<span class="badge badge-${CAT_BADGE[cat]||'other'}">${cat||'—'}</span>`;}
+function getCat(order){
+  const f=D.factories.find(f=>f.id===order.factoryId);
+  return f?f.category:(order.category||'その他');
+}
+function sumQty(order){
+  const qk=QTY_KEY[getCat(order)]||'qty';
+  return (order.items||[]).reduce((s,i)=>s+(parseInt(i[qk])||0),0);
+}
+function getFactoryName(order){
+  const f=D.factories.find(f=>f.id===order.factoryId);
+  return f?f.name:'不明';
 }
 
-// ══════════════════════════════════════════
-//  Home Screen
-// ══════════════════════════════════════════
-function renderHome() {
-  const orders = getOrders();
-  const total = orders.length;
-  const byStatus = s => orders.filter(o => o.status === s).length;
-
-  document.getElementById('home-stats').innerHTML = `
-    <div class="stat-card"><div class="stat-num" style="color:var(--text)">${total}</div><div class="stat-label">総発注数</div></div>
-    <div class="stat-card"><div class="stat-num" style="color:var(--s-pending)">${byStatus('pending')}</div><div class="stat-label">発注待ち</div></div>
-    <div class="stat-card"><div class="stat-num" style="color:var(--s-progress)">${byStatus('progress')}</div><div class="stat-label">生産中</div></div>
-    <div class="stat-card"><div class="stat-num" style="color:var(--s-done)">${byStatus('done')}</div><div class="stat-label">完了</div></div>
-  `;
-
-  const factories = getFactories();
-  const html = factories.map(f => {
-    const fo = orders.filter(o => o.factory === f.name);
-    if (!fo.length) return `
-      <div class="factory-card">
-        <div class="factory-name">${f.name}</div>
-        <div style="font-size:12px;color:var(--muted)">発注なし</div>
-      </div>`;
-    const stats = STATUSES.map(s => {
-      const n = fo.filter(o => o.status === s.key).length;
-      return n ? `<div class="fstat"><div class="fstat-dot" style="background:var(--s-${s.cls})"></div>${s.label} ${n}件</div>` : '';
-    }).join('');
-    return `
-      <div class="factory-card" onclick="navigate('orders');filterByFactory('${f.name}')" style="cursor:pointer">
-        <div class="card-row" style="margin-bottom:8px">
-          <div class="factory-name">${f.name}</div>
-          <div style="font-size:12px;color:var(--muted)">${fo.length}件</div>
-        </div>
-        <div class="factory-stats">${stats}</div>
-      </div>`;
-  }).join('');
-
-  document.getElementById('factory-summary').innerHTML = html || '<div class="empty"><div class="empty-icon">🏭</div><div class="empty-text">工場マスタを登録してください</div></div>';
+// フィルタ用月リスト生成
+function buildMonthOptions(selId){
+  const sel=document.getElementById(selId);
+  const cur=sel.value;
+  const months=[...new Set(D.orders.map(o=>getYM(o.date)).filter(Boolean))].sort().reverse();
+  sel.innerHTML='<option value="">全期間</option>'+months.map(m=>`<option value="${m}"${m===cur?' selected':''}>${formatYM(m)}</option>`).join('');
+}
+function buildFactoryOptions(selId){
+  const sel=document.getElementById(selId);
+  const cur=sel.value;
+  sel.innerHTML='<option value="">全工場</option>'+D.factories.map(f=>`<option value="${f.id}"${f.id===cur?' selected':''}>${f.name}</option>`).join('');
 }
 
-// ══════════════════════════════════════════
-//  New Order Form
-// ══════════════════════════════════════════
-function initNewOrderForm() {
-  const factories = getFactories();
-  const fSel = document.getElementById('f-factory');
-  fSel.innerHTML = '<option value="">工場を選択</option>' +
-    factories.map(f => `<option value="${esc(f.name)}">${esc(f.name)}</option>`).join('');
-
-  const items = getItems();
-  const dl = document.getElementById('item-list');
-  dl.innerHTML = items.map(i => `<option value="${esc(i.code)}" data-name="${esc(i.name)}">`).join('');
-
-  // Default delivery: 30 days from now
-  const d = new Date(); d.setDate(d.getDate() + 30);
-  document.getElementById('f-delivery').value = d.toISOString().slice(0,10);
-
-  // Clear fields
-  ['f-code','f-name','f-color','f-size','f-qty','f-memo'].forEach(id => {
-    const el = document.getElementById(id);
-    if (el) el.value = '';
+// ── タブ切替 ───────────────────────────────────────
+function switchTab(t){
+  document.querySelectorAll('.tab').forEach(el=>el.classList.remove('active'));
+  document.querySelectorAll('.panel').forEach(el=>el.classList.remove('active'));
+  ['dashboard','history','analytics','factories'].forEach((n,i)=>{
+    if(n===t){document.querySelectorAll('.tab')[i].classList.add('active');document.getElementById('tab-'+n).classList.add('active');}
   });
+  if(t==='dashboard')renderDashboard();
+  if(t==='history'){buildMonthOptions('hist-filter-month');buildFactoryOptions('hist-filter-factory');renderHistory();}
+  if(t==='analytics'){buildMonthOptions('ana-filter-month');renderAnalytics();}
+  if(t==='factories')renderFactories();
 }
 
-function autoFillItem() {
-  const code = document.getElementById('f-code').value;
-  const items = getItems();
-  const found = items.find(i => i.code === code);
-  if (found) document.getElementById('f-name').value = found.name;
-}
-
-function submitOrder() {
-  const factory  = document.getElementById('f-factory').value;
-  const code     = document.getElementById('f-code').value.trim();
-  const name     = document.getElementById('f-name').value.trim();
-  const color    = document.getElementById('f-color').value.trim();
-  const size     = document.getElementById('f-size').value.trim();
-  const qty      = parseInt(document.getElementById('f-qty').value) || 0;
-  const delivery = document.getElementById('f-delivery').value;
-  const memo     = document.getElementById('f-memo').value.trim();
-
-  if (!factory) { toast('⚠️ 工場を選択してください'); return; }
-  if (!code)    { toast('⚠️ 品番を入力してください'); return; }
-  if (!qty)     { toast('⚠️ 数量を入力してください'); return; }
-
-  const orders = getOrders();
-  orders.push({
-    id: db.uid(), factory, itemCode: code, itemName: name,
-    color, size, quantity: qty, deliveryDate: delivery, memo,
-    status: 'pending',
-    orderDate: new Date().toISOString().slice(0,10),
-    createdAt: Date.now(),
-  });
-  saveOrders(orders);
-  toast('✅ 発注を登録しました');
-  navigate('orders');
-}
-
-// ══════════════════════════════════════════
-//  Order List
-// ══════════════════════════════════════════
-function filterByFactory(name) {
-  orderFilter = name;
-  renderOrders();
-}
-
-function renderOrders() {
-  let orders = getOrders();
-  const q = (document.getElementById('order-search')?.value || '').toLowerCase();
-
-  // Build filter tabs
-  const counts = { all: orders.length };
-  STATUSES.forEach(s => { counts[s.key] = orders.filter(o => o.status === s.key).length; });
-
-  const filtersEl = document.getElementById('order-filters');
-  const allTabs = [{ key:'all', label:'すべて' }, ...STATUSES];
-  filtersEl.innerHTML = allTabs.map(s =>
-    `<button class="ftab${orderFilter===s.key?' active':''}" onclick="orderFilter='${s.key}';renderOrders()">
-      ${s.label} ${counts[s.key] ?? 0}
-    </button>`
-  ).join('');
-
-  // Filter
-  if (orderFilter !== 'all') orders = orders.filter(o => o.status === orderFilter);
-  if (q) orders = orders.filter(o =>
-    [o.factory, o.itemCode, o.itemName, o.color, o.size].some(v => (v||'').toLowerCase().includes(q))
-  );
-
-  // Sort by deliveryDate
-  orders.sort((a,b) => (a.deliveryDate||'').localeCompare(b.deliveryDate||''));
-
-  const today = new Date().toISOString().slice(0,10);
-
-  const html = orders.map(o => {
-    const st = STATUS_MAP[o.status] || STATUS_MAP.pending;
-    const overdue = o.deliveryDate && o.deliveryDate < today && o.status !== 'done';
-    return `
-    <div class="order-card" onclick="openOrderDetail('${o.id}')">
-      <div class="order-top">
-        <div>
-          <div class="order-factory">${esc(o.factory)}</div>
-          <div class="order-code">${esc(o.itemCode)}${o.itemName ? ' <span class="order-name">'+esc(o.itemName)+'</span>' : ''}</div>
-        </div>
-        <span class="badge ${st.cls}">${st.label}</span>
-      </div>
-      <div class="order-detail">
-        ${[o.color, o.size, o.quantity ? o.quantity+'枚' : ''].filter(Boolean).join(' · ')}
-      </div>
-      <div class="order-date" style="margin-top:6px">
-        納期: ${o.deliveryDate || '未設定'}
-        ${overdue ? '<span class="warning-text"> ⚠️ 期限超過</span>' : ''}
-      </div>
+// ── 概要タブ ───────────────────────────────────────
+function renderDashboard(){
+  const now=new Date();
+  // 当月を正確に生成
+  const ym=now.getFullYear()+'-'+String(now.getMonth()+1).padStart(2,'0');
+  const mo=D.orders.filter(o=>getYM(o.date)===ym);
+  const totalQty=mo.reduce((s,o)=>s+sumQty(o),0);
+  const fSet=new Set(mo.map(o=>o.factoryId));
+  document.getElementById('stats-area').innerHTML=`
+    <div class="month-chip">${now.getFullYear()}年${now.getMonth()+1}月 累計</div>
+    <div class="stat-grid">
+      <div class="stat"><div class="stat-label">発注件数</div><div class="stat-value">${mo.length}</div><div class="stat-unit">件</div></div>
+      <div class="stat"><div class="stat-label">合計数量</div><div class="stat-value">${totalQty.toLocaleString()}</div><div class="stat-unit">反／点</div></div>
+      <div class="stat"><div class="stat-label">発注先工場数</div><div class="stat-value">${fSet.size}</div><div class="stat-unit">社</div></div>
     </div>`;
-  }).join('');
-
-  document.getElementById('order-list').innerHTML = html ||
-    '<div class="empty"><div class="empty-icon">📋</div><div class="empty-text">発注が見つかりません</div></div>';
+  const el=document.getElementById('recent-orders');
+  if(!mo.length){el.innerHTML='<div class="empty-state">今月の発注はまだありません</div>';return;}
+  const sorted=[...mo].sort((a,b)=>b.date.localeCompare(a.date));
+  el.innerHTML=`<div class="table-wrap"><table class="list">
+    <thead><tr><th>発注日</th><th>工場</th><th>工程</th><th>発注番号</th><th>数量計</th><th></th></tr></thead>
+    <tbody>${sorted.map(o=>{
+      const f=D.factories.find(f=>f.id===o.factoryId);
+      return `<tr>
+        <td style="color:#888">${o.date}</td>
+        <td style="font-weight:500">${f?f.name:'不明'}</td>
+        <td>${f?catBadge(f.category):''}</td>
+        <td style="font-size:12px;color:#888;font-family:monospace">${o.number}</td>
+        <td style="font-weight:500">${sumQty(o).toLocaleString()}</td>
+        <td><button class="btn sm" onclick="printOrder('${o.id}')">印刷</button></td>
+      </tr>`;
+    }).join('')}</tbody>
+  </table></div>`;
 }
 
-// ── Order Detail Modal ──
-function openOrderDetail(id) {
-  const orders = getOrders();
-  const o = orders.find(x => x.id === id);
-  if (!o) return;
-  const st = STATUS_MAP[o.status] || STATUS_MAP.pending;
-
-  const stepHTML = STATUSES.map(s =>
-    `<div class="step${o.status===s.key?' active '+s.cls:''}" onclick="updateStatus('${id}','${s.key}')">${s.label}</div>`
-  ).join('');
-
-  document.getElementById('modal-content').innerHTML = `
-    <div class="modal-title">${esc(o.itemCode)} ${esc(o.itemName||'')}</div>
-    <div class="stepper">${stepHTML}</div>
-    <div class="section-head" style="margin-top:16px">詳細情報</div>
-    ${detailRow('工場', o.factory)}
-    ${detailRow('品番', o.itemCode)}
-    ${detailRow('品名', o.itemName)}
-    ${detailRow('カラー', o.color)}
-    ${detailRow('サイズ', o.size)}
-    ${detailRow('数量', o.quantity ? o.quantity + ' 枚' : '')}
-    ${detailRow('発注日', o.orderDate)}
-    ${detailRow('納期', o.deliveryDate)}
-    ${o.memo ? detailRow('メモ', o.memo) : ''}
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:16px">
-      <button class="submit-btn" style="margin-top:0" onclick="openEditOrder('${id}')">✏️ 編集</button>
-      <button class="danger-btn" style="margin-top:0" onclick="deleteOrder('${id}')">🗑 削除</button>
-    </div>
-  `;
-  openModal();
+// ── 発注履歴タブ ───────────────────────────────────
+function setHistoryView(v){
+  historyView=v;
+  histSort={col:'date',dir:'desc'};
+  document.querySelectorAll('#tab-history .subtab').forEach((el,i)=>el.classList.toggle('active',['month','factory','fabric'][i]===v));
+  renderHistory();
+}
+function sortHistory(col){
+  if(histSort.col===col){histSort.dir=histSort.dir==='asc'?'desc':'asc';}
+  else{histSort={col,dir:'asc'};}
+  renderHistory();
+}
+function arrowHtml(col){
+  const a=histSort.col===col?(histSort.dir==='asc'?'▲':'▼'):'▲';
+  return `<span class="sort-arrow${histSort.col===col?' active':''}">${a}</span>`;
 }
 
-function detailRow(label, val) {
-  if (!val) return '';
-  return `<div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border);font-size:13px">
-    <span style="color:var(--muted)">${label}</span>
-    <span style="font-weight:600">${esc(String(val))}</span>
-  </div>`;
+function getFilteredOrders(){
+  let orders=[...D.orders];
+  const fm=document.getElementById('hist-filter-month')?.value||'';
+  const ff=document.getElementById('hist-filter-factory')?.value||'';
+  if(fm)orders=orders.filter(o=>getYM(o.date)===fm);
+  if(ff)orders=orders.filter(o=>o.factoryId===ff);
+  return orders;
+}
+function sortOrders(orders){
+  return orders.sort((a,b)=>{
+    let va,vb;
+    if(histSort.col==='date'){va=a.date;vb=b.date;}
+    else if(histSort.col==='factory'){va=getFactoryName(a);vb=getFactoryName(b);}
+    else if(histSort.col==='category'){va=getCat(a);vb=getCat(b);}
+    else if(histSort.col==='qty'){va=sumQty(a);vb=sumQty(b);}
+    else if(histSort.col==='number'){va=a.number;vb=b.number;}
+    else{va=a.date;vb=b.date;}
+    const cmp=typeof va==='number'?va-vb:String(va||'').localeCompare(String(vb||''),'ja');
+    return histSort.dir==='asc'?cmp:-cmp;
+  });
 }
 
-function updateStatus(id, status) {
-  const orders = getOrders();
-  const o = orders.find(x => x.id === id);
-  if (!o) return;
-  o.status = status;
-  saveOrders(orders);
-  closeModal();
-  renderOrders();
-  renderHome();
-  toast('✅ ステータスを更新しました');
-}
+function renderHistory(){
+  const el=document.getElementById('history-area');
+  const allOrders=getFilteredOrders();
+  if(!allOrders.length){el.innerHTML='<div class="empty-state">発注履歴がありません</div>';return;}
 
-function deleteOrder(id) {
-  if (!confirm('この発注を削除しますか？')) return;
-  saveOrders(getOrders().filter(o => o.id !== id));
-  closeModal();
-  renderOrders();
-  renderHome();
-  toast('🗑 削除しました');
-}
+  const orderRow=o=>{
+    const f=D.factories.find(f=>f.id===o.factoryId);
+    return `<tr>
+      <td style="color:#888">${o.date}</td>
+      <td style="font-weight:500">${f?f.name:'不明'}</td>
+      <td>${f?catBadge(f.category):''}</td>
+      <td style="font-size:12px;color:#888;font-family:monospace">${o.number}</td>
+      <td style="font-weight:500;text-align:right">${sumQty(o).toLocaleString()}</td>
+      <td><button class="btn sm" onclick="printOrder('${o.id}')">印刷</button></td>
+    </tr>`;
+  };
+  const thead=`<thead><tr>
+    <th class="sortable" onclick="sortHistory('date')">発注日${arrowHtml('date')}</th>
+    <th class="sortable" onclick="sortHistory('factory')">工場${arrowHtml('factory')}</th>
+    <th class="sortable" onclick="sortHistory('category')">工程${arrowHtml('category')}</th>
+    <th class="sortable" onclick="sortHistory('number')">発注番号${arrowHtml('number')}</th>
+    <th class="sortable" onclick="sortHistory('qty')" style="text-align:right">数量計${arrowHtml('qty')}</th>
+    <th></th>
+  </tr></thead>`;
 
-// ── Edit Order Modal ──
-function openEditOrder(id) {
-  const orders = getOrders();
-  const o = orders.find(x => x.id === id);
-  if (!o) return;
-  const factories = getFactories();
-  const fOptions = factories.map(f =>
-    `<option value="${esc(f.name)}"${f.name===o.factory?' selected':''}>${esc(f.name)}</option>`
-  ).join('');
+  if(historyView==='month'){
+    const byMonth={};
+    allOrders.forEach(o=>{const k=getYM(o.date);if(!byMonth[k])byMonth[k]=[];byMonth[k].push(o);});
+    const monthKeys=Object.keys(byMonth).sort().reverse();
+    el.innerHTML=monthKeys.map(k=>{
+      const orders=sortOrders(byMonth[k]);
+      const totalQty=orders.reduce((s,o)=>s+sumQty(o),0);
+      return `<div class="month-section">
+        <div class="month-header">
+          <div class="month-title">${formatYM(k)}</div>
+          <div class="month-summary">${orders.length}件 ／ 累計 ${totalQty.toLocaleString()}</div>
+        </div>
+        <div class="table-wrap"><table class="list">${thead}<tbody>${orders.map(orderRow).join('')}</tbody></table></div>
+      </div>`;
+    }).join('');
 
-  document.getElementById('modal-content').innerHTML = `
-    <div class="modal-title">発注を編集</div>
-    <div class="form-section">
-      <label class="form-label">工場</label>
-      <select class="form-select" id="ef-factory"><option value="">工場を選択</option>${fOptions}</select>
-    </div>
-    <div class="form-row form-section">
-      <div><label class="form-label">品番</label><input class="form-input" id="ef-code" value="${esc(o.itemCode||'')}"></div>
-      <div><label class="form-label">品名</label><input class="form-input" id="ef-name" value="${esc(o.itemName||'')}"></div>
-    </div>
-    <div class="form-row form-section">
-      <div><label class="form-label">カラー</label><input class="form-input" id="ef-color" value="${esc(o.color||'')}"></div>
-      <div><label class="form-label">サイズ</label><input class="form-input" id="ef-size" value="${esc(o.size||'')}"></div>
-    </div>
-    <div class="form-row form-section">
-      <div><label class="form-label">数量</label><input class="form-input" type="number" id="ef-qty" value="${o.quantity||''}"></div>
-      <div><label class="form-label">納期</label><input class="form-input" type="date" id="ef-delivery" value="${o.deliveryDate||''}"></div>
-    </div>
-    <div class="form-section">
-      <label class="form-label">メモ</label>
-      <textarea class="form-textarea" id="ef-memo">${esc(o.memo||'')}</textarea>
-    </div>
-    <button class="submit-btn" onclick="saveEditOrder('${id}')">保存する</button>
-  `;
-  openModal();
-}
+  } else if(historyView==='factory'){
+    const byFactory={};
+    allOrders.forEach(o=>{const k=o.factoryId||'unknown';if(!byFactory[k])byFactory[k]=[];byFactory[k].push(o);});
+    el.innerHTML=Object.entries(byFactory).map(([fid,orders])=>{
+      const f=D.factories.find(f=>f.id===fid);
+      const sorted=sortOrders(orders);
+      const totalQty=sorted.reduce((s,o)=>s+sumQty(o),0);
+      return `<div class="month-section">
+        <div class="month-header">
+          <div class="month-title">${f?f.name:'不明'} ${f?catBadge(f.category):''}</div>
+          <div class="month-summary">${sorted.length}件 ／ 累計 ${totalQty.toLocaleString()}</div>
+        </div>
+        <div class="table-wrap"><table class="list">${thead}<tbody>${sorted.map(orderRow).join('')}</tbody></table></div>
+      </div>`;
+    }).join('');
 
-function saveEditOrder(id) {
-  const orders = getOrders();
-  const o = orders.find(x => x.id === id);
-  if (!o) return;
-  o.factory      = document.getElementById('ef-factory').value || o.factory;
-  o.itemCode     = document.getElementById('ef-code').value.trim();
-  o.itemName     = document.getElementById('ef-name').value.trim();
-  o.color        = document.getElementById('ef-color').value.trim();
-  o.size         = document.getElementById('ef-size').value.trim();
-  o.quantity     = parseInt(document.getElementById('ef-qty').value) || 0;
-  o.deliveryDate = document.getElementById('ef-delivery').value;
-  o.memo         = document.getElementById('ef-memo').value.trim();
-  saveOrders(orders);
-  closeModal();
-  renderOrders();
-  renderHome();
-  toast('✅ 更新しました');
-}
-
-// ══════════════════════════════════════════
-//  Factory Master
-// ══════════════════════════════════════════
-function renderFactories() {
-  const factories = getFactories();
-  const html = factories.map(f => `
-    <div class="master-item">
-      <div class="master-item-info">
-        <div class="master-item-name">${esc(f.name)}</div>
-        ${f.contact ? `<div class="master-item-sub">${esc(f.contact)}</div>` : ''}
-        ${f.memo    ? `<div class="master-item-sub">${esc(f.memo)}</div>`    : ''}
-      </div>
-      <div class="master-actions">
-        <button class="icon-btn" onclick="openFactoryModal('${f.id}')" title="編集">✏️</button>
-        <button class="icon-btn" onclick="deleteFactory('${f.id}')" title="削除">🗑</button>
-      </div>
-    </div>`).join('');
-
-  document.getElementById('factory-list').innerHTML = html ||
-    '<div class="empty"><div class="empty-icon">🏭</div><div class="empty-text">工場を追加してください</div></div>';
-}
-
-function openFactoryModal(id) {
-  const factories = getFactories();
-  const f = id ? factories.find(x => x.id === id) : null;
-  document.getElementById('modal-content').innerHTML = `
-    <div class="modal-title">${f ? '工場を編集' : '工場を追加'}</div>
-    <div class="form-section"><label class="form-label">工場名 *</label>
-      <input class="form-input" id="ff-name" value="${esc(f?.name||'')}" placeholder="例: 坂本繊維"></div>
-    <div class="form-section"><label class="form-label">担当者・連絡先</label>
-      <input class="form-input" id="ff-contact" value="${esc(f?.contact||'')}" placeholder="電話番号・メールなど"></div>
-    <div class="form-section"><label class="form-label">メモ</label>
-      <textarea class="form-textarea" id="ff-memo">${esc(f?.memo||'')}</textarea></div>
-    <button class="submit-btn" onclick="saveFactory('${id||''}')">保存する</button>
-    ${f ? `<button class="danger-btn" onclick="deleteFactory('${id}')">削除する</button>` : ''}
-  `;
-  openModal();
-}
-
-function saveFactory(id) {
-  const name    = document.getElementById('ff-name').value.trim();
-  const contact = document.getElementById('ff-contact').value.trim();
-  const memo    = document.getElementById('ff-memo').value.trim();
-  if (!name) { toast('⚠️ 工場名を入力してください'); return; }
-  const factories = getFactories();
-  if (id) {
-    const f = factories.find(x => x.id === id);
-    if (f) { f.name = name; f.contact = contact; f.memo = memo; }
-  } else {
-    factories.push({ id: db.uid(), name, contact, memo });
+  } else if(historyView==='fabric'){
+    // 品番（生地番号）ごとに明細行をフラット展開
+    const byFabric={};
+    allOrders.forEach(o=>{
+      (o.items||[]).forEach(item=>{
+        const k=item.fabricNo||'（品番なし）';
+        if(!byFabric[k])byFabric[k]=[];
+        byFabric[k].push({order:o,item});
+      });
+    });
+    const fabricKeys=Object.keys(byFabric).sort();
+    el.innerHTML=fabricKeys.map(fn=>{
+      const rows=byFabric[fn];
+      const cat=rows[0]?getCat(rows[0].order):'その他';
+      const qk=QTY_KEY[cat]||'qty';
+      const totalQty=rows.reduce((s,r)=>s+(parseInt(r.item[qk])||0),0);
+      const rowHtml=rows.map(({order:o,item:i})=>{
+        const f=D.factories.find(f=>f.id===o.factoryId);
+        const qv=parseInt(i[qk])||0;
+        return `<tr>
+          <td style="color:#888">${o.date}</td>
+          <td style="font-weight:500">${f?f.name:'不明'}</td>
+          <td>${i.color||'—'}</td>
+          <td>${i.productName||'—'}</td>
+          <td style="text-align:right;font-weight:500">${qv.toLocaleString()}</td>
+          <td><button class="btn sm" onclick="printOrder('${o.id}')">印刷</button></td>
+        </tr>`;
+      }).join('');
+      return `<div class="month-section">
+        <div class="month-header">
+          <div class="month-title" style="font-family:monospace">${fn}</div>
+          <div class="month-summary">${rows.length}明細 ／ 累計 ${totalQty.toLocaleString()}</div>
+        </div>
+        <div class="table-wrap"><table class="list">
+          <thead><tr><th>発注日</th><th>工場</th><th>カラー名</th><th>商品名</th><th style="text-align:right">数量</th><th></th></tr></thead>
+          <tbody>${rowHtml}</tbody>
+        </table></div>
+      </div>`;
+    }).join('');
   }
-  saveFactories(factories);
-  closeModal();
-  renderFactories();
-  toast('✅ 保存しました');
 }
 
-function deleteFactory(id) {
-  if (!confirm('この工場を削除しますか？')) return;
-  saveFactories(getFactories().filter(f => f.id !== id));
-  closeModal();
-  renderFactories();
-  toast('🗑 削除しました');
+// ── 集計タブ ───────────────────────────────────────
+function setAnalyticsView(v){
+  analyticsView=v;
+  document.querySelectorAll('#tab-analytics .subtab').forEach((el,i)=>el.classList.toggle('active',['factory','fabric'][i]===v));
+  renderAnalytics();
 }
+function renderAnalytics(){
+  const el=document.getElementById('analytics-area');
+  let orders=[...D.orders];
+  const fm=document.getElementById('ana-filter-month')?.value||'';
+  if(fm)orders=orders.filter(o=>getYM(o.date)===fm);
+  if(!orders.length){el.innerHTML='<div class="empty-state">データがありません</div>';return;}
 
-// ══════════════════════════════════════════
-//  Item Master
-// ══════════════════════════════════════════
-function renderItems() {
-  const q = (document.getElementById('item-search')?.value || '').toLowerCase();
-  let items = getItems();
-  if (q) items = items.filter(i => [i.code, i.name, i.category].some(v => (v||'').toLowerCase().includes(q)));
+  if(analyticsView==='factory'){
+    // 工場別集計
+    const map={};
+    orders.forEach(o=>{
+      const fid=o.factoryId||'unknown';
+      if(!map[fid])map[fid]={factoryId:fid,count:0,qty:0};
+      map[fid].count++;
+      map[fid].qty+=sumQty(o);
+    });
+    const rows=Object.values(map).sort((a,b)=>b.qty-a.qty);
+    const totalQty=rows.reduce((s,r)=>s+r.qty,0);
+    el.innerHTML=`<div class="table-wrap"><table class="list">
+      <thead><tr><th>工場</th><th>工程</th><th style="text-align:right">発注件数</th><th style="text-align:right">合計数量</th><th style="text-align:right">構成比</th></tr></thead>
+      <tbody>${rows.map(r=>{
+        const f=D.factories.find(f=>f.id===r.factoryId);
+        const pct=totalQty>0?Math.round(r.qty/totalQty*100):0;
+        return `<tr>
+          <td style="font-weight:500">${f?f.name:'不明'}</td>
+          <td>${f?catBadge(f.category):''}</td>
+          <td style="text-align:right">${r.count}件</td>
+          <td style="text-align:right;font-weight:500">${r.qty.toLocaleString()}</td>
+          <td style="text-align:right">
+            <div style="display:flex;align-items:center;justify-content:flex-end;gap:8px">
+              <div style="width:80px;height:6px;background:#f0ede8;border-radius:3px;overflow:hidden">
+                <div style="width:${pct}%;height:100%;background:#1a1a1a;border-radius:3px"></div>
+              </div>
+              <span style="font-size:12px;color:#888;min-width:32px">${pct}%</span>
+            </div>
+          </td>
+        </tr>`;
+      }).join('')}
+      <tr style="background:#faf9f7;font-weight:600">
+        <td colspan="3" style="text-align:right;color:#888">合計</td>
+        <td style="text-align:right">${totalQty.toLocaleString()}</td>
+        <td></td>
+      </tr></tbody>
+    </table></div>`;
 
-  const html = items.map(i => `
-    <div class="master-item">
-      <div class="master-item-info">
-        <div class="master-item-name">${esc(i.code)} ${esc(i.name)}</div>
-        ${i.category ? `<div class="master-item-sub">${esc(i.category)}</div>` : ''}
-        ${i.memo     ? `<div class="master-item-sub">${esc(i.memo)}</div>`     : ''}
-      </div>
-      <div class="master-actions">
-        <button class="icon-btn" onclick="openItemModal('${i.id}')" title="編集">✏️</button>
-        <button class="icon-btn" onclick="deleteItem('${i.id}')" title="削除">🗑</button>
-      </div>
-    </div>`).join('');
-
-  document.getElementById('item-list-el').innerHTML = html ||
-    '<div class="empty"><div class="empty-icon">📦</div><div class="empty-text">品番を追加してください</div></div>';
-}
-
-function openItemModal(id) {
-  const items = getItems();
-  const item = id ? items.find(x => x.id === id) : null;
-  document.getElementById('modal-content').innerHTML = `
-    <div class="modal-title">${item ? '品番を編集' : '品番を追加'}</div>
-    <div class="form-row form-section">
-      <div><label class="form-label">品番 *</label>
-        <input class="form-input" id="fi-code" value="${esc(item?.code||'')}" placeholder="例: ABC-001"></div>
-      <div><label class="form-label">品名 *</label>
-        <input class="form-input" id="fi-name" value="${esc(item?.name||'')}" placeholder="例: Tシャツ"></div>
-    </div>
-    <div class="form-section"><label class="form-label">カテゴリ</label>
-      <input class="form-input" id="fi-category" value="${esc(item?.category||'')}" placeholder="例: トップス"></div>
-    <div class="form-section"><label class="form-label">メモ</label>
-      <textarea class="form-textarea" id="fi-memo">${esc(item?.memo||'')}</textarea></div>
-    <button class="submit-btn" onclick="saveItem('${id||''}')">保存する</button>
-    ${item ? `<button class="danger-btn" onclick="deleteItem('${id}')">削除する</button>` : ''}
-  `;
-  openModal();
-}
-
-function saveItem(id) {
-  const code     = document.getElementById('fi-code').value.trim();
-  const name     = document.getElementById('fi-name').value.trim();
-  const category = document.getElementById('fi-category').value.trim();
-  const memo     = document.getElementById('fi-memo').value.trim();
-  if (!code) { toast('⚠️ 品番を入力してください'); return; }
-  if (!name) { toast('⚠️ 品名を入力してください'); return; }
-  const items = getItems();
-  if (id) {
-    const i = items.find(x => x.id === id);
-    if (i) { i.code = code; i.name = name; i.category = category; i.memo = memo; }
-  } else {
-    items.push({ id: db.uid(), code, name, category, memo });
+  } else if(analyticsView==='fabric'){
+    // 品番別集計
+    const map={};
+    orders.forEach(o=>{
+      const cat=getCat(o);
+      const qk=QTY_KEY[cat]||'qty';
+      (o.items||[]).forEach(item=>{
+        const k=item.fabricNo||'（品番なし）';
+        if(!map[k])map[k]={fabricNo:k,colors:new Set(),orderCount:0,qty:0,products:new Set()};
+        map[k].orderCount++;
+        map[k].qty+=parseInt(item[qk])||0;
+        if(item.color)map[k].colors.add(item.color);
+        if(item.productName)map[k].products.add(item.productName);
+      });
+    });
+    const rows=Object.values(map).sort((a,b)=>b.qty-a.qty);
+    const totalQty=rows.reduce((s,r)=>s+r.qty,0);
+    el.innerHTML=`<div class="table-wrap"><table class="list">
+      <thead><tr><th>生地番号</th><th>カラー展開</th><th>商品</th><th style="text-align:right">明細数</th><th style="text-align:right">合計数量</th><th style="text-align:right">構成比</th></tr></thead>
+      <tbody>${rows.map(r=>{
+        const pct=totalQty>0?Math.round(r.qty/totalQty*100):0;
+        const colors=[...r.colors].join('・')||'—';
+        const products=[...r.products].join('・')||'—';
+        return `<tr>
+          <td style="font-weight:500;font-family:monospace">${r.fabricNo}</td>
+          <td style="font-size:12px;color:#666">${colors}</td>
+          <td style="font-size:12px;color:#666">${products}</td>
+          <td style="text-align:right">${r.orderCount}</td>
+          <td style="text-align:right;font-weight:500">${r.qty.toLocaleString()}</td>
+          <td style="text-align:right">
+            <div style="display:flex;align-items:center;justify-content:flex-end;gap:8px">
+              <div style="width:80px;height:6px;background:#f0ede8;border-radius:3px;overflow:hidden">
+                <div style="width:${pct}%;height:100%;background:#1a1a1a;border-radius:3px"></div>
+              </div>
+              <span style="font-size:12px;color:#888;min-width:32px">${pct}%</span>
+            </div>
+          </td>
+        </tr>`;
+      }).join('')}
+      <tr style="background:#faf9f7;font-weight:600">
+        <td colspan="4" style="text-align:right;color:#888">合計</td>
+        <td style="text-align:right">${totalQty.toLocaleString()}</td>
+        <td></td>
+      </tr></tbody>
+    </table></div>`;
   }
-  saveItems(items);
-  closeModal();
-  renderItems();
-  toast('✅ 保存しました');
 }
 
-function deleteItem(id) {
-  if (!confirm('この品番を削除しますか？')) return;
-  saveItems(getItems().filter(i => i.id !== id));
-  closeModal();
-  renderItems();
-  toast('🗑 削除しました');
+// ── 工場マスタ ─────────────────────────────────────
+function renderFactories(){
+  const el=document.getElementById('factory-list');
+  if(!D.factories.length){el.innerHTML='<div class="empty-state">工場が登録されていません</div>';return;}
+  el.innerHTML=`<div class="table-wrap"><table class="list">
+    <thead><tr><th>工場名</th><th>担当者</th><th>工程</th><th>電話</th><th>メール</th><th></th></tr></thead>
+    <tbody>${D.factories.map(f=>`<tr>
+      <td style="font-weight:500">${f.name}</td>
+      <td style="color:#888">${f.contact||'—'}</td>
+      <td>${catBadge(f.category)}</td>
+      <td style="color:#888;font-size:12px">${f.tel||'—'}</td>
+      <td style="color:#888;font-size:12px">${f.email||'—'}</td>
+      <td><button class="btn sm danger" onclick="deleteFactory('${f.id}')">削除</button></td>
+    </tr>`).join('')}</tbody>
+  </table></div>`;
+}
+function addFactory(){
+  const name=document.getElementById('f-name').value.trim();
+  if(!name){showAlert('工場名を入力してください','err');return;}
+  D.factories.push({id:'f'+Date.now(),name,contact:document.getElementById('f-contact').value.trim(),category:document.getElementById('f-cat').value,tel:document.getElementById('f-tel').value.trim(),email:document.getElementById('f-email').value.trim()});
+  save();
+  ['f-name','f-contact','f-tel','f-email'].forEach(id=>document.getElementById(id).value='');
+  renderFactories();showAlert(`「${name}」を追加しました`);
+}
+function deleteFactory(id){
+  if(!confirm('この工場を削除しますか？'))return;
+  D.factories=D.factories.filter(f=>f.id!==id);
+  save();renderFactories();
 }
 
-// ══════════════════════════════════════════
-//  Modal
-// ══════════════════════════════════════════
-function openModal() {
-  document.getElementById('modal-overlay').classList.add('open');
+// ── モーダル ───────────────────────────────────────
+function openNewOrder(){
+  const sel=document.getElementById('o-factory');
+  sel.innerHTML='<option value="">選択してください</option>'+D.factories.map(f=>`<option value="${f.id}">${f.name}（${f.category}）</option>`).join('');
+  document.getElementById('o-date').value=new Date().toISOString().split('T')[0];
+  document.getElementById('o-number').value=genNumber();
+  document.getElementById('o-due').value='';
+  document.getElementById('o-memo').value='';
+  document.getElementById('process-tag').innerHTML='';
+  document.getElementById('items-hint').style.display='block';
+  document.getElementById('items-table').style.display='none';
+  document.getElementById('items-head').innerHTML='';
+  document.getElementById('items-body').innerHTML='';
+  document.getElementById('add-row-btn').style.display='none';
+  currentSchema=[];
+  document.getElementById('order-modal').classList.add('open');
 }
-function closeModal(e) {
-  if (e && e.target !== document.getElementById('modal-overlay')) return;
-  document.getElementById('modal-overlay').classList.remove('open');
+function closeModal(){document.getElementById('order-modal').classList.remove('open');}
+
+function onFactoryChange(){
+  const fid=document.getElementById('o-factory').value;
+  if(!fid){
+    document.getElementById('process-tag').innerHTML='';
+    document.getElementById('items-hint').style.display='block';
+    document.getElementById('items-table').style.display='none';
+    document.getElementById('items-body').innerHTML='';
+    document.getElementById('add-row-btn').style.display='none';
+    currentSchema=[];return;
+  }
+  const f=D.factories.find(f=>f.id===fid);
+  const cat=f?f.category:'その他';
+  currentSchema=SCHEMA[cat]||SCHEMA['その他'];
+  document.getElementById('process-tag').innerHTML=
+    `<span class="process-tag" style="${CAT_STYLE[cat]||CAT_STYLE['その他']}">${cat}</span>`;
+  const th=currentSchema.map(c=>`<th style="width:${c.w}%">${c.label}</th>`).join('');
+  document.getElementById('items-head').innerHTML=`<tr>${th}<th style="width:6%"></th></tr>`;
+  document.getElementById('items-body').innerHTML='';
+  document.getElementById('items-hint').style.display='none';
+  document.getElementById('items-table').style.display='table';
+  document.getElementById('add-row-btn').style.display='inline-block';
+  addItemRow();addItemRow();addItemRow();
 }
-// Close on back gesture / ESC
-document.addEventListener('keydown', e => { if (e.key === 'Escape') closeModal(); });
-
-// ══════════════════════════════════════════
-//  Voice Input
-// ══════════════════════════════════════════
-let recognition = null;
-
-function startVoice(targetId, btn) {
-  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-  if (!SpeechRecognition) { toast('⚠️ このブラウザは音声入力に対応していません'); return; }
-
-  if (recognition) { recognition.stop(); return; }
-
-  recognition = new SpeechRecognition();
-  recognition.lang = 'ja-JP';
-  recognition.continuous = false;
-  recognition.interimResults = false;
-
-  btn.classList.add('recording');
-
-  recognition.onresult = e => {
-    const text = e.results[0][0].transcript;
-    const el = document.getElementById(targetId);
-    if (el) {
-      if (el.tagName === 'TEXTAREA') el.value += (el.value ? ' ' : '') + text;
-      else el.value = text;
+function addItemRow(){
+  if(!currentSchema.length)return;
+  const tr=document.createElement('tr');
+  const cells=currentSchema.map(c=>{
+    if(c.type==='unit'){
+      return `<td><select data-key="${c.key}" style="padding:5px 4px;font-size:12px;width:100%">
+        <option value="kg">kg</option>
+        <option value="ケース">ケース</option>
+        <option value="本">本</option>
+      </select></td>`;
     }
-    toast('🎤 ' + text);
-  };
-  recognition.onerror = () => toast('⚠️ 音声認識エラー');
-  recognition.onend = () => {
-    btn.classList.remove('recording');
-    recognition = null;
-  };
-  recognition.start();
+    const align=c.type==='number'?'text-align:right':'';
+    return `<td><input type="${c.type}" placeholder="${c.type==='number'?'0':c.label}" min="0" style="${align}" data-key="${c.key}"></td>`;
+  }).join('');
+  tr.innerHTML=cells+`<td style="text-align:center"><button class="btn sm danger" onclick="this.closest('tr').remove()">×</button></td>`;
+  document.getElementById('items-body').appendChild(tr);
+}
+function saveOrder(){
+  const factoryId=document.getElementById('o-factory').value;
+  const date=document.getElementById('o-date').value;
+  if(!factoryId){showAlert('工場を選択してください','err');return;}
+  if(!date){showAlert('発注日を入力してください','err');return;}
+  if(!currentSchema.length){showAlert('工場を選択してください','err');return;}
+  const rows=[...document.querySelectorAll('#items-body tr')];
+  const items=rows.map(tr=>{
+    const obj={};
+    tr.querySelectorAll('[data-key]').forEach(el=>{obj[el.dataset.key]=el.value.trim();});
+    return obj;
+  }).filter(i=>Object.values(i).some(v=>v!==''&&v!=='kg'));
+  if(!items.length){showAlert('明細を1行以上入力してください','err');return;}
+  const f=D.factories.find(f=>f.id===factoryId);
+  D.orders.push({id:genId(),number:document.getElementById('o-number').value,factoryId,category:f?f.category:'その他',date,due:document.getElementById('o-due').value,memo:document.getElementById('o-memo').value,items,createdAt:new Date().toISOString()});
+  save();closeModal();renderDashboard();
+  showAlert(`発注書 ${D.orders[D.orders.length-1].number} を保存しました`);
 }
 
-// ══════════════════════════════════════════
-//  Toast
-// ══════════════════════════════════════════
-let toastTimer = null;
-function toast(msg) {
-  const el = document.getElementById('toast');
-  el.textContent = msg;
-  el.classList.add('show');
-  clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => el.classList.remove('show'), 2200);
+// ── 印刷 ───────────────────────────────────────────
+function printOrder(id){
+  const o=D.orders.find(o=>o.id===id);if(!o)return;
+  const f=D.factories.find(f=>f.id===o.factoryId);
+  const cat=getCat(o);
+  const schema=SCHEMA[cat]||SCHEMA['その他'];
+  const qk=QTY_KEY[cat]||'qty';
+  const hasUnitCol=(cat==='糸'||cat==='靴下');
+  // unit列は印刷時に数量列と結合して「数量 単位」表示にするため除外
+  const printSchema=hasUnitCol?schema.filter(c=>c.type!=='unit'):schema;
+  const thead=printSchema.map(c=>`<th style="padding:7px 10px;border:1px solid #ddd;text-align:left;background:#f5f4f0;font-size:12px">${c.label}</th>`).join('');
+  const tbody=(o.items||[]).map((item,idx)=>{
+    const cells=printSchema.map(c=>{
+      let v=item[c.key]||'';
+      // 数量列に単位を付加
+      if(c.key==='qty'&&hasUnitCol&&item.qtyUnit){v=`${v} ${item.qtyUnit}`;}
+      const align=(c.type==='number')?'text-align:right':'';
+      const disp=v===''?'':(c.type==='number'&&!isNaN(Number(v)))?Number(v).toLocaleString():v;
+      return `<td style="padding:7px 10px;border:1px solid #ddd;${align}">${disp}</td>`;
+    }).join('');
+    return `<tr><td style="padding:7px 10px;border:1px solid #ddd;text-align:center">${idx+1}</td>${cells}</tr>`;
+  }).join('');
+  const totalQty=(o.items||[]).reduce((s,i)=>s+(parseInt(i[qk])||0),0);
+  // 糸・靴下は単位が混在する可能性があるので合計行の単位表示を調整
+  const unitSet=hasUnitCol?[...new Set((o.items||[]).map(i=>i.qtyUnit).filter(Boolean))]:[];
+  const unitLabel=hasUnitCol?(unitSet.length===1?unitSet[0]:'(複数単位)'):UNIT[cat]||'点';
+  document.getElementById('print-content').innerHTML=`
+    <div style="font-family:'Helvetica Neue',Arial,Meiryo,sans-serif;padding:40px;max-width:760px;margin:0 auto">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:28px">
+        <div>
+          <h1 style="font-size:22px;font-weight:700;margin-bottom:4px;letter-spacing:.05em">発 注 書</h1>
+          <div style="font-size:11px;color:#888">発注番号：${o.number}　工程：${cat}</div>
+        </div>
+        <div style="text-align:right;font-size:12px;color:#555">
+          <div style="font-weight:600;font-size:14px;margin-bottom:2px">株式会社エル・アイ・シー</div>
+          <div>mofmofu</div>
+        </div>
+      </div>
+      <table style="width:100%;margin-bottom:22px;font-size:13px;border-collapse:collapse">
+        <tr><td style="width:80px;color:#888;padding:4px 0">発注先</td><td style="font-weight:600;font-size:15px">${f?f.name:''} ${f&&f.contact?f.contact+' 御中':' 御中'}</td></tr>
+        <tr><td style="color:#888;padding:4px 0">発注日</td><td>${o.date}</td></tr>
+        <tr><td style="color:#888;padding:4px 0">希望納期</td><td>${o.due||'別途ご相談'}</td></tr>
+      </table>
+      <table style="width:100%;border-collapse:collapse;font-size:13px">
+        <thead><tr><th style="padding:7px 10px;border:1px solid #ddd;text-align:center;background:#f5f4f0;width:5%">No</th>${thead}</tr></thead>
+        <tbody>${tbody}</tbody>
+        <tfoot><tr>
+          <td colspan="${printSchema.length}" style="padding:7px 10px;border:1px solid #ddd;text-align:right;font-weight:600;background:#faf9f7">合計</td>
+          <td style="padding:7px 10px;border:1px solid #ddd;text-align:right;font-weight:600;background:#faf9f7">${totalQty.toLocaleString()} ${unitLabel}</td>
+        </tr></tfoot>
+      </table>
+      ${o.memo?`<div style="margin-top:18px;font-size:12px;color:#555;border-top:1px solid #eee;padding-top:12px"><b>備考：</b>${o.memo}</div>`:''}
+      <div style="margin-top:36px;font-size:11px;color:#ccc;text-align:center">— 以上 —</div>
+    </div>`;
+  window.print();
 }
 
-// ══════════════════════════════════════════
-//  Utils
-// ══════════════════════════════════════════
-function esc(s) {
-  return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+function showAlert(msg,type='ok'){
+  const el=document.getElementById('alert-area');
+  el.innerHTML=`<div class="alert alert-${type}">${msg}</div>`;
+  setTimeout(()=>el.innerHTML='',3000);
 }
 
-// ══════════════════════════════════════════
-//  Init
-// ══════════════════════════════════════════
-(function init() {
-  // Seed factories if empty
-  if (!getFactories().length) {
-    saveFactories(DEFAULT_FACTORIES.map(name => ({ id: db.uid(), name, contact: '', memo: '' })));
-  }
-  renderHome();
-})();
+load();renderDashboard();
 </script>
 </body>
 </html>
