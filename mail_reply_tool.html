@@ -200,29 +200,30 @@ function parseMails(text) {
   if (rows.length < 2) return;
   const headers = rows[0];
   
+  const cleanHeaders = headers.map(h => h.trim().replace(/^"|"$/g, ''));
   const idx = {
-    id: headers.indexOf('メールID'),
-    from: headers.indexOf('From名前'),
-    fromAddr: headers.indexOf('Fromアドレス'),
-    to: headers.indexOf('To名前'),
-    subject: headers.indexOf('件名'),
-    body: headers.indexOf('本文'),
-    date: headers.indexOf('受送信時刻'),
-    label1: headers.indexOf('ラベル１'),
-    label2: headers.indexOf('ラベル２'),
-    staff: headers.indexOf('担当者名'),
-    type: headers.indexOf('メール種別'),
+    id: cleanHeaders.indexOf('メールID'),
+    from: cleanHeaders.indexOf('From名前'),
+    fromAddr: cleanHeaders.indexOf('Fromアドレス'),
+    to: cleanHeaders.indexOf('To名前'),
+    toAddr: cleanHeaders.indexOf('Toアドレス'),
+    subject: cleanHeaders.indexOf('件名'),
+    body: cleanHeaders.indexOf('本文'),
+    date: cleanHeaders.indexOf('受送信時刻'),
+    label1: cleanHeaders.indexOf('ラベル１'),
+    label2: cleanHeaders.indexOf('ラベル２'),
+    staff: cleanHeaders.indexOf('担当者名'),
+    type: cleanHeaders.indexOf('メール種別'),
   };
 
-  // 受信メールのみ抽出（お客様からの問い合わせ）
+  // 本文があるメールを全件表示
   allMails = rows.slice(1)
-    .filter(r => r[idx.to] && r[idx.to].includes('SOWAN') || (r[idx.from] && !r[idx.from].includes('SOWAN')))
     .filter(r => r[idx.body] && r[idx.body].trim())
     .map(r => ({
       id: r[idx.id] || '',
-      from: r[idx.from] || '',
+      from: r[idx.from] || r[idx.fromAddr] || '',
       fromAddr: r[idx.fromAddr] || '',
-      to: r[idx.to] || '',
+      to: r[idx.to] || r[idx.toAddr] || '',
       subject: r[idx.subject] || '',
       body: r[idx.body] || '',
       date: r[idx.date] || '',
@@ -230,7 +231,7 @@ function parseMails(text) {
       label2: r[idx.label2] || '',
       staff: r[idx.staff] || '',
     }))
-    .filter(m => !m.from.includes('SOWAN')); // お客様からのメールのみ
+    .filter(m => m.body.trim()); // 本文があるもののみ
 
   filteredMails = [...allMails];
   document.getElementById('mailCount').textContent = `${allMails.length}件の問い合わせ`;
@@ -242,10 +243,10 @@ function parseTemplates(text) {
   const rows = parseCSV(text);
   if (rows.length < 2) return;
   const headers = rows[0];
-  const idIdx = headers.indexOf('テンプレートID');
-  const nameIdx = headers.indexOf('テンプレート名');
-  const bodyUpIdx = headers.indexOf('本文（上）');
-  const bodyDownIdx = headers.indexOf('本文（下）');
+  const idIdx = cleanHeaders.indexOf('テンプレートID');
+  const nameIdx = cleanHeaders.indexOf('テンプレート名');
+  const bodyUpIdx = cleanHeaders.indexOf('本文（上）');
+  const bodyDownIdx = cleanHeaders.indexOf('本文（下）');
 
   templates = rows.slice(1)
     .filter(r => r[nameIdx] && r[nameIdx].trim())
