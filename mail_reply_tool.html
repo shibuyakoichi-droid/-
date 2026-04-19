@@ -1,0 +1,428 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SOWAN 問い合わせ回答ツール</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Meiryo', sans-serif; background: #f5f5f5; color: #333; }
+  header { background: #c00; color: white; padding: 12px 20px; font-size: 18px; font-weight: bold; }
+  .container { display: flex; height: calc(100vh - 48px); }
+
+  /* 左パネル：問い合わせ一覧 */
+  .left { width: 320px; background: white; border-right: 1px solid #ddd; display: flex; flex-direction: column; }
+  .left-header { padding: 12px; border-bottom: 1px solid #ddd; background: #fafafa; }
+  .left-header input[type=file] { width: 100%; font-size: 12px; }
+  .left-header input[type=text] { width: 100%; margin-top: 8px; padding: 6px; border: 1px solid #ccc; border-radius: 4px; font-size: 13px; }
+  .mail-count { font-size: 12px; color: #888; margin-top: 4px; }
+  .mail-list { flex: 1; overflow-y: auto; }
+  .mail-item { padding: 10px 12px; border-bottom: 1px solid #eee; cursor: pointer; }
+  .mail-item:hover { background: #fff8f8; }
+  .mail-item.active { background: #ffeaea; border-left: 3px solid #c00; }
+  .mail-item .from { font-size: 13px; font-weight: bold; }
+  .mail-item .subject { font-size: 12px; color: #555; margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .mail-item .date { font-size: 11px; color: #999; margin-top: 2px; }
+  .mail-item .label { display: inline-block; font-size: 10px; background: #e8f0fe; color: #1a73e8; padding: 1px 5px; border-radius: 3px; margin-top: 3px; }
+
+  /* 中央パネル：メール内容 */
+  .center { flex: 1; display: flex; flex-direction: column; background: white; border-right: 1px solid #ddd; }
+  .center-header { padding: 12px 16px; border-bottom: 1px solid #ddd; background: #fafafa; }
+  .center-header .subject { font-size: 15px; font-weight: bold; }
+  .center-header .meta { font-size: 12px; color: #888; margin-top: 4px; }
+  .mail-body { flex: 1; overflow-y: auto; padding: 16px; font-size: 13px; line-height: 1.8; white-space: pre-wrap; }
+  .empty-state { flex: 1; display: flex; align-items: center; justify-content: center; color: #aaa; font-size: 14px; }
+
+  /* 右パネル：回答生成 */
+  .right { width: 380px; display: flex; flex-direction: column; background: white; }
+  .right-header { padding: 12px 16px; border-bottom: 1px solid #ddd; background: #fafafa; font-weight: bold; font-size: 14px; }
+  .right-body { flex: 1; display: flex; flex-direction: column; padding: 12px; gap: 10px; overflow-y: auto; }
+  
+  .api-key-section { background: #fff8e1; border: 1px solid #ffe082; border-radius: 6px; padding: 10px; }
+  .api-key-section label { font-size: 12px; font-weight: bold; display: block; margin-bottom: 4px; }
+  .api-key-section input { width: 100%; padding: 6px; border: 1px solid #ccc; border-radius: 4px; font-size: 12px; font-family: monospace; }
+
+  .template-section label { font-size: 12px; font-weight: bold; display: block; margin-bottom: 4px; }
+  .template-section input[type=file] { font-size: 12px; }
+
+  .generate-btn { background: #c00; color: white; border: none; padding: 10px; border-radius: 6px; font-size: 14px; font-weight: bold; cursor: pointer; width: 100%; }
+  .generate-btn:hover { background: #a00; }
+  .generate-btn:disabled { background: #ccc; cursor: not-allowed; }
+
+  .reply-section { flex: 1; display: flex; flex-direction: column; gap: 6px; }
+  .reply-section label { font-size: 12px; font-weight: bold; }
+  .reply-text { flex: 1; min-height: 200px; padding: 8px; border: 1px solid #ccc; border-radius: 4px; font-size: 13px; line-height: 1.7; resize: vertical; font-family: 'Meiryo', sans-serif; }
+  .copy-btn { background: #1a73e8; color: white; border: none; padding: 8px; border-radius: 6px; font-size: 13px; cursor: pointer; }
+  .copy-btn:hover { background: #1557b0; }
+  .copy-success { background: #2e7d32 !important; }
+
+  .loading { text-align: center; color: #c00; font-size: 13px; padding: 10px; }
+  .status-msg { font-size: 12px; padding: 6px 10px; border-radius: 4px; }
+  .status-ok { background: #e8f5e9; color: #2e7d32; }
+  .status-err { background: #ffebee; color: #c62828; }
+
+  .template-list { max-height: 120px; overflow-y: auto; border: 1px solid #eee; border-radius: 4px; }
+  .template-item { padding: 5px 8px; font-size: 12px; cursor: pointer; border-bottom: 1px solid #f5f5f5; }
+  .template-item:hover { background: #f5f5f5; }
+  .template-item.selected { background: #ffeaea; }
+</style>
+</head>
+<body>
+<header>🏪 SOWAN 問い合わせ回答ツール</header>
+<div class="container">
+
+  <!-- 左：問い合わせ一覧 -->
+  <div class="left">
+    <div class="left-header">
+      <input type="file" id="mailCsvInput" accept=".csv">
+      <input type="text" id="searchInput" placeholder="🔍 キーワード検索..." oninput="filterMails()">
+      <div class="mail-count" id="mailCount">CSVを読み込んでください</div>
+    </div>
+    <div class="mail-list" id="mailList"></div>
+  </div>
+
+  <!-- 中央：メール内容 -->
+  <div class="center">
+    <div id="centerHeader" class="center-header" style="display:none">
+      <div class="subject" id="mailSubject"></div>
+      <div class="meta" id="mailMeta"></div>
+    </div>
+    <div id="emptyState" class="empty-state">← 問い合わせを選択してください</div>
+    <div id="mailBody" class="mail-body" style="display:none"></div>
+  </div>
+
+  <!-- 右：回答生成 -->
+  <div class="right">
+    <div class="right-header">✍️ 回答生成</div>
+    <div class="right-body">
+      
+      <div class="api-key-section">
+        <label>🔑 Claude API Key</label>
+        <input type="password" id="apiKey" placeholder="sk-ant-..." />
+      </div>
+
+      <div class="template-section">
+        <label>📋 テンプレートCSV（任意）</label>
+        <input type="file" id="templateCsvInput" accept=".csv">
+        <div id="templateStatus" class="status-msg" style="display:none"></div>
+      </div>
+
+      <div>
+        <label style="font-size:12px; font-weight:bold; display:block; margin-bottom:4px;">📌 使用テンプレート（クリックで選択）</label>
+        <div class="template-list" id="templateList"><div style="padding:8px;color:#aaa;font-size:12px;">テンプレートCSVを読み込むと表示されます</div></div>
+      </div>
+
+      <button class="generate-btn" id="generateBtn" onclick="generateReply()" disabled>
+        🤖 AIで回答案を生成
+      </button>
+
+      <div id="loadingMsg" class="loading" style="display:none">⏳ AIが回答を生成中...</div>
+      <div id="statusMsg" class="status-msg" style="display:none"></div>
+
+      <div class="reply-section">
+        <label>📝 回答案（編集してコピー）</label>
+        <textarea class="reply-text" id="replyText" placeholder="問い合わせを選択してAIで生成ボタンを押してください"></textarea>
+        <button class="copy-btn" id="copyBtn" onclick="copyReply()">📋 コピーする</button>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<script>
+let allMails = [];
+let filteredMails = [];
+let selectedMail = null;
+let templates = [];
+let selectedTemplate = null;
+
+// 問い合わせCSV読み込み
+document.getElementById('mailCsvInput').addEventListener('change', function(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = function(ev) {
+    const text = decodeShiftJIS(ev.target.result);
+    parseMails(text);
+  };
+  reader.readAsArrayBuffer(file);
+});
+
+// テンプレートCSV読み込み
+document.getElementById('templateCsvInput').addEventListener('change', function(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = function(ev) {
+    const text = decodeShiftJIS(ev.target.result);
+    parseTemplates(text);
+  };
+  reader.readAsArrayBuffer(file);
+});
+
+function decodeShiftJIS(buffer) {
+  const decoder = new TextDecoder('shift-jis');
+  return decoder.decode(buffer);
+}
+
+function parseCSV(text) {
+  const rows = [];
+  const lines = text.split('\n');
+  let current = '';
+  let inQuote = false;
+  let currentRow = [];
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    for (let j = 0; j < line.length; j++) {
+      const ch = line[j];
+      if (ch === '"') {
+        if (inQuote && line[j+1] === '"') { current += '"'; j++; }
+        else { inQuote = !inQuote; }
+      } else if (ch === ',' && !inQuote) {
+        currentRow.push(current); current = '';
+      } else {
+        current += ch;
+      }
+    }
+    if (inQuote) { current += '\n'; }
+    else {
+      currentRow.push(current);
+      rows.push(currentRow);
+      currentRow = []; current = '';
+    }
+  }
+  return rows;
+}
+
+function parseMails(text) {
+  const rows = parseCSV(text);
+  if (rows.length < 2) return;
+  const headers = rows[0];
+  
+  const idx = {
+    id: headers.indexOf('メールID'),
+    from: headers.indexOf('From名前'),
+    fromAddr: headers.indexOf('Fromアドレス'),
+    to: headers.indexOf('To名前'),
+    subject: headers.indexOf('件名'),
+    body: headers.indexOf('本文'),
+    date: headers.indexOf('受送信時刻'),
+    label1: headers.indexOf('ラベル１'),
+    label2: headers.indexOf('ラベル２'),
+    staff: headers.indexOf('担当者名'),
+    type: headers.indexOf('メール種別'),
+  };
+
+  // 受信メールのみ抽出（お客様からの問い合わせ）
+  allMails = rows.slice(1)
+    .filter(r => r[idx.to] && r[idx.to].includes('SOWAN') || (r[idx.from] && !r[idx.from].includes('SOWAN')))
+    .filter(r => r[idx.body] && r[idx.body].trim())
+    .map(r => ({
+      id: r[idx.id] || '',
+      from: r[idx.from] || '',
+      fromAddr: r[idx.fromAddr] || '',
+      to: r[idx.to] || '',
+      subject: r[idx.subject] || '',
+      body: r[idx.body] || '',
+      date: r[idx.date] || '',
+      label1: r[idx.label1] || '',
+      label2: r[idx.label2] || '',
+      staff: r[idx.staff] || '',
+    }))
+    .filter(m => !m.from.includes('SOWAN')); // お客様からのメールのみ
+
+  filteredMails = [...allMails];
+  document.getElementById('mailCount').textContent = `${allMails.length}件の問い合わせ`;
+  renderMailList();
+  updateGenerateBtn();
+}
+
+function parseTemplates(text) {
+  const rows = parseCSV(text);
+  if (rows.length < 2) return;
+  const headers = rows[0];
+  const idIdx = headers.indexOf('テンプレートID');
+  const nameIdx = headers.indexOf('テンプレート名');
+  const bodyUpIdx = headers.indexOf('本文（上）');
+  const bodyDownIdx = headers.indexOf('本文（下）');
+
+  templates = rows.slice(1)
+    .filter(r => r[nameIdx] && r[nameIdx].trim())
+    .map(r => ({
+      id: r[idIdx] || '',
+      name: r[nameIdx] || '',
+      bodyUp: r[bodyUpIdx] || '',
+      bodyDown: r[bodyDownIdx] || '',
+    }));
+
+  const status = document.getElementById('templateStatus');
+  status.style.display = 'block';
+  status.className = 'status-msg status-ok';
+  status.textContent = `✅ ${templates.length}件のテンプレートを読み込みました`;
+
+  renderTemplateList();
+  updateGenerateBtn();
+}
+
+function renderTemplateList() {
+  const list = document.getElementById('templateList');
+  list.innerHTML = templates.map((t, i) => `
+    <div class="template-item" onclick="selectTemplate(${i})" id="tmpl-${i}">
+      ${t.name}
+    </div>
+  `).join('');
+}
+
+function selectTemplate(i) {
+  selectedTemplate = i;
+  document.querySelectorAll('.template-item').forEach((el, idx) => {
+    el.classList.toggle('selected', idx === i);
+  });
+}
+
+function filterMails() {
+  const q = document.getElementById('searchInput').value.trim().toLowerCase();
+  filteredMails = q
+    ? allMails.filter(m => 
+        m.from.toLowerCase().includes(q) ||
+        m.subject.toLowerCase().includes(q) ||
+        m.body.toLowerCase().includes(q) ||
+        m.label1.toLowerCase().includes(q)
+      )
+    : [...allMails];
+  document.getElementById('mailCount').textContent = `${filteredMails.length}件 / ${allMails.length}件`;
+  renderMailList();
+}
+
+function renderMailList() {
+  const list = document.getElementById('mailList');
+  if (filteredMails.length === 0) {
+    list.innerHTML = '<div style="padding:16px;color:#aaa;font-size:13px;">該当なし</div>';
+    return;
+  }
+  list.innerHTML = filteredMails.map((m, i) => `
+    <div class="mail-item ${selectedMail === m ? 'active' : ''}" onclick="selectMail(${i})">
+      <div class="from">${escHtml(m.from || '（名前なし）')}</div>
+      <div class="subject">${escHtml(m.subject)}</div>
+      <div class="date">${m.date}</div>
+      ${m.label1 ? `<span class="label">${escHtml(m.label1)}</span>` : ''}
+    </div>
+  `).join('');
+}
+
+function selectMail(i) {
+  selectedMail = filteredMails[i];
+  renderMailList();
+
+  document.getElementById('emptyState').style.display = 'none';
+  document.getElementById('centerHeader').style.display = 'block';
+  document.getElementById('mailBody').style.display = 'block';
+
+  document.getElementById('mailSubject').textContent = selectedMail.subject;
+  document.getElementById('mailMeta').textContent = `From: ${selectedMail.from}　${selectedMail.date}`;
+  document.getElementById('mailBody').textContent = selectedMail.body;
+
+  updateGenerateBtn();
+}
+
+function updateGenerateBtn() {
+  const btn = document.getElementById('generateBtn');
+  btn.disabled = !(selectedMail && document.getElementById('apiKey').value.trim());
+}
+
+document.getElementById('apiKey').addEventListener('input', updateGenerateBtn);
+
+async function generateReply() {
+  const apiKey = document.getElementById('apiKey').value.trim();
+  if (!apiKey || !selectedMail) return;
+
+  document.getElementById('generateBtn').disabled = true;
+  document.getElementById('loadingMsg').style.display = 'block';
+  document.getElementById('statusMsg').style.display = 'none';
+  document.getElementById('replyText').value = '';
+
+  // テンプレート情報
+  let templateInfo = '';
+  if (selectedTemplate !== null && templates[selectedTemplate]) {
+    const t = templates[selectedTemplate];
+    templateInfo = `\n\n【参考テンプレート: ${t.name}】\n${t.bodyUp}\n${t.bodyDown}`;
+  } else if (templates.length > 0) {
+    // 関連テンプレートを自動検索（最大3件）
+    const relevant = templates.slice(0, 5).map(t => `・${t.name}: ${t.bodyUp.substring(0, 80)}`).join('\n');
+    templateInfo = `\n\n【テンプレート参考例】\n${relevant}`;
+  }
+
+  const prompt = `あなたはSOWAN楽天市場店のカスタマーサポート担当者です。
+以下のお客様からの問い合わせに対して、丁寧で親切な返信メールを作成してください。
+
+【お客様からの問い合わせ】
+件名: ${selectedMail.subject}
+本文:
+${selectedMail.body}
+${templateInfo}
+
+【返信作成のルール】
+- SOWANの担当者として丁寧な言葉遣いで書く
+- 件名は不要、本文のみ
+- 署名は不要
+- お客様の問い合わせ内容に具体的に答える
+- 不明な点は確認する旨を伝える
+- 楽天市場店のトーンに合わせる（丁寧・親切・温かみ）
+
+返信本文のみを出力してください。`;
+
+  try {
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 1000,
+        messages: [{ role: 'user', content: prompt }]
+      })
+    });
+
+    const data = await res.json();
+    
+    if (data.content && data.content[0]) {
+      document.getElementById('replyText').value = data.content[0].text;
+      showStatus('✅ 回答案を生成しました', 'ok');
+    } else if (data.error) {
+      showStatus('❌ エラー: ' + data.error.message, 'err');
+    }
+  } catch (err) {
+    showStatus('❌ 通信エラー: ' + err.message, 'err');
+  } finally {
+    document.getElementById('loadingMsg').style.display = 'none';
+    document.getElementById('generateBtn').disabled = false;
+  }
+}
+
+function showStatus(msg, type) {
+  const el = document.getElementById('statusMsg');
+  el.style.display = 'block';
+  el.className = 'status-msg status-' + type;
+  el.textContent = msg;
+}
+
+function copyReply() {
+  const text = document.getElementById('replyText').value;
+  if (!text) return;
+  navigator.clipboard.writeText(text).then(() => {
+    const btn = document.getElementById('copyBtn');
+    btn.textContent = '✅ コピーしました！';
+    btn.classList.add('copy-success');
+    setTimeout(() => {
+      btn.textContent = '📋 コピーする';
+      btn.classList.remove('copy-success');
+    }, 2000);
+  });
+}
+
+function escHtml(str) {
+  return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+</script>
+</body>
+</html>
