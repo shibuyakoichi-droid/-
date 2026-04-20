@@ -155,9 +155,8 @@ input[readonly]{background:#f5f4f0;color:#888}
   <div class="panel" id="tab-factories">
     <div class="card" style="margin-bottom:16px">
       <div class="section-label" style="margin-bottom:12px">工場を追加</div>
-      <div class="form-row col3">
+      <div class="form-row col2">
         <div class="form-group"><label>工場名</label><input id="f-name" placeholder="例：坂本繊維"></div>
-        <div class="form-group"><label>担当者</label><input id="f-contact" placeholder="例：坂本様"></div>
         <div class="form-group"><label>カテゴリ</label>
           <select id="f-cat">
             <option value="編み">編み</option>
@@ -169,10 +168,6 @@ input[readonly]{background:#f5f4f0;color:#888}
             <option value="その他">その他</option>
           </select>
         </div>
-      </div>
-      <div class="form-row col2">
-        <div class="form-group"><label>電話番号</label><input id="f-tel" placeholder="例：06-0000-0000"></div>
-        <div class="form-group"><label>メールアドレス</label><input id="f-email" placeholder="例：info@example.com"></div>
       </div>
       <div style="text-align:right"><button class="btn primary" onclick="addFactory()">追加する</button></div>
     </div>
@@ -270,6 +265,8 @@ const SCHEMA={
 };
 const QTY_KEY={編み:'tan',染色:'tan',裁断:'cutQty',縫製:'cutQty',その他:'qty',糸:'qty',靴下:'qty'};
 const CAT_BADGE={編み:'knit',染色:'dye',裁断:'cut',縫製:'sew',その他:'other',糸:'yarn',靴下:'socks'};
+const PROCESS_TO_CAT={knit:'編み',dye:'染色',cut:'裁断',sew:'縫製',other:'その他',yarn:'糸',socks:'靴下'};
+const CAT_UNIT={編み:'kg',染色:'kg',裁断:'枚',縫製:'枚',糸:'kg',靴下:'足',その他:'点'};
 const CAT_STYLE={
   編み:'background:#e1f5ee;color:#0a6b50',
   染色:'background:#faeeda;color:#7a4d0a',
@@ -299,20 +296,20 @@ async function load(){
   ]);
   if(r1.error||r2.error){showAlert('データ読み込みに失敗しました','err');return;}
   D.orders=(r1.data||[]).map(o=>({...o,factoryId:o.factory_id,createdAt:o.created_at}));
-  D.factories=r2.data||[];
+  D.factories=(r2.data||[]).map(f=>({...f,category:PROCESS_TO_CAT[f.process]||f.category||'その他'}));
   if(!D.factories.length){await seedFactories();}
 }
 async function seedFactories(){
   const defaults=[
-    {id:'f1',name:'坂本繊維',contact:'坂本様',category:'編み',tel:'',email:''},
-    {id:'f2',name:'V-TEC',contact:'',category:'染色',tel:'',email:''},
-    {id:'f3',name:'松田染工場',contact:'',category:'染色',tel:'',email:''},
-    {id:'f4',name:'神共ニット',contact:'',category:'裁断',tel:'',email:''},
-    {id:'f5',name:'コンセプト',contact:'',category:'縫製',tel:'',email:''},
-    {id:'f6',name:'メリット',contact:'',category:'縫製',tel:'',email:''},
+    {id:'f1',name:'坂本繊維',process:'knit',unit:'kg'},
+    {id:'f2',name:'V-TEC',process:'dye',unit:'kg'},
+    {id:'f3',name:'松田染工場',process:'dye',unit:'kg'},
+    {id:'f4',name:'神共ニット',process:'cut',unit:'枚'},
+    {id:'f5',name:'コンセプト',process:'sew',unit:'枚'},
+    {id:'f6',name:'メリット',process:'sew',unit:'枚'},
   ];
   const{error}=await sb.from('factories').insert(defaults);
-  if(!error)D.factories=defaults;
+  if(!error)D.factories=defaults.map(f=>({...f,category:PROCESS_TO_CAT[f.process]||'その他'}));
 }
 
 // ── ユーティリティ ──────────────────────────────────
@@ -640,13 +637,11 @@ function renderFactories(){
   const el=document.getElementById('factory-list');
   if(!D.factories.length){el.innerHTML='<div class="empty-state">工場が登録されていません</div>';return;}
   el.innerHTML=`<div class="table-wrap"><table class="list">
-    <thead><tr><th>工場名</th><th>担当者</th><th>工程</th><th>電話</th><th>メール</th><th></th></tr></thead>
+    <thead><tr><th>工場名</th><th>工程</th><th>単位</th><th></th></tr></thead>
     <tbody>${D.factories.map(f=>`<tr>
       <td style="font-weight:500">${f.name}</td>
-      <td style="color:#888">${f.contact||'—'}</td>
       <td>${catBadge(f.category)}</td>
-      <td style="color:#888;font-size:12px">${f.tel||'—'}</td>
-      <td style="color:#888;font-size:12px">${f.email||'—'}</td>
+      <td style="color:#888;font-size:12px">${f.unit||'—'}</td>
       <td><button class="btn sm danger" onclick="deleteFactory('${f.id}')">削除</button></td>
     </tr>`).join('')}</tbody>
   </table></div>`;
@@ -654,11 +649,14 @@ function renderFactories(){
 async function addFactory(){
   const name=document.getElementById('f-name').value.trim();
   if(!name){showAlert('工場名を入力してください','err');return;}
-  const factory={id:'f'+Date.now(),name,contact:document.getElementById('f-contact').value.trim(),category:document.getElementById('f-cat').value,tel:document.getElementById('f-tel').value.trim(),email:document.getElementById('f-email').value.trim()};
+  const category=document.getElementById('f-cat').value;
+  const process=CAT_BADGE[category]||'other';
+  const unit=CAT_UNIT[category]||'点';
+  const factory={id:'f'+Date.now(),name,process,unit};
   const{error}=await sb.from('factories').insert(factory);
-  if(error){showAlert('追加に失敗しました','err');return;}
-  D.factories.push(factory);
-  ['f-name','f-contact','f-tel','f-email'].forEach(id=>document.getElementById(id).value='');
+  if(error){showAlert('追加に失敗しました：'+error.message,'err');return;}
+  D.factories.push({...factory,category});
+  document.getElementById('f-name').value='';
   renderFactories();showAlert(`「${name}」を追加しました`);
 }
 async function deleteFactory(id){
