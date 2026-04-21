@@ -53,6 +53,7 @@ table.list tr:hover td{background:#faf9f7}
 .filter-bar{display:flex;gap:8px;align-items:center;margin-bottom:14px;flex-wrap:wrap}
 .filter-bar select{width:auto;padding:6px 10px;font-size:12px}
 .filter-bar label{font-size:12px;color:#888}
+.filter-bar input{width:auto;padding:6px 10px;font-size:12px}
 .form-row{display:grid;gap:10px;margin-bottom:12px}
 .form-row.col2{grid-template-columns:1fr 1fr}
 .form-row.col3{grid-template-columns:1fr 1fr 1fr}
@@ -83,7 +84,8 @@ input[readonly]{background:#f5f4f0;color:#888}
 .items-tbl td input{padding:5px 6px;font-size:12px;width:100%}
 .add-row-btn{background:none;border:none;font-size:12px;color:#999;cursor:pointer;padding:4px 6px;font-family:inherit}
 .add-row-btn:hover{color:#1a1a1a}
-/* ===== 印刷 ===== */
+.loc-self{display:inline-flex;align-items:center;font-size:12px;color:#888;background:#f5f4f0;padding:3px 9px;border-radius:20px}
+.loc-est{font-size:10px;color:#bbb;margin-left:4px}
 @media print{
   .topbar,.tabs,.no-print,
   .modal-overlay,#alert-area,.container{display:none!important}
@@ -108,17 +110,16 @@ input[readonly]{background:#f5f4f0;color:#888}
     <button class="tab active" onclick="switchTab('dashboard')">概要</button>
     <button class="tab" onclick="switchTab('history')">発注履歴</button>
     <button class="tab" onclick="switchTab('analytics')">集計</button>
+    <button class="tab" onclick="switchTab('locations')">在処管理</button>
     <button class="tab" onclick="switchTab('factories')">工場マスタ</button>
   </div>
 
-  <!-- 概要 -->
   <div class="panel active" id="tab-dashboard">
     <div id="stats-area"></div>
     <div class="section-label">今月の発注一覧</div>
     <div id="recent-orders"></div>
   </div>
 
-  <!-- 発注履歴 -->
   <div class="panel" id="tab-history">
     <div class="filter-bar">
       <label>表示：</label>
@@ -136,7 +137,6 @@ input[readonly]{background:#f5f4f0;color:#888}
     <div id="history-area"></div>
   </div>
 
-  <!-- 集計 -->
   <div class="panel" id="tab-analytics">
     <div class="filter-bar">
       <label>期間：</label>
@@ -151,7 +151,19 @@ input[readonly]{background:#f5f4f0;color:#888}
     <div id="analytics-area"></div>
   </div>
 
-  <!-- 工場マスタ -->
+  <div class="panel" id="tab-locations">
+    <div class="filter-bar">
+      <label>工場：</label>
+      <select id="loc-filter-factory" onchange="renderLocations()">
+        <option value="">すべて</option>
+        <option value="__self__">自社保管のみ</option>
+      </select>
+      <label>検索：</label>
+      <input id="loc-search" placeholder="生地番号 / カラー名" style="width:180px" oninput="renderLocations()">
+    </div>
+    <div id="location-area"></div>
+  </div>
+
   <div class="panel" id="tab-factories">
     <div class="card" style="margin-bottom:16px">
       <div class="section-label" style="margin-bottom:12px">工場を追加</div>
@@ -175,7 +187,7 @@ input[readonly]{background:#f5f4f0;color:#888}
   </div>
 </div>
 
-<!-- モーダル -->
+<!-- 発注書モーダル -->
 <div class="modal-overlay no-print" id="order-modal">
   <div class="modal">
     <div class="modal-header">
@@ -212,11 +224,38 @@ input[readonly]{background:#f5f4f0;color:#888}
   </div>
 </div>
 
-<!-- 印刷エリア（画面非表示・印刷時のみ表示） -->
+<!-- 在処移動モーダル -->
+<div class="modal-overlay no-print" id="move-modal">
+  <div class="modal" style="max-width:440px">
+    <div class="modal-header">
+      <div class="modal-title">場所を変更</div>
+      <button class="btn sm" onclick="closeMoveModal()">閉じる</button>
+    </div>
+    <div id="move-modal-info" style="margin-bottom:18px;padding:12px 14px;background:#f5f4f0;border-radius:8px;font-size:13px"></div>
+    <div class="form-row">
+      <div class="form-group">
+        <label>移動先</label>
+        <select id="move-factory">
+          <option value="">自社保管（工場なし）</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label>メモ（任意）</label>
+        <input id="move-memo" placeholder="例：検反済み、納品予定など">
+      </div>
+    </div>
+    <div style="display:flex;justify-content:flex-end;gap:8px;padding-top:16px;border-top:1px solid #e8e6e0">
+      <button class="btn" onclick="closeMoveModal()">キャンセル</button>
+      <button class="btn primary" onclick="confirmMove()">変更する</button>
+    </div>
+  </div>
+</div>
+
 <div class="print-doc" id="print-content"></div>
 
 <script>
-// ── スキーマ定義 ────────────────────────────────────
 const SCHEMA={
   '編み':[
     {key:'fabricNo',label:'生地番号',w:32,type:'text'},
@@ -282,22 +321,41 @@ const SUPABASE_URL='https://yukcdqnnevomhdcpsvms.supabase.co';
 const SUPABASE_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inl1a2NkcW5uZXZvbWhkY3Bzdm1zIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY0Mjc2MTUsImV4cCI6MjA5MjAwMzYxNX0.XBSc2kQNwR_bleSwrfYZD8l0fbKTbL1Z3S7ewEtSkDc';
 const sb=supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
 
-let D={orders:[],factories:[]};
+let D={orders:[],factories:[],locations:[]};
 let currentSchema=[];
 let historyView='month';
 let analyticsView='factory';
 let histSort={col:'date',dir:'desc'};
+let moveTarget=null;
+let locRows=[];
 
-// ── データ読み込み ──────────────────────────────────
+const LS_LOC_KEY='mofmofu_fabric_locations';
+let locStorageMode=false;
+
 async function load(){
   const[r1,r2]=await Promise.all([
     sb.from('orders').select('*').order('date',{ascending:false}),
-    sb.from('factories').select('*').order('name')
+    sb.from('factories').select('*').order('name'),
   ]);
   if(r1.error||r2.error){showAlert('データ読み込みに失敗しました','err');return;}
   D.orders=(r1.data||[]).map(o=>({...o,factoryId:o.factory_id,createdAt:o.created_at}));
   D.factories=(r2.data||[]).map(f=>({...f,category:PROCESS_TO_CAT[f.process]||f.category||'その他'}));
   if(!D.factories.length){await seedFactories();}
+  const r3=await sb.from('fabric_locations').select('*');
+  if(r3.error){
+    locStorageMode=true;
+    try{D.locations=JSON.parse(localStorage.getItem(LS_LOC_KEY)||'[]');}catch{D.locations=[];}
+  }else{
+    locStorageMode=false;
+    D.locations=r3.data||[];
+    const ls=JSON.parse(localStorage.getItem(LS_LOC_KEY)||'[]');
+    if(ls.length&&!r3.data?.length){
+      for(const rec of ls){await sb.from('fabric_locations').upsert(rec,{onConflict:'fabric_no,color'});}
+      localStorage.removeItem(LS_LOC_KEY);
+      const r4=await sb.from('fabric_locations').select('*');
+      D.locations=r4.data||[];
+    }
+  }
 }
 async function seedFactories(){
   const defaults=[
@@ -312,7 +370,6 @@ async function seedFactories(){
   if(!error)D.factories=defaults.map(f=>({...f,category:PROCESS_TO_CAT[f.process]||'その他'}));
 }
 
-// ── ユーティリティ ──────────────────────────────────
 function genId(){return 'o'+Date.now()+'_'+Math.random().toString(36).slice(2,6)}
 function genNumber(){
   const d=new Date(),y=d.getFullYear(),m=String(d.getMonth()+1).padStart(2,'0');
@@ -334,8 +391,10 @@ function getFactoryName(order){
   const f=D.factories.find(f=>f.id===order.factoryId);
   return f?f.name:'不明';
 }
+function esc(s){
+  return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
 
-// フィルタ用月リスト生成
 function buildMonthOptions(selId){
   const sel=document.getElementById(selId);
   const cur=sel.value;
@@ -348,23 +407,21 @@ function buildFactoryOptions(selId){
   sel.innerHTML='<option value="">全工場</option>'+D.factories.map(f=>`<option value="${f.id}"${f.id===cur?' selected':''}>${f.name}</option>`).join('');
 }
 
-// ── タブ切替 ───────────────────────────────────────
 function switchTab(t){
   document.querySelectorAll('.tab').forEach(el=>el.classList.remove('active'));
   document.querySelectorAll('.panel').forEach(el=>el.classList.remove('active'));
-  ['dashboard','history','analytics','factories'].forEach((n,i)=>{
+  ['dashboard','history','analytics','locations','factories'].forEach((n,i)=>{
     if(n===t){document.querySelectorAll('.tab')[i].classList.add('active');document.getElementById('tab-'+n).classList.add('active');}
   });
   if(t==='dashboard')renderDashboard();
   if(t==='history'){buildMonthOptions('hist-filter-month');buildFactoryOptions('hist-filter-factory');renderHistory();}
   if(t==='analytics'){buildMonthOptions('ana-filter-month');renderAnalytics();}
+  if(t==='locations'){buildLocFilterFactory();renderLocations();}
   if(t==='factories')renderFactories();
 }
 
-// ── 概要タブ ───────────────────────────────────────
 function renderDashboard(){
   const now=new Date();
-  // 当月を正確に生成
   const ym=now.getFullYear()+'-'+String(now.getMonth()+1).padStart(2,'0');
   const mo=D.orders.filter(o=>getYM(o.date)===ym);
   const totalQty=mo.reduce((s,o)=>s+sumQty(o),0);
@@ -395,7 +452,6 @@ function renderDashboard(){
   </table></div>`;
 }
 
-// ── 発注履歴タブ ───────────────────────────────────
 function setHistoryView(v){
   historyView=v;
   histSort={col:'date',dir:'desc'};
@@ -492,7 +548,6 @@ function renderHistory(){
     }).join('');
 
   } else if(historyView==='fabric'){
-    // 品番（生地番号）ごとに明細行をフラット展開
     const byFabric={};
     allOrders.forEach(o=>{
       (o.items||[]).forEach(item=>{
@@ -533,7 +588,6 @@ function renderHistory(){
   }
 }
 
-// ── 集計タブ ───────────────────────────────────────
 function setAnalyticsView(v){
   analyticsView=v;
   document.querySelectorAll('#tab-analytics .subtab').forEach((el,i)=>el.classList.toggle('active',['factory','fabric'][i]===v));
@@ -547,7 +601,6 @@ function renderAnalytics(){
   if(!orders.length){el.innerHTML='<div class="empty-state">データがありません</div>';return;}
 
   if(analyticsView==='factory'){
-    // 工場別集計
     const map={};
     orders.forEach(o=>{
       const fid=o.factoryId||'unknown';
@@ -585,7 +638,6 @@ function renderAnalytics(){
     </table></div>`;
 
   } else if(analyticsView==='fabric'){
-    // 品番別集計
     const map={};
     orders.forEach(o=>{
       const cat=getCat(o);
@@ -632,7 +684,169 @@ function renderAnalytics(){
   }
 }
 
-// ── 工場マスタ ─────────────────────────────────────
+// ────── 在処管理 ──────
+
+function buildLocFilterFactory(){
+  const sel=document.getElementById('loc-filter-factory');
+  const cur=sel.value;
+  sel.innerHTML='<option value="">すべて</option><option value="__self__"'+(cur==='__self__'?' selected':'')+'>自社保管のみ</option>'+
+    D.factories.map(f=>`<option value="${f.id}"${f.id===cur?' selected':''}>${f.name}</option>`).join('');
+}
+
+function getLocMap(){
+  const m={};
+  D.locations.forEach(l=>{m[l.fabric_no+'|'+(l.color||'')]=l;});
+  return m;
+}
+
+function buildFabricList(){
+  const map={};
+  D.orders.forEach(o=>{
+    (o.items||[]).forEach(item=>{
+      const fn=item.fabricNo||'';
+      if(!fn)return;
+      const co=item.color||'';
+      const key=fn+'|'+co;
+      if(!map[key]||o.date>map[key].lastDate){
+        map[key]={fabricNo:fn,color:co,lastDate:o.date,lastFactoryId:o.factoryId};
+      }
+    });
+  });
+  return map;
+}
+
+function renderLocations(){
+  const el=document.getElementById('location-area');
+  const fabricMap=buildFabricList();
+  const locMap=getLocMap();
+  const filterFactory=document.getElementById('loc-filter-factory')?.value||'';
+  const search=(document.getElementById('loc-search')?.value||'').trim().toLowerCase();
+
+  let rows=Object.values(fabricMap).map(data=>{
+    const key=data.fabricNo+'|'+data.color;
+    const loc=locMap[key];
+    const factoryId=loc!==undefined?loc.factory_id:data.lastFactoryId;
+    const f=D.factories.find(f=>f.id===factoryId);
+    return {
+      fabricNo:data.fabricNo,
+      color:data.color,
+      factoryId:factoryId||null,
+      factory:f||null,
+      updatedDate:loc?loc.updated_at.substring(0,10):data.lastDate,
+      memo:loc?loc.memo||'':'',
+      isManual:!!loc,
+    };
+  });
+
+  if(filterFactory==='__self__')rows=rows.filter(r=>!r.factoryId);
+  else if(filterFactory)rows=rows.filter(r=>r.factoryId===filterFactory);
+  if(search)rows=rows.filter(r=>
+    r.fabricNo.toLowerCase().includes(search)||r.color.toLowerCase().includes(search));
+
+  rows.sort((a,b)=>a.fabricNo.localeCompare(b.fabricNo,'ja'));
+  locRows=rows;
+
+  if(!rows.length){
+    el.innerHTML='<div class="empty-state">該当する生地がありません</div>';
+    return;
+  }
+
+  const selfCount=rows.filter(r=>!r.factoryId).length;
+  const factCount=rows.filter(r=>r.factoryId).length;
+
+  el.innerHTML=`
+    <div style="display:flex;gap:12px;margin-bottom:16px">
+      <div class="stat" style="padding:12px 20px;flex:none">
+        <div class="stat-label">工場在中</div>
+        <div class="stat-value" style="font-size:22px">${factCount}</div>
+        <div class="stat-unit">種類</div>
+      </div>
+      <div class="stat" style="padding:12px 20px;flex:none">
+        <div class="stat-label">自社保管</div>
+        <div class="stat-value" style="font-size:22px">${selfCount}</div>
+        <div class="stat-unit">種類</div>
+      </div>
+    </div>
+    <div class="table-wrap"><table class="list">
+      <thead><tr>
+        <th>生地番号</th>
+        <th>カラー名</th>
+        <th>現在地</th>
+        <th>更新日</th>
+        <th>メモ</th>
+        <th></th>
+      </tr></thead>
+      <tbody>${rows.map((r,i)=>`<tr>
+        <td style="font-weight:500;font-family:monospace">${esc(r.fabricNo)}</td>
+        <td>${esc(r.color)||'—'}</td>
+        <td>${r.factoryId
+          ?(r.factory?catBadge(r.factory.category)+' <span style="font-size:13px">'+esc(r.factory.name)+'</span>':'<span style="color:#aaa">不明</span>')
+          :'<span class="loc-self">自社保管</span>'
+        }${r.isManual?'':' <span class="loc-est" title="直近の発注先から推定">推定</span>'}</td>
+        <td style="color:#888;font-size:12px">${r.updatedDate}</td>
+        <td style="font-size:12px;color:#666;max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${esc(r.memo)}">${esc(r.memo)}</td>
+        <td style="white-space:nowrap">
+          <button class="btn sm" onclick="openMoveModal(${i})">場所を変更</button>
+          ${r.factoryId?`<button class="btn sm" style="margin-left:4px" onclick="returnToSelf(${i})">自社へ戻す</button>`:''}
+        </td>
+      </tr>`).join('')}</tbody>
+    </table></div>`;
+}
+
+function openMoveModal(idx){
+  const r=locRows[idx];
+  moveTarget={fabricNo:r.fabricNo,color:r.color};
+  document.getElementById('move-modal-info').innerHTML=
+    `<div style="font-size:11px;color:#999;margin-bottom:4px">対象の生地</div>`+
+    `<div style="font-weight:600;font-family:monospace;font-size:15px">${esc(r.fabricNo)}</div>`+
+    (r.color?`<div style="color:#555;margin-top:2px">${esc(r.color)}</div>`:'');
+  const sel=document.getElementById('move-factory');
+  sel.innerHTML='<option value="">自社保管（工場なし）</option>'+
+    D.factories.map(f=>`<option value="${f.id}">${f.name}（${f.category}）</option>`).join('');
+  sel.value=r.factoryId||'';
+  document.getElementById('move-memo').value=r.memo||'';
+  document.getElementById('move-modal').classList.add('open');
+}
+
+function closeMoveModal(){
+  document.getElementById('move-modal').classList.remove('open');
+  moveTarget=null;
+}
+
+async function returnToSelf(idx){
+  const r=locRows[idx];
+  if(!confirm(`「${r.fabricNo}」を自社保管に変更しますか？`))return;
+  await saveMoveLocation(r.fabricNo,r.color,null,'');
+}
+
+async function confirmMove(){
+  if(!moveTarget)return;
+  const factoryId=document.getElementById('move-factory').value||null;
+  const memo=document.getElementById('move-memo').value.trim();
+  await saveMoveLocation(moveTarget.fabricNo,moveTarget.color,factoryId,memo);
+  closeMoveModal();
+}
+
+async function saveMoveLocation(fabricNo,color,factoryId,memo){
+  const now=new Date().toISOString();
+  const record={fabric_no:fabricNo,color:color||'',factory_id:factoryId,memo:memo||'',updated_at:now};
+  if(locStorageMode){
+    const idx=D.locations.findIndex(l=>l.fabric_no===fabricNo&&(l.color||'')===(color||''));
+    if(idx>=0)D.locations[idx]=record;else D.locations.push(record);
+    localStorage.setItem(LS_LOC_KEY,JSON.stringify(D.locations));
+  }else{
+    const{error}=await sb.from('fabric_locations').upsert(record,{onConflict:'fabric_no,color'});
+    if(error){showAlert('更新に失敗しました：'+error.message,'err');return;}
+    const idx=D.locations.findIndex(l=>l.fabric_no===fabricNo&&(l.color||'')===(color||''));
+    if(idx>=0)D.locations[idx]=record;else D.locations.push(record);
+  }
+  const f=D.factories.find(f=>f.id===factoryId);
+  showAlert(`「${fabricNo}」の場所を「${f?f.name:'自社保管'}」に変更しました`);
+  renderLocations();
+}
+
+// ────── 工場マスタ ──────
+
 function renderFactories(){
   const el=document.getElementById('factory-list');
   if(!D.factories.length){el.innerHTML='<div class="empty-state">工場が登録されていません</div>';return;}
@@ -667,7 +881,8 @@ async function deleteFactory(id){
   renderFactories();
 }
 
-// ── モーダル ───────────────────────────────────────
+// ────── 発注書 ──────
+
 function openNewOrder(){
   const sel=document.getElementById('o-factory');
   sel.innerHTML='<option value="">選択してください</option>'+D.factories.map(f=>`<option value="${f.id}">${f.name}（${f.category}）</option>`).join('');
@@ -757,7 +972,6 @@ async function saveOrder(){
   showAlert(`発注書 ${order.number} を保存しました`);
 }
 
-// ── 印刷 ───────────────────────────────────────────
 function printOrder(id){
   const o=D.orders.find(o=>o.id===id);if(!o)return;
   const f=D.factories.find(f=>f.id===o.factoryId);
@@ -765,13 +979,11 @@ function printOrder(id){
   const schema=SCHEMA[cat]||SCHEMA['その他'];
   const qk=QTY_KEY[cat]||'qty';
   const hasUnitCol=(cat==='糸'||cat==='靴下');
-  // unit列は印刷時に数量列と結合して「数量 単位」表示にするため除外
   const printSchema=hasUnitCol?schema.filter(c=>c.type!=='unit'):schema;
   const thead=printSchema.map(c=>`<th style="padding:7px 10px;border:1px solid #ddd;text-align:left;background:#f5f4f0;font-size:12px">${c.label}</th>`).join('');
   const tbody=(o.items||[]).map((item,idx)=>{
     const cells=printSchema.map(c=>{
       let v=item[c.key]||'';
-      // 数量列に単位を付加
       if(c.key==='qty'&&hasUnitCol&&item.qtyUnit){v=`${v} ${item.qtyUnit}`;}
       const align=(c.type==='number')?'text-align:right':'';
       const disp=v===''?'':(c.type==='number'&&!isNaN(Number(v)))?Number(v).toLocaleString():v;
@@ -780,7 +992,6 @@ function printOrder(id){
     return `<tr><td style="padding:7px 10px;border:1px solid #ddd;text-align:center">${idx+1}</td>${cells}</tr>`;
   }).join('');
   const totalQty=(o.items||[]).reduce((s,i)=>s+(parseInt(i[qk])||0),0);
-  // 糸・靴下は単位が混在する可能性があるので合計行の単位表示を調整
   const unitSet=hasUnitCol?[...new Set((o.items||[]).map(i=>i.qtyUnit).filter(Boolean))]:[];
   const unitLabel=hasUnitCol?(unitSet.length===1?unitSet[0]:'(複数単位)'):UNIT[cat]||'点';
   document.getElementById('print-content').innerHTML=`
