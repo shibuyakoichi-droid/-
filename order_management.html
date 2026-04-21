@@ -222,12 +222,8 @@ input[readonly]{background:#f5f4f0;color:#888}
       <button class="add-row-btn" id="add-row-btn" style="display:none" onclick="addItemRow()">＋ 行を追加</button>
     </div>
     <div style="margin-top:16px;border-top:1px solid #e8e6e0;padding-top:16px">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
-        <div class="section-label" style="margin-bottom:0">生地の移動（任意）</div>
-        <button class="add-row-btn" onclick="addOrderMoveRow()">＋ 追加</button>
-      </div>
-      <div id="order-move-hint" style="font-size:12px;color:#bbb;padding:8px 0">この発注に伴い生地を移動する場合は追加してください</div>
-      <div id="order-move-rows"></div>
+      <div class="section-label" style="margin-bottom:8px">この発注で移動する生地（任意）</div>
+      <div id="order-move-area"><div style="font-size:12px;color:#bbb;padding:8px 0">工場を選択すると生地一覧が表示されます</div></div>
     </div>
     <div style="display:flex;justify-content:flex-end;gap:8px;padding-top:16px;border-top:1px solid #e8e6e0;margin-top:16px">
       <button class="btn" onclick="closeModal()">キャンセル</button>
@@ -346,6 +342,8 @@ let moveTarget=null;
 let locRows=[];
 let locView='list';
 let orderMoveItems=[];
+let orderMoveRows=[];
+let orderMoveChecked={};
 
 const LS_LOC_KEY='mofmofu_fabric_locations';
 let locStorageMode=false;
@@ -980,67 +978,60 @@ function openNewOrder(){
   document.getElementById('add-row-btn').style.display='none';
   currentSchema=[];
   orderMoveItems=[];
-  renderOrderMoveRows();
+  orderMoveRows=[];
+  orderMoveChecked={};
+  document.getElementById('order-move-area').innerHTML='<div style="font-size:12px;color:#bbb;padding:8px 0">工場を選択すると生地一覧が表示されます</div>';
   document.getElementById('order-modal').classList.add('open');
 }
 function closeModal(){document.getElementById('order-modal').classList.remove('open');}
 
-function addOrderMoveRow(){
-  orderMoveItems.push({fabricNo:'',color:'',fromFactoryId:'',quantity:0});
-  document.getElementById('order-move-hint').style.display='none';
-  renderOrderMoveRows();
-}
-function removeOrderMoveRow(i){
-  orderMoveItems.splice(i,1);
-  if(!orderMoveItems.length)document.getElementById('order-move-hint').style.display='block';
-  renderOrderMoveRows();
-}
-function onOrderMoveFabricChange(i){
-  const sel=document.getElementById('omr-fabric-'+i);
-  if(!sel)return;
-  const val=sel.value;
-  if(!val){orderMoveItems[i]={fabricNo:'',color:'',fromFactoryId:'',quantity:0};renderOrderMoveRows();return;}
-  const sep=val.indexOf('|||');
-  const fn=val.substring(0,sep);
-  const co=val.substring(sep+3);
-  const loc=D.locations.find(l=>l.fabric_no===fn&&(l.color||'')===co);
-  orderMoveItems[i]={fabricNo:fn,color:co,fromFactoryId:loc?loc.factory_id:'',quantity:loc?(loc.quantity||0):0};
-  renderOrderMoveRows();
-}
-function renderOrderMoveRows(){
-  const el=document.getElementById('order-move-rows');
+function renderMovementSection(){
+  const el=document.getElementById('order-move-area');
   if(!el)return;
-  if(!orderMoveItems.length){el.innerHTML='';return;}
-  const opts=D.locations.map(l=>{
-    const f=D.factories.find(f=>f.id===l.factory_id);
-    const loc=f?f.name:'自社保管';
-    return `<option value="${esc(l.fabric_no)}|||${esc(l.color||'')}">${esc(l.fabric_no)} ${esc(l.color||'')}（${loc}）</option>`;
-  }).join('');
-  el.innerHTML=`<table class="items-tbl" style="margin-top:4px">
-    <thead><tr>
-      <th style="width:38%">生地番号 / カラー</th>
-      <th style="width:26%">現在地</th>
-      <th style="width:22%">移動数量（反）</th>
-      <th style="width:6%"></th>
+  const rows=buildLocRows();
+  if(!rows.length){
+    el.innerHTML='<div style="font-size:12px;color:#bbb;padding:8px 0">在処管理に生地が登録されていません</div>';
+    return;
+  }
+  rows.sort((a,b)=>a.fabricNo.localeCompare(b.fabricNo,'ja'));
+  orderMoveRows=rows;
+  orderMoveChecked={};
+  el.innerHTML=`<div style="font-size:12px;color:#888;margin-bottom:6px">移動する生地にチェックを入れ、数量を入力してください</div>
+  <div style="max-height:220px;overflow-y:auto;border:1px solid #e8e6e0;border-radius:8px">
+  <table class="items-tbl" style="margin-bottom:0">
+    <thead style="position:sticky;top:0;background:#faf9f7"><tr>
+      <th style="width:5%"></th>
+      <th style="width:26%">生地番号</th>
+      <th style="width:22%">カラー名</th>
+      <th style="width:24%">現在地</th>
+      <th style="width:15%">数量（反）</th>
     </tr></thead>
-    <tbody>${orderMoveItems.map((m,i)=>{
-      const fromF=D.factories.find(f=>f.id===m.fromFactoryId);
-      return `<tr>
-        <td><select id="omr-fabric-${i}" onchange="onOrderMoveFabricChange(${i})" style="font-size:12px;padding:5px 6px">
-          <option value="">生地を選択...</option>${opts}
-        </select></td>
-        <td style="font-size:12px;color:#666;padding:4px 8px">${fromF?esc(fromF.name):(m.fromFactoryId?'不明':'—')}</td>
-        <td><input type="number" id="omr-qty-${i}" value="${m.quantity||0}" min="0"
-          onchange="orderMoveItems[${i}].quantity=parseInt(this.value)||0"
-          style="text-align:right;font-size:12px;padding:5px 6px"></td>
-        <td style="text-align:center"><button class="btn sm danger" onclick="removeOrderMoveRow(${i})">×</button></td>
+    <tbody>${rows.map((r,i)=>{
+      const locLabel=r.factory?esc(r.factory.name):'自社保管';
+      return `<tr id="omr-row-${i}">
+        <td style="text-align:center">
+          <input type="checkbox" id="omr-chk-${i}" onchange="onOrderMoveCheck(${i},this.checked)">
+        </td>
+        <td style="font-family:monospace;font-size:12px;font-weight:500">${esc(r.fabricNo)}</td>
+        <td style="font-size:12px">${esc(r.color)||'—'}</td>
+        <td style="font-size:12px;color:#666">${locLabel}</td>
+        <td><input type="number" id="omr-qty-${i}" value="${r.quantity||0}" min="0" disabled
+          style="text-align:right;font-size:12px;padding:4px 6px;background:#f5f4f0;color:#aaa"></td>
       </tr>`;
     }).join('')}</tbody>
-  </table>`;
-  orderMoveItems.forEach((m,i)=>{
-    const sel=document.getElementById('omr-fabric-'+i);
-    if(sel&&m.fabricNo)sel.value=m.fabricNo+'|||'+(m.color||'');
-  });
+  </table></div>`;
+}
+
+function onOrderMoveCheck(i,checked){
+  orderMoveChecked[i]=checked;
+  const qtyEl=document.getElementById('omr-qty-'+i);
+  if(qtyEl){
+    qtyEl.disabled=!checked;
+    qtyEl.style.background=checked?'#fff':'#f5f4f0';
+    qtyEl.style.color=checked?'#1a1a1a':'#aaa';
+  }
+  const row=document.getElementById('omr-row-'+i);
+  if(row)row.style.background=checked?'#f0f7ff':'';
 }
 
 function onFactoryChange(){
@@ -1065,6 +1056,7 @@ function onFactoryChange(){
   document.getElementById('items-table').style.display='table';
   document.getElementById('add-row-btn').style.display='inline-block';
   addItemRow();addItemRow();addItemRow();
+  renderMovementSection();
 }
 function addItemRow(){
   if(!currentSchema.length)return;
@@ -1107,9 +1099,13 @@ async function saveOrder(){
     memo:document.getElementById('o-memo').value,
     items
   };
-  const movements=orderMoveItems.filter(m=>m.fabricNo).map(m=>({
-    fabric_no:m.fabricNo,color:m.color,from_factory_id:m.fromFactoryId,quantity:m.quantity
-  }));
+  const movements=Object.keys(orderMoveChecked)
+    .filter(i=>orderMoveChecked[i]&&orderMoveRows[i]?.fabricNo)
+    .map(i=>{
+      const r=orderMoveRows[i];
+      const qty=parseInt(document.getElementById('omr-qty-'+i)?.value)||0;
+      return {fabric_no:r.fabricNo,color:r.color,from_factory_id:r.factoryId,quantity:qty};
+    });
   const{error}=await sb.from('om_orders').insert({...order,movements});
   if(error){showAlert('保存に失敗しました','err');return;}
   D.orders.push({...order,factoryId,createdAt:new Date().toISOString()});
