@@ -334,7 +334,7 @@ let locStorageMode=false;
 
 async function load(){
   const[r1,r2]=await Promise.all([
-    sb.from('orders').select('*').order('date',{ascending:false}),
+    sb.from('om_orders').select('*').order('date',{ascending:false}),
     sb.from('factories').select('*').order('name'),
   ]);
   if(r1.error||r2.error){showAlert('データ読み込みに失敗しました','err');return;}
@@ -965,7 +965,7 @@ async function saveOrder(){
     memo:document.getElementById('o-memo').value,
     items
   };
-  const{error}=await sb.from('orders').insert(order);
+  const{error}=await sb.from('om_orders').insert(order);
   if(error){showAlert('保存に失敗しました','err');return;}
   D.orders.push({...order,factoryId,createdAt:new Date().toISOString()});
   closeModal();renderDashboard();
