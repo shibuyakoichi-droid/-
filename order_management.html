@@ -362,6 +362,7 @@ let orderMoveItems=[];
 let orderMoveRows=[];
 let orderMoveChecked={};
 let orderCatFilter='';
+let moveSectionFilter='';
 
 const LS_LOC_KEY='mofmofu_fabric_locations';
 let locStorageMode=false;
@@ -1037,6 +1038,7 @@ function openNewOrder(){
   orderMoveItems=[];
   orderMoveRows=[];
   orderMoveChecked={};
+  moveSectionFilter='';
   document.getElementById('order-move-area').innerHTML='<div style="font-size:12px;color:#bbb;padding:8px 0">工場を選択すると生地一覧が表示されます</div>';
   document.getElementById('order-modal').classList.add('open');
 }
@@ -1045,42 +1047,86 @@ function closeModal(){document.getElementById('order-modal').classList.remove('o
 function renderMovementSection(){
   const el=document.getElementById('order-move-area');
   if(!el)return;
-  const rows=buildLocRows();
-  if(!rows.length){
+  const allRows=buildLocRows();
+  if(!allRows.length){
     el.innerHTML='<div style="font-size:12px;color:#bbb;padding:8px 0">在処管理に生地が登録されていません</div>';
     return;
   }
-  rows.sort((a,b)=>a.fabricNo.localeCompare(b.fabricNo,'ja'));
-  orderMoveRows=rows;
+  allRows.sort((a,b)=>a.fabricNo.localeCompare(b.fabricNo,'ja'));
+  orderMoveRows=allRows;
   orderMoveChecked={};
+
+  // フィルターボタン（現在地工場の種類分）
+  const seenFids=[];
+  allRows.forEach(r=>{
+    const fid=r.factoryId||'';
+    if(!seenFids.includes(fid))seenFids.push(fid);
+  });
+  const filterBtns=[
+    `<button class="subtab${!moveSectionFilter?' active':''}" onclick="filterMoveSection('')">すべて</button>`,
+    ...seenFids.map(fid=>{
+      const f=D.factories.find(f=>f.id===fid);
+      const label=f?esc(f.name):'自社保管';
+      return `<button class="subtab${moveSectionFilter===fid?' active':''}" onclick="filterMoveSection('${fid}')">${label}</button>`;
+    })
+  ].join('');
+
+  const rows=moveSectionFilter!==''
+    ?allRows.filter(r=>(r.factoryId||'')===moveSectionFilter)
+    :allRows;
+
   const factoryOpts='<option value="">自社保管</option>'+
     D.factories.map(f=>`<option value="${f.id}">${esc(f.name)}（${f.category}）</option>`).join('');
-  const disabled='disabled style="font-size:11px;padding:3px 5px;background:#f5f4f0;color:#aaa"';
-  el.innerHTML=`<div style="font-size:12px;color:#888;margin-bottom:6px">移動する生地にチェックを入れ、移動先と数量を入力してください</div>
-  <div style="max-height:240px;overflow-y:auto;border:1px solid #e8e6e0;border-radius:8px">
-  <table class="items-tbl" style="margin-bottom:0">
-    <thead style="position:sticky;top:0;background:#faf9f7"><tr>
-      <th style="width:4%"></th>
-      <th style="width:22%">生地番号</th>
-      <th style="width:17%">カラー名</th>
-      <th style="width:18%">現在地</th>
-      <th style="width:24%">移動先</th>
-      <th style="width:12%">数量（反）</th>
-    </tr></thead>
-    <tbody>${rows.map((r,i)=>{
-      const locLabel=r.factory?esc(r.factory.name):'自社保管';
-      return `<tr id="omr-row-${i}">
-        <td style="text-align:center">
-          <input type="checkbox" id="omr-chk-${i}" onchange="onOrderMoveCheck(${i},this.checked)">
-        </td>
-        <td style="font-family:monospace;font-size:12px;font-weight:500">${esc(r.fabricNo)}</td>
-        <td style="font-size:12px">${esc(r.color)||'—'}</td>
-        <td style="font-size:11px;color:#888">${locLabel}</td>
-        <td><select id="omr-dest-${i}" ${disabled}>${factoryOpts}</select></td>
-        <td><input type="number" id="omr-qty-${i}" value="${r.quantity||0}" min="0" ${disabled.replace('font-size:11px','font-size:12px')} style="text-align:right;font-size:12px;padding:3px 5px;background:#f5f4f0;color:#aaa" disabled></td>
-      </tr>`;
-    }).join('')}</tbody>
-  </table></div>`;
+
+  el.innerHTML=`
+    <div style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:8px">${filterBtns}</div>
+    <div style="font-size:12px;color:#888;margin-bottom:6px">移動する生地にチェックを入れ、移動先と数量を入力してください</div>
+    <div style="max-height:260px;overflow-y:auto;border:1px solid #e8e6e0;border-radius:8px">
+    <table class="items-tbl" style="margin-bottom:0">
+      <thead style="position:sticky;top:0;background:#faf9f7"><tr>
+        <th style="width:4%"></th>
+        <th style="width:17%">生地番号</th>
+        <th style="width:12%">カラー名</th>
+        <th style="width:13%">現在地</th>
+        <th style="width:8%;text-align:right">現在数</th>
+        <th style="width:22%">移動先</th>
+        <th style="width:9%;text-align:right">移動数</th>
+        <th style="width:11%;text-align:right">移動後</th>
+      </tr></thead>
+      <tbody>${rows.map(r=>{
+        const i=allRows.indexOf(r);
+        const locLabel=r.factory?esc(r.factory.name):'自社保管';
+        const curQty=r.quantity||0;
+        return `<tr id="omr-row-${i}">
+          <td style="text-align:center">
+            <input type="checkbox" id="omr-chk-${i}" onchange="onOrderMoveCheck(${i},this.checked)">
+          </td>
+          <td style="font-family:monospace;font-size:12px;font-weight:500">${esc(r.fabricNo)}</td>
+          <td style="font-size:12px">${esc(r.color)||'—'}</td>
+          <td style="font-size:11px;color:#888">${locLabel}</td>
+          <td style="text-align:right;font-size:12px;font-weight:600;color:#444">${curQty}</td>
+          <td><select id="omr-dest-${i}" disabled style="font-size:11px;padding:3px 5px;background:#f5f4f0;color:#aaa">${factoryOpts}</select></td>
+          <td><input type="number" id="omr-qty-${i}" value="0" min="0" disabled
+            style="text-align:right;font-size:12px;padding:3px 5px;background:#f5f4f0;color:#aaa;width:100%"
+            oninput="calcMoveAfter(${i},${curQty})"></td>
+          <td style="text-align:right;font-size:12px;font-weight:600;color:#aaa" id="omr-after-${i}">—</td>
+        </tr>`;
+      }).join('')}</tbody>
+    </table></div>`;
+}
+
+function filterMoveSection(fid){
+  moveSectionFilter=fid;
+  renderMovementSection();
+}
+
+function calcMoveAfter(i,curQty){
+  const qty=parseInt(document.getElementById('omr-qty-'+i)?.value)||0;
+  const after=curQty-qty;
+  const el=document.getElementById('omr-after-'+i);
+  if(!el)return;
+  el.textContent=after>=0?after+' 反':'⚠ '+after;
+  el.style.color=after<0?'#c00':after===0?'#999':'#1a1a1a';
 }
 
 function onOrderMoveCheck(i,checked){
@@ -1094,12 +1140,14 @@ function onOrderMoveCheck(i,checked){
     el.style.background=checked?'#fff':'#f5f4f0';
     el.style.color=checked?'#1a1a1a':'#aaa';
   });
+  const afterEl=document.getElementById('omr-after-'+i);
+  if(afterEl){afterEl.style.color=checked?'#1a1a1a':'#aaa';}
   if(checked){
     const dest=document.getElementById('omr-dest-'+i);
-    if(dest){
-      const orderFid=document.getElementById('o-factory').value;
-      dest.value=orderFid||'';
-    }
+    if(dest){dest.value=document.getElementById('o-factory').value||'';}
+    calcMoveAfter(i,orderMoveRows[i]?.quantity||0);
+  }else{
+    if(afterEl)afterEl.textContent='—';
   }
 }
 
