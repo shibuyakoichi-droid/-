@@ -152,10 +152,38 @@ input[readonly]{background:#f5f4f0;color:#888}
   </div>
 
   <div class="panel" id="tab-locations">
-    <div class="subtabs">
-      <button class="subtab active" onclick="setLocView('list')">一覧</button>
-      <button class="subtab" onclick="setLocView('factory')">工場別</button>
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+      <div class="subtabs" style="margin-bottom:0">
+        <button class="subtab active" onclick="setLocView('list')">一覧</button>
+        <button class="subtab" onclick="setLocView('factory')">工場別</button>
+      </div>
+      <button class="btn primary sm" onclick="toggleLocForm()">＋ 新規登録</button>
     </div>
+
+    <div id="loc-add-form" style="display:none;margin-bottom:16px">
+      <div class="card">
+        <div class="section-label" style="margin-bottom:12px">生地を直接登録</div>
+        <div class="form-row col3">
+          <div class="form-group"><label>生地番号 *</label><input id="lf-fabricno" placeholder="例：K-2301"></div>
+          <div class="form-group"><label>カラー名</label><input id="lf-color" placeholder="例：ネイビー"></div>
+          <div class="form-group"><label>数量（反）</label><input type="number" id="lf-qty" min="0" placeholder="0"></div>
+        </div>
+        <div class="form-row col2">
+          <div class="form-group">
+            <label>現在地</label>
+            <select id="lf-factory">
+              <option value="">自社保管</option>
+            </select>
+          </div>
+          <div class="form-group"><label>メモ</label><input id="lf-memo" placeholder="任意"></div>
+        </div>
+        <div style="display:flex;justify-content:flex-end;gap:8px">
+          <button class="btn" onclick="toggleLocForm()">キャンセル</button>
+          <button class="btn primary" onclick="addLocDirect()">登録する</button>
+        </div>
+      </div>
+    </div>
+
     <div class="filter-bar" id="loc-filter-bar">
       <label>工場：</label>
       <select id="loc-filter-factory" onchange="renderLocations()">
@@ -733,6 +761,34 @@ function buildLocFilterFactory(){
   const cur=sel.value;
   sel.innerHTML='<option value="">すべて</option><option value="__self__"'+(cur==='__self__'?' selected':'')+'>自社保管のみ</option>'+
     D.factories.map(f=>`<option value="${f.id}"${f.id===cur?' selected':''}>${f.name}</option>`).join('');
+}
+
+function toggleLocForm(){
+  const form=document.getElementById('loc-add-form');
+  const open=form.style.display==='none';
+  form.style.display=open?'block':'none';
+  if(open){
+    document.getElementById('lf-fabricno').value='';
+    document.getElementById('lf-color').value='';
+    document.getElementById('lf-qty').value='';
+    document.getElementById('lf-memo').value='';
+    const sel=document.getElementById('lf-factory');
+    sel.innerHTML='<option value="">自社保管</option>'+
+      D.factories.map(f=>`<option value="${f.id}">${f.name}（${f.category}）</option>`).join('');
+    sel.value='';
+    document.getElementById('lf-fabricno').focus();
+  }
+}
+
+async function addLocDirect(){
+  const fabricNo=document.getElementById('lf-fabricno').value.trim();
+  if(!fabricNo){showAlert('生地番号を入力してください','err');return;}
+  const color=document.getElementById('lf-color').value.trim();
+  const qty=parseInt(document.getElementById('lf-qty').value)||0;
+  const factoryId=document.getElementById('lf-factory').value||null;
+  const memo=document.getElementById('lf-memo').value.trim();
+  await saveMoveLocation(fabricNo,color,factoryId,memo,qty);
+  toggleLocForm();
 }
 
 function getLocMap(){
