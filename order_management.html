@@ -816,6 +816,13 @@ function buildFabricList(){
 function buildLocRows(){
   const fabricMap=buildFabricList();
   const locMap=getLocMap();
+  // fabric_locations に直接登録されていて発注書がないものも追加
+  D.locations.forEach(l=>{
+    const key=l.fabric_no+'|'+(l.color||'');
+    if(!fabricMap[key]){
+      fabricMap[key]={fabricNo:l.fabric_no,color:l.color||'',lastDate:l.updated_at?.substring(0,10)||'',lastFactoryId:null};
+    }
+  });
   return Object.values(fabricMap).map(data=>{
     const key=data.fabricNo+'|'+data.color;
     const loc=locMap[key];
