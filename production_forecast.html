@@ -161,6 +161,15 @@ input:focus,select:focus{outline:none;border-color:#999;box-shadow:0 0 0 3px rgb
   <!-- セット構成 -->
   <div class="panel" id="tab-sets">
     <div class="card" style="margin-bottom:16px">
+      <div class="section-label" style="margin-bottom:8px">マスタCSVインポート（クロスモール形式）</div>
+      <p style="font-size:12px;color:#888;margin-bottom:12px">クロスモールからダウンロードしたセット品番CSVを選択してください。既存のセット構成は全て置き換えられます。</p>
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+        <input type="file" id="set-csv-file" accept=".csv" style="width:auto">
+        <button class="btn primary" onclick="importSetCSV()">インポート実行</button>
+      </div>
+      <div id="set-import-status" style="margin-top:10px;font-size:13px"></div>
+    </div>
+    <div class="card" style="margin-bottom:16px">
       <div class="section-label" style="margin-bottom:12px">セット構成を追加</div>
       <div class="form-row col4">
         <div class="form-group"><label>セット品番 *</label><input id="s-setcode" placeholder="例：baby-leg-k"></div>
@@ -172,6 +181,7 @@ input:focus,select:focus{outline:none;border-color:#999;box-shadow:0 0 0 3px rgb
     </div>
     <div id="sets-list"></div>
   </div>
+
 
   <!-- 色別販売 -->
   <div class="panel" id="tab-sales">
@@ -248,7 +258,7 @@ async function fetchAllRows(queryFn){
 async function loadAll(){
   const[r1,r2,r3,r4,r5,r6]=await Promise.all([
     fetchAllRows((f,t)=>sb.from('products').select('*').order('code').range(f,t)),
-    sb.from('set_compositions').select('*').order('set_code'),
+    fetchAllRows((f,t)=>sb.from('set_compositions').select('*').order('set_code').range(f,t)),
     fetchAllRows((f,t)=>sb.from('current_stock').select('*').range(f,t)),
     fetchAllRows((f,t)=>sb.from('monthly_forecasts').select('*').range(f,t)),
     sb.from('production_progress').select('*'),
@@ -429,7 +439,7 @@ async function processCSVFile(file){
     const stockMap={};
     const salesRows=[];
     const setMap={};
-    D.setCompositions.forEach(s=>setMap[s.set_code]={base:s.base_code,mult:s.multiplier});
+    D.setCompositions.forEach(s=>{if(!setMap[s.set_code])setMap[s.set_code]=[];setMap[s.set_code].push({base:s.base_code,mult:s.multiplier});});
 
     for(let i=1;i<rows.length;i++){
       const row=rows[i];
@@ -441,10 +451,16 @@ async function processCSVFile(file){
       const salesQty=qtyIdx>=0?(parseInt(row[qtyIdx])||0):0;
       const color=row[3]||'';
       const sizeAttr=row[5]||'';
-      if(setMap[code])code=setMap[code].base;
-      if(!stockMap[code])stockMap[code]={name,qty:0};
-      stockMap[code].qty+=stockQty;
-      if(name&&!stockMap[code].name)stockMap[code].name=name;
+      if(setMap[code]){
+        setMap[code].forEach(comp=>{
+          if(!stockMap[comp.base])stockMap[comp.base]={name:comp.base,qty:0};
+          stockMap[comp.base].qty+=stockQty;
+        });
+      }else{
+        if(!stockMap[code])stockMap[code]={name,qty:0};
+        stockMap[code].qty+=stockQty;
+        if(name&&!stockMap[code].name)stockMap[code].name=name;
+      }
       if(salesQty>0)salesRows.push({code:origCode,name,color,size_attr:sizeAttr,year_month:importYM,sales_qty:salesQty});
     }
 
@@ -460,11 +476,16 @@ async function processCSVFile(file){
     // 月別予測の自動計算（販売実績÷日数×30）
     const salesByCode={};
     dedupedSalesRows.forEach(s=>{
-      let code=s.code;let mult=1;
-      const sc=D.setCompositions.find(c=>c.set_code===code);
-      if(sc){code=sc.base_code;mult=sc.multiplier;}
-      if(!salesByCode[code])salesByCode[code]=0;
-      salesByCode[code]+=s.sales_qty*mult;
+      const comps=setMap[s.code];
+      if(comps){
+        comps.forEach(comp=>{
+          if(!salesByCode[comp.base])salesByCode[comp.base]=0;
+          salesByCode[comp.base]+=s.sales_qty*comp.mult;
+        });
+        return;
+      }
+      if(!salesByCode[s.code])salesByCode[s.code]=0;
+      salesByCode[s.code]+=s.sales_qty;
     });
 
     // 前年同月データがあれば前年同月比も計算
@@ -717,6 +738,44 @@ function renderSets(){
       <td style="text-align:center;font-weight:600">${s.multiplier}個</td>
       <td><button class="btn sm danger" onclick="deleteSetComposition(${s.id})">削除</button></td>
     </tr>`).join('')}</tbody></table></div>`;
+}
+
+async function importSetCSV(){
+  const file=document.getElementById('set-csv-file').files[0];
+  if(!file){showAlert('CSVファイルを選択してください','err');return;}
+  const status=document.getElementById('set-import-status');
+  status.innerHTML='<span class="spinner"></span>読み込み中...';
+  try{
+    const buf=await file.arrayBuffer();
+    const text=new TextDecoder('shift-jis').decode(buf);
+    const rows=parseCSV(text);
+    if(rows.length<2){status.innerHTML='<div class="alert-box alert-err">CSVの解析に失敗しました</div>';return;}
+    const records=[];
+    for(let i=1;i<rows.length;i++){
+      const r=rows[i];
+      const setCode=r[6]?.trim();
+      const baseCode=r[13]?.trim();
+      if(!setCode||!baseCode)continue;
+      records.push({set_code:setCode,set_name:(r[1]||'').trim(),base_code:baseCode,multiplier:parseInt(r[14])||1});
+    }
+    if(!records.length){status.innerHTML='<div class="alert-box alert-err">インポートできるデータがありませんでした</div>';return;}
+    status.innerHTML=`<span class="spinner"></span>${records.length}件を確認。既存データを削除中...`;
+    const{error:delErr}=await sb.from('set_compositions').delete().not('set_code','is',null);
+    if(delErr){status.innerHTML=`<div class="alert-box alert-err">削除エラー: ${delErr.message}</div>`;return;}
+    const BATCH=500;let done=0;
+    for(let i=0;i<records.length;i+=BATCH){
+      const{error}=await sb.from('set_compositions').insert(records.slice(i,i+BATCH));
+      if(error){status.innerHTML=`<div class="alert-box alert-err">挿入エラー: ${error.message}</div>`;return;}
+      done+=Math.min(BATCH,records.length-i);
+      status.innerHTML=`<span class="spinner"></span>インポート中... ${done}/${records.length}件`;
+    }
+    const r2=await fetchAllRows((f,t)=>sb.from('set_compositions').select('*').order('set_code').range(f,t));
+    D.setCompositions=r2.data||[];
+    renderSets();
+    status.innerHTML=`<div class="alert-box alert-ok">✓ ${records.length}件のセット構成をインポートしました</div>`;
+  }catch(e){
+    status.innerHTML=`<div class="alert-box alert-err">エラー: ${e.message}</div>`;
+  }
 }
 
 // ── 色別販売 ───────────────────────────────────────
