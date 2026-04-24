@@ -190,8 +190,12 @@ input[readonly]{background:#f5f4f0;color:#888}
         <option value="">すべて</option>
         <option value="__self__">自社保管のみ</option>
       </select>
+      <label>生地番号：</label>
+      <select id="loc-filter-fabric" onchange="renderLocations()" style="width:140px">
+        <option value="">すべて</option>
+      </select>
       <label>検索：</label>
-      <input id="loc-search" placeholder="生地番号 / カラー名" style="width:180px" oninput="renderLocations()">
+      <input id="loc-search" placeholder="カラー名" style="width:140px" oninput="renderLocations()">
     </div>
     <div id="location-area"></div>
   </div>
@@ -479,7 +483,7 @@ function switchTab(t){
   if(t==='dashboard')renderDashboard();
   if(t==='history'){buildMonthOptions('hist-filter-month');buildFactoryOptions('hist-filter-factory');renderHistory();}
   if(t==='analytics'){buildMonthOptions('ana-filter-month');renderAnalytics();}
-  if(t==='locations'){buildLocFilterFactory();locView='list';document.querySelectorAll('#tab-locations .subtab').forEach((el,i)=>el.classList.toggle('active',i===0));renderLocations();}
+  if(t==='locations'){buildLocFilterFactory();buildLocFilterFabric();locView='list';document.querySelectorAll('#tab-locations .subtab').forEach((el,i)=>el.classList.toggle('active',i===0));renderLocations();}
   if(t==='factories')renderFactories();
 }
 
@@ -763,6 +767,15 @@ function buildLocFilterFactory(){
     D.factories.map(f=>`<option value="${f.id}"${f.id===cur?' selected':''}>${f.name}</option>`).join('');
 }
 
+function buildLocFilterFabric(){
+  const sel=document.getElementById('loc-filter-fabric');
+  if(!sel)return;
+  const cur=sel.value;
+  const allRows=buildLocRows();
+  const fabricNos=[...new Set(allRows.filter(r=>r.quantity>0).map(r=>r.fabricNo))].sort((a,b)=>a.localeCompare(b,'ja'));
+  sel.innerHTML='<option value="">すべて</option>'+fabricNos.map(fn=>`<option value="${fn}"${fn===cur?' selected':''}>${fn}</option>`).join('');
+}
+
 function toggleLocForm(){
   const form=document.getElementById('loc-add-form');
   const open=form.style.display==='none';
@@ -849,13 +862,14 @@ function renderLocations(){
 function renderLocList(){
   const el=document.getElementById('location-area');
   const filterFactory=document.getElementById('loc-filter-factory')?.value||'';
+  const filterFabric=document.getElementById('loc-filter-fabric')?.value||'';
   const search=(document.getElementById('loc-search')?.value||'').trim().toLowerCase();
 
   let rows=buildLocRows();
   if(filterFactory==='__self__')rows=rows.filter(r=>!r.factoryId);
   else if(filterFactory)rows=rows.filter(r=>r.factoryId===filterFactory);
-  if(search)rows=rows.filter(r=>
-    r.fabricNo.toLowerCase().includes(search)||r.color.toLowerCase().includes(search));
+  if(filterFabric)rows=rows.filter(r=>r.fabricNo===filterFabric);
+  if(search)rows=rows.filter(r=>r.color.toLowerCase().includes(search));
   rows=rows.filter(r=>r.quantity>0);
   rows.sort((a,b)=>a.fabricNo.localeCompare(b.fabricNo,'ja'));
   locRows=rows;
