@@ -88,6 +88,7 @@ input:focus,select:focus{outline:none;border-color:#999;box-shadow:0 0 0 3px rgb
     <button class="tab" onclick="switchTab('sets')">セット構成</button>
     <button class="tab" onclick="switchTab('sales')">色別販売</button>
     <button class="tab" onclick="switchTab('hidden')">非表示設定</button>
+    <button class="tab" onclick="switchTab('fabric')">生地所要量</button>
   </div>
 
   <!-- アラート -->
@@ -209,6 +210,77 @@ input:focus,select:focus{outline:none;border-color:#999;box-shadow:0 0 0 3px rgb
     </div>
     <div id="hidden-list"></div>
   </div>
+
+  <!-- 生地所要量 -->
+  <div class="panel" id="tab-fabric">
+    <div style="display:flex;gap:4px;margin-bottom:16px" id="fabric-subtabs">
+      <button class="btn" id="fsub-req" onclick="setFabricView('req')" style="background:#1a1a1a;color:#fff;border-color:#1a1a1a">所要量計算</button>
+      <button class="btn" id="fsub-master" onclick="setFabricView('master')">生地マスタ</button>
+    </div>
+
+    <!-- 所要量計算 -->
+    <div id="fabric-view-req">
+      <div class="card" style="margin-bottom:16px">
+        <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+          <div class="section-label" style="margin-bottom:0">対象月</div>
+          <select id="fabric-month" onchange="renderFabricReq()" style="width:140px"></select>
+          <select id="fabric-months-range" onchange="renderFabricReq()" style="width:120px">
+            <option value="1">1ヶ月</option>
+            <option value="2">2ヶ月</option>
+            <option value="3" selected>3ヶ月</option>
+          </select>
+          <span style="font-size:12px;color:#888">の予測合計で計算</span>
+        </div>
+      </div>
+      <div id="fabric-req-table"></div>
+    </div>
+
+    <!-- 生地マスタ登録 -->
+    <div id="fabric-view-master" style="display:none">
+      <div class="card" style="margin-bottom:16px">
+        <div class="section-label" style="margin-bottom:12px">生地使用マスタを追加</div>
+        <div class="form-row col4">
+          <div class="form-group">
+            <label>品番 *</label>
+            <select id="fu-code" style="width:100%"><option value="">選択</option></select>
+          </div>
+          <div class="form-group">
+            <label>生地番号 *</label>
+            <select id="fu-fabric" style="width:100%" onchange="onFuFabricChange()"><option value="">選択</option></select>
+          </div>
+          <div class="form-group">
+            <label>カラー</label>
+            <select id="fu-color" style="width:100%"><option value="">（全色共通）</option></select>
+          </div>
+          <div class="form-group">
+            <label>種別</label>
+            <select id="fu-type" onchange="onFuTypeChange()">
+              <option value="fabric">生地（反）</option>
+              <option value="yarn">糸・靴下（kg）</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-row col4">
+          <div class="form-group" id="fu-ipt-wrap">
+            <label>反あたり枚数 *</label>
+            <input type="number" id="fu-items-per-tan" min="0.01" step="0.01" placeholder="例：12">
+          </div>
+          <div class="form-group" id="fu-gpi-wrap" style="display:none">
+            <label>g/足（枚）*</label>
+            <input type="number" id="fu-grams-per-item" min="0.1" step="0.1" placeholder="例：150">
+          </div>
+          <div class="form-group">
+            <label>メモ</label>
+            <input id="fu-note" placeholder="任意">
+          </div>
+          <div class="form-group" style="display:flex;align-items:flex-end">
+            <button class="btn primary" onclick="saveFabricUsage()" style="width:100%">追加する</button>
+          </div>
+        </div>
+      </div>
+      <div id="fabric-master-table"></div>
+    </div>
+  </div>
 </div>
 
 <script>
@@ -216,8 +288,9 @@ const SUPABASE_URL='https://yukcdqnnevomhdcpsvms.supabase.co';
 const SUPABASE_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inl1a2NkcW5uZXZvbWhkY3Bzdm1zIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY0Mjc2MTUsImV4cCI6MjA5MjAwMzYxNX0.XBSc2kQNwR_bleSwrfYZD8l0fbKTbL1Z3S7ewEtSkDc';
 const sb=supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
 
-let D={products:[],allProducts:[],setCompositions:[],currentStock:[],forecasts:[],progress:[],monthlySales:[]};
+let D={products:[],allProducts:[],setCompositions:[],currentStock:[],forecasts:[],progress:[],monthlySales:[],fabricUsage:[],fabricLocations:[]};
 let alertFilter='all';
+let fabricView='req';
 
 // ── ユーティリティ ──────────────────────────────────
 function ym(offset=0){
@@ -256,13 +329,15 @@ async function fetchAllRows(queryFn){
 
 // ── データ読み込み（軽量版） ────────────────────────
 async function loadAll(){
-  const[r1,r2,r3,r4,r5,r6]=await Promise.all([
+  const[r1,r2,r3,r4,r5,r6,r7,r8]=await Promise.all([
     fetchAllRows((f,t)=>sb.from('products').select('*').order('code').range(f,t)),
     fetchAllRows((f,t)=>sb.from('set_compositions').select('*').order('set_code').range(f,t)),
     fetchAllRows((f,t)=>sb.from('current_stock').select('*').range(f,t)),
     fetchAllRows((f,t)=>sb.from('monthly_forecasts').select('*').range(f,t)),
     sb.from('production_progress').select('*'),
     fetchAllRows((f,t)=>sb.from('monthly_sales').select('*').order('year_month',{ascending:false}).range(f,t)),
+    fetchAllRows((f,t)=>sb.from('fabric_usage').select('*').range(f,t)),
+    fetchAllRows((f,t)=>sb.from('fabric_locations').select('*').range(f,t)),
   ]);
   if(r1.error||r2.error){showAlert('データ読み込みに失敗しました','err');return;}
   D.allProducts=r1.data||[];
@@ -272,6 +347,8 @@ async function loadAll(){
   D.forecasts=r4.data||[];
   D.progress=r5.data||[];
   D.monthlySales=r6.data||[];
+  D.fabricUsage=r7.data||[];
+  D.fabricLocations=r8.data||[];
   updateLastImportInfo();
 }
 
@@ -283,7 +360,7 @@ function updateLastImportInfo(){
 // ── タブ切替 ───────────────────────────────────────
 function switchTab(t){
   document.querySelectorAll('.tab').forEach((el,i)=>{
-    el.classList.toggle('active',['alert','csv','forecast','progress','sets','sales','hidden'][i]===t);
+    el.classList.toggle('active',['alert','csv','forecast','progress','sets','sales','hidden','fabric'][i]===t);
   });
   document.querySelectorAll('.panel').forEach(el=>el.classList.remove('active'));
   document.getElementById('tab-'+t).classList.add('active');
@@ -294,6 +371,7 @@ function switchTab(t){
   if(t==='sets')renderSets();
   if(t==='sales')initSalesTab();
   if(t==='hidden')renderHidden();
+  if(t==='fabric')initFabricTab();
 }
 
 // ── アラート計算 ───────────────────────────────────
@@ -858,6 +936,193 @@ async function toggleHidden(code,hide){
   D.products=D.allProducts.filter(p=>p.active!==false);
   renderHidden();
   showAlert(hide?`「${code}」を非表示にしました`:`「${code}」を表示に戻しました`);
+}
+
+// ── 生地所要量 ────────────────────────────────────
+
+function setFabricView(v){
+  fabricView=v;
+  document.getElementById('fabric-view-req').style.display=v==='req'?'block':'none';
+  document.getElementById('fabric-view-master').style.display=v==='master'?'block':'none';
+  document.getElementById('fsub-req').style.cssText=v==='req'?'background:#1a1a1a;color:#fff;border-color:#1a1a1a':'';
+  document.getElementById('fsub-master').style.cssText=v==='master'?'background:#1a1a1a;color:#fff;border-color:#1a1a1a':'';
+  if(v==='req')renderFabricReq();
+  if(v==='master')renderFabricMaster();
+}
+
+function initFabricTab(){
+  // 月セレクタ
+  const msel=document.getElementById('fabric-month');
+  const months=[...new Set(D.forecasts.map(f=>f.year_month))].sort().reverse();
+  const cur=msel.value||ym(0);
+  msel.innerHTML=months.map(m=>`<option value="${m}"${m===cur?' selected':''}>${fmtYM(m)}</option>`).join('');
+
+  // 品番セレクト
+  const codes=[...new Set(D.products.map(p=>p.code))].sort();
+  const csel=document.getElementById('fu-code');
+  csel.innerHTML='<option value="">選択</option>'+codes.map(c=>{
+    const name=getProductName(c);
+    return `<option value="${c}">${c}${name?' — '+name:''}</option>`;
+  }).join('');
+
+  // 生地番号セレクト（fabric_locations から）
+  const fabrics=[...new Set(D.fabricLocations.filter(l=>l.quantity>0).map(l=>l.fabric_no))].sort();
+  const fsel=document.getElementById('fu-fabric');
+  fsel.innerHTML='<option value="">選択</option>'+fabrics.map(f=>`<option value="${f}">${f}</option>`).join('');
+
+  setFabricView(fabricView);
+}
+
+function onFuFabricChange(){
+  const fn=document.getElementById('fu-fabric').value;
+  const colors=D.fabricLocations.filter(l=>l.fabric_no===fn&&l.quantity>0).map(l=>l.color||'').filter(Boolean);
+  const csel=document.getElementById('fu-color');
+  csel.innerHTML='<option value="">（全色共通）</option>'+[...new Set(colors)].sort().map(c=>`<option value="${c}">${c}</option>`).join('');
+}
+
+function onFuTypeChange(){
+  const isYarn=document.getElementById('fu-type').value==='yarn';
+  document.getElementById('fu-ipt-wrap').style.display=isYarn?'none':'block';
+  document.getElementById('fu-gpi-wrap').style.display=isYarn?'block':'none';
+}
+
+async function saveFabricUsage(){
+  const code=document.getElementById('fu-code').value;
+  const fabricNo=document.getElementById('fu-fabric').value;
+  const color=document.getElementById('fu-color').value;
+  const type=document.getElementById('fu-type').value;
+  const ipt=parseFloat(document.getElementById('fu-items-per-tan').value)||null;
+  const gpi=parseFloat(document.getElementById('fu-grams-per-item').value)||null;
+  const note=document.getElementById('fu-note').value.trim();
+  if(!code||!fabricNo){showAlert('品番と生地番号は必須です','err');return;}
+  if(type==='fabric'&&!ipt){showAlert('反あたり枚数を入力してください','err');return;}
+  if(type==='yarn'&&!gpi){showAlert('g/足を入力してください','err');return;}
+  const rec={product_code:code,fabric_no:fabricNo,color:color||'',item_type:type,items_per_tan:type==='fabric'?ipt:null,grams_per_item:type==='yarn'?gpi:null,note};
+  const{data,error}=await sb.from('fabric_usage').upsert(rec,{onConflict:'product_code,fabric_no,color'}).select().single();
+  if(error){showAlert('保存に失敗しました: '+error.message,'err');return;}
+  const idx=D.fabricUsage.findIndex(u=>u.product_code===code&&u.fabric_no===fabricNo&&(u.color||'')===(color||''));
+  if(idx>=0)D.fabricUsage[idx]=data;else D.fabricUsage.push(data);
+  showAlert(`「${code} × ${fabricNo}」を保存しました`);
+  renderFabricMaster();
+}
+
+async function deleteFabricUsage(id){
+  if(!confirm('削除しますか？'))return;
+  const{error}=await sb.from('fabric_usage').delete().eq('id',id);
+  if(error){showAlert('削除に失敗しました','err');return;}
+  D.fabricUsage=D.fabricUsage.filter(u=>u.id!==id);
+  renderFabricMaster();
+}
+
+function renderFabricMaster(){
+  const el=document.getElementById('fabric-master-table');
+  if(!D.fabricUsage.length){el.innerHTML='<div class="empty-state">生地マスタが登録されていません</div>';return;}
+  const rows=[...D.fabricUsage].sort((a,b)=>a.product_code.localeCompare(b.product_code,'ja')||a.fabric_no.localeCompare(b.fabric_no,'ja'));
+  el.innerHTML=`<div class="table-wrap"><table class="list">
+    <thead><tr>
+      <th>品番</th><th>商品名</th><th>生地番号</th><th>カラー</th><th>種別</th>
+      <th style="text-align:right">反あたり枚数</th><th style="text-align:right">g/足</th><th>メモ</th><th></th>
+    </tr></thead>
+    <tbody>${rows.map(u=>`<tr>
+      <td style="font-family:monospace;font-size:12px">${u.product_code}</td>
+      <td style="font-size:12px;color:#555">${getProductName(u.product_code)||'—'}</td>
+      <td style="font-family:monospace;font-size:12px;font-weight:500">${u.fabric_no}</td>
+      <td style="font-size:12px">${u.color||'<span style="color:#bbb">全色共通</span>'}</td>
+      <td><span style="font-size:11px;padding:2px 8px;border-radius:4px;background:${u.item_type==='yarn'?'#f3eafd;color:#6b2fa0':'#e6f1fb;color:#1a5fa0'}">${u.item_type==='yarn'?'糸':'生地'}</span></td>
+      <td style="text-align:right">${u.items_per_tan??'—'}</td>
+      <td style="text-align:right">${u.grams_per_item??'—'}</td>
+      <td style="font-size:12px;color:#888">${u.note||''}</td>
+      <td><button class="btn sm danger" onclick="deleteFabricUsage(${u.id})">×</button></td>
+    </tr>`).join('')}</tbody>
+  </table></div>`;
+}
+
+function renderFabricReq(){
+  const el=document.getElementById('fabric-req-table');
+  if(!D.fabricUsage.length){
+    el.innerHTML='<div class="empty-state">生地マスタが登録されていません。先に「生地マスタ」タブで登録してください。</div>';
+    return;
+  }
+  const baseMonth=document.getElementById('fabric-month')?.value||ym(0);
+  const range=parseInt(document.getElementById('fabric-months-range')?.value||'3');
+
+  // 対象月リスト
+  const months=Array.from({length:range},(_,i)=>addMonth(baseMonth,i));
+
+  // 品番ごとの予測合計
+  const fcMap={};
+  months.forEach(m=>{
+    D.forecasts.filter(f=>f.year_month===m).forEach(f=>{
+      fcMap[f.code]=(fcMap[f.code]||0)+(Number(f.forecast_qty)||0);
+    });
+  });
+
+  // セット展開：セット品番の予測 → 個別品番に乗算して加算
+  D.setCompositions.forEach(sc=>{
+    const setQty=fcMap[sc.set_code]||0;
+    if(setQty>0){
+      fcMap[sc.base_code]=(fcMap[sc.base_code]||0)+setQty*(sc.multiplier||1);
+    }
+  });
+
+  // 生地ごとに必要量を集計
+  const fabricMap={};
+  D.fabricUsage.forEach(u=>{
+    const qty=fcMap[u.product_code]||0;
+    if(!qty)return;
+    const key=u.fabric_no+'|'+(u.color||'');
+    if(!fabricMap[key])fabricMap[key]={fabricNo:u.fabric_no,color:u.color||'',type:u.item_type,needed:0,products:[]};
+    let need=0;
+    if(u.item_type==='fabric'&&u.items_per_tan){
+      need=qty/u.items_per_tan;
+    }else if(u.item_type==='yarn'&&u.grams_per_item){
+      need=qty*u.grams_per_item/1000; // kg
+    }
+    fabricMap[key].needed+=need;
+    fabricMap[key].products.push({code:u.product_code,name:getProductName(u.product_code),qty,need:Math.ceil(need)});
+  });
+
+  // 在庫とのマッチング
+  const locMap={};
+  D.fabricLocations.forEach(l=>{locMap[l.fabric_no+'|'+(l.color||'')]=l.quantity||0;});
+
+  const rows=Object.values(fabricMap).sort((a,b)=>a.fabricNo.localeCompare(b.fabricNo,'ja'));
+  if(!rows.length){
+    el.innerHTML='<div class="empty-state">予測データのある品番に生地マスタが紐づいていません</div>';
+    return;
+  }
+
+  const monthLabel=months.map(m=>fmtYM(m)).join('・');
+  el.innerHTML=`
+    <div style="font-size:12px;color:#888;margin-bottom:12px">対象期間：${monthLabel}</div>
+    <div class="table-wrap"><table class="list">
+    <thead><tr>
+      <th>生地番号</th><th>カラー</th><th>種別</th>
+      <th style="text-align:right">在庫</th>
+      <th style="text-align:right">必要量</th>
+      <th style="text-align:right">過不足</th>
+      <th>対象商品</th>
+    </tr></thead>
+    <tbody>${rows.map(r=>{
+      const unit=r.type==='yarn'?'kg':'反';
+      const stockKey=r.fabricNo+'|'+r.color;
+      const stock=locMap[stockKey]||(r.color?locMap[r.fabricNo+'|']||0:0);
+      const needed=Math.ceil(r.needed*10)/10;
+      const gap=Math.round((stock-needed)*10)/10;
+      const gapColor=gap<0?'#c0392b':gap===0?'#888':'#27ae60';
+      const gapLabel=gap>=0?`+${gap}`:String(gap);
+      const prodList=r.products.map(p=>`<span style="font-size:11px;background:#f0ede8;padding:2px 6px;border-radius:4px;display:inline-block;margin:1px">${p.code}(${p.qty}→${p.need}${unit})</span>`).join(' ');
+      return `<tr style="${gap<0?'background:#fff8f8':''}">
+        <td style="font-weight:600;font-family:monospace">${r.fabricNo}</td>
+        <td style="font-size:12px">${r.color||'<span style="color:#bbb">全色</span>'}</td>
+        <td><span style="font-size:11px;padding:2px 8px;border-radius:4px;background:${r.type==='yarn'?'#f3eafd;color:#6b2fa0':'#e6f1fb;color:#1a5fa0'}">${r.type==='yarn'?'糸':'生地'}</span></td>
+        <td style="text-align:right;font-weight:500">${stock} ${unit}</td>
+        <td style="text-align:right;font-weight:600">${needed} ${unit}</td>
+        <td style="text-align:right;font-weight:700;color:${gapColor}">${gapLabel} ${unit}</td>
+        <td style="font-size:11px">${prodList}</td>
+      </tr>`;
+    }).join('')}</tbody>
+    </table></div>`;
 }
 
 // ── 初期化 ─────────────────────────────────────────
