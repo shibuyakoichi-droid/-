@@ -365,16 +365,62 @@ const CAT_STYLE={
 };
 const UNIT={編み:'反',染色:'反',裁断:'点',縫製:'点',糸:'',靴下:'',その他:'点'};
 
-/* Legacy SCHEMA kept for backward-compat printOrder / old order display */
 const SCHEMA={
-  '編み':[{key:'item_code',label:'品番',w:20,type:'text'},{key:'color',label:'色',w:20,type:'text'},{key:'attr',label:'属性',w:16,type:'text'},{key:'qty',label:'数量',w:12,type:'number'},{key:'unit_price',label:'単価',w:12,type:'number'},{key:'amount',label:'金額',w:12,type:'number'}],
-  '染色':[{key:'item_code',label:'品番',w:18,type:'text'},{key:'color',label:'色',w:14,type:'text'},{key:'color_no',label:'色番',w:12,type:'text'},{key:'attr',label:'属性',w:12,type:'text'},{key:'qty',label:'数量',w:10,type:'number'},{key:'unit_price',label:'単価',w:10,type:'number'},{key:'amount',label:'金額',w:10,type:'number'}],
-  '裁断':[{key:'item_code',label:'品番',w:20,type:'text'},{key:'color',label:'色',w:18,type:'text'},{key:'attr',label:'属性',w:14,type:'text'},{key:'qty',label:'数量',w:12,type:'number'},{key:'unit_price',label:'単価',w:12,type:'number'},{key:'amount',label:'金額',w:12,type:'number'}],
-  '縫製':[{key:'item_code',label:'品番',w:20,type:'text'},{key:'color',label:'色',w:18,type:'text'},{key:'attr',label:'属性',w:14,type:'text'},{key:'qty',label:'数量',w:12,type:'number'},{key:'unit_price',label:'単価',w:12,type:'number'},{key:'amount',label:'金額',w:12,type:'number'}],
-  '糸':[{key:'item_code',label:'品番',w:14,type:'text'},{key:'color',label:'色',w:12,type:'text'},{key:'yarn_count',label:'番手',w:10,type:'text'},{key:'yarn_no',label:'糸番号',w:12,type:'text'},{key:'attr',label:'属性',w:10,type:'text'},{key:'qty',label:'数量',w:10,type:'number'},{key:'unit_price',label:'単価',w:10,type:'number'},{key:'amount',label:'金額',w:10,type:'number'}],
-  '靴下':[{key:'item_code',label:'品番',w:14,type:'text'},{key:'item_name',label:'商品名',w:16,type:'text'},{key:'color',label:'色',w:12,type:'text'},{key:'attr',label:'属性',w:12,type:'text'},{key:'qty',label:'数量',w:10,type:'number'},{key:'unit_price',label:'単価',w:10,type:'number'},{key:'amount',label:'金額',w:12,type:'number'}],
-  'その他':[{key:'item_code',label:'品番',w:20,type:'text'},{key:'color',label:'色',w:18,type:'text'},{key:'attr',label:'属性',w:14,type:'text'},{key:'qty',label:'数量',w:12,type:'number'},{key:'unit_price',label:'単価',w:12,type:'number'},{key:'amount',label:'金額',w:12,type:'number'}],
+  /* ── 生地・素材系（生地番号ベース） ── */
+  '編み':[
+    {key:'fabricNo', label:'生地番号', w:32, type:'text'},
+    {key:'color',    label:'カラー名', w:32, type:'text'},
+    {key:'tan',      label:'反数',     w:18, type:'number'},
+  ],
+  '染色':[
+    {key:'fabricNo', label:'生地番号', w:28, type:'text'},
+    {key:'color',    label:'カラー名', w:28, type:'text'},
+    {key:'tan',      label:'反数',     w:18, type:'number'},
+  ],
+  '裁断':[
+    {key:'fabricNo',    label:'生地番号', w:20, type:'text'},
+    {key:'color',       label:'カラー名', w:18, type:'text'},
+    {key:'productName', label:'品物名',   w:22, type:'text'},
+    {key:'tan',         label:'反数',     w:12, type:'number'},
+    {key:'cutQty',      label:'裁断数',   w:12, type:'number'},
+  ],
+  '糸':[
+    {key:'yarnNo',  label:'糸番号',       w:18, type:'text'},
+    {key:'color',   label:'色番/カラー名', w:18, type:'text'},
+    {key:'count',   label:'番手',         w:14, type:'text'},
+    {key:'qty',     label:'数量',         w:14, type:'number'},
+    {key:'qtyUnit', label:'単位',         w:12, type:'unit'},
+  ],
+  'その他':[
+    {key:'fabricNo', label:'品番/生地番号', w:24, type:'text'},
+    {key:'color',    label:'カラー名',      w:24, type:'text'},
+    {key:'note',     label:'内容',          w:26, type:'text'},
+    {key:'qty',      label:'数量',          w:14, type:'number'},
+  ],
+  /* ── 製品系（品番マスタ連携・単価計算あり） ── */
+  '縫製':[
+    {key:'item_code',  label:'品番',   w:14, type:'item_code'},
+    {key:'item_name',  label:'商品名', w:18, type:'auto_name'},
+    {key:'color',      label:'色',     w:10, type:'text'},
+    {key:'attr',       label:'属性',   w:8,  type:'text'},
+    {key:'qty',        label:'数量',   w:8,  type:'number_calc'},
+    {key:'unit_price', label:'単価',   w:8,  type:'number_calc'},
+    {key:'amount',     label:'金額',   w:10, type:'auto_amt'},
+    {key:'memo',       label:'メモ',   w:10, type:'text'},
+  ],
+  '靴下':[
+    {key:'item_code',  label:'品番',   w:14, type:'item_code'},
+    {key:'item_name',  label:'商品名', w:16, type:'auto_name'},
+    {key:'color',      label:'色',     w:10, type:'text'},
+    {key:'attr',       label:'属性',   w:8,  type:'text'},
+    {key:'qty',        label:'数量',   w:8,  type:'number_calc'},
+    {key:'unit_price', label:'単価',   w:8,  type:'number_calc'},
+    {key:'amount',     label:'金額',   w:10, type:'auto_amt'},
+    {key:'memo',       label:'メモ',   w:10, type:'text'},
+  ],
 };
+
+;
 
 const SUPABASE_URL='https://yukcdqnnevomhdcpsvms.supabase.co';
 const SUPABASE_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inl1a2NkcW5uZXZvbWhkY3Bzdm1zIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY0Mjc2MTUsImV4cCI6MjA5MjAwMzYxNX0.XBSc2kQNwR_bleSwrfYZD8l0fbKTbL1Z3S7ewEtSkDc';
@@ -1348,39 +1394,28 @@ function onFactoryChange(){
   const pm=PM[proc]||PM.other;
   currentSchema=SCHEMA[cat]||SCHEMA['その他'];
 
-  // Process tag & badge
+  /* プロセスバッジ */
   document.getElementById('process-tag').innerHTML=
     `<span class="process-tag" style="${CAT_STYLE[cat]||CAT_STYLE['その他']}">${pm.icon} ${pm.label}</span>`;
   document.getElementById('o-factory-badge').innerHTML=catBadge(cat);
 
-  // Build datalist for item autocomplete
-  let dlHtml='<datalist id="dl_order_items">';
-  (D.items||[]).forEach(it=>{
-    const itProc=(() => { try{ return JSON.parse(it.memo||'{}').p||''; }catch{return '';} })();
-    if(!itProc||itProc===proc)
-      dlHtml+=`<option value="${it.item_code}">${it.item_name||''}</option>`;
-  });
-  dlHtml+='</datalist>';
-
-  // Build header: common + extra + qty/unitPrice/amount + memo
-  const extraCols=(EXTRA[proc]||[]).map(e=>`<th>${e.label}</th>`).join('');
-  const thead=`<tr>
-    <th style="width:12%">品番</th>
-    <th style="min-width:100px">商品名</th>
-    <th style="width:10%">色</th>
-    <th style="width:8%">属性</th>
-    ${extraCols}
-    <th style="text-align:right;width:8%">数量(${pm.unit})</th>
-    <th style="text-align:right;width:8%">単価(円)</th>
-    <th style="text-align:right;width:8%">金額(円)</th>
-    <th style="width:10%">メモ</th>
-    <th style="width:4%"></th>
-  </tr>`;
-  document.getElementById('items-head').innerHTML=thead;
-  // Insert datalist before table
+  /* 品番マスタ連携が必要な工程のみ datalist を生成 */
   const existDL=document.getElementById('dl_order_items');
   if(existDL)existDL.remove();
-  document.getElementById('items-table').insertAdjacentHTML('beforebegin',dlHtml);
+  if(currentSchema.some(c=>c.type==='item_code')){
+    let dlHtml='<datalist id="dl_order_items">';
+    (D.items||[]).forEach(it=>{
+      const itProc=(()=>{try{return JSON.parse(it.memo||'{}').p||'';}catch{return '';}})();
+      if(!itProc||itProc===proc)
+        dlHtml+=`<option value="${it.item_code}">${it.item_name||''}</option>`;
+    });
+    dlHtml+='</datalist>';
+    document.getElementById('items-table').insertAdjacentHTML('beforebegin',dlHtml);
+  }
+
+  /* SCHEMAからヘッダーを生成 */
+  const thead=`<tr>${currentSchema.map(c=>`<th style="width:${c.w}%">${c.label}</th>`).join('')}<th style="width:4%"></th></tr>`;
+  document.getElementById('items-head').innerHTML=thead;
 
   document.getElementById('items-body').innerHTML='';
   document.getElementById('items-hint').style.display='none';
@@ -1391,33 +1426,31 @@ function onFactoryChange(){
 }
 
 function addItemRow(){
-  const fid=document.getElementById('o-factory')?.value;
-  const f=D.factories.find(f=>f.id===fid);
-  if(!f)return;
-  const cat=f.category||'その他';
-  const proc=CAT_TO_PROCESS[cat]||'other';
-  const rowIdx=Date.now()+'_'+Math.random().toString(36).slice(2,5);
-  const s='style="width:100%;box-sizing:border-box;border:1px solid #d8d5cf;border-radius:5px;padding:4px 6px;font-family:inherit;font-size:12px;"';
-  const sr='style="width:100%;box-sizing:border-box;border:1px solid #d8d5cf;border-radius:5px;padding:4px 6px;font-family:inherit;font-size:12px;text-align:right;"';
+  if(!currentSchema.length)return;
+  const s  ='style="width:100%;box-sizing:border-box;border:1px solid #d8d5cf;border-radius:5px;padding:4px 6px;font-family:inherit;font-size:12px;"';
+  const sr ='style="width:100%;box-sizing:border-box;border:1px solid #d8d5cf;border-radius:5px;padding:4px 6px;font-family:inherit;font-size:12px;text-align:right;"';
   const sro='style="width:100%;box-sizing:border-box;border:1px solid #e8e6e0;border-radius:5px;padding:4px 6px;font-family:inherit;font-size:12px;background:#f5f4f0;color:#888;"';
-  const extraCells=(EXTRA[proc]||[]).map(e=>
-    `<td><input ${s} data-key="${e.key}" placeholder="${e.ph||e.label}"></td>`
-  ).join('');
+  const sror='style="width:100%;box-sizing:border-box;border:1px solid #e8e6e0;border-radius:5px;padding:4px 6px;font-family:inherit;font-size:12px;background:#f5f4f0;color:#888;text-align:right;"';
+  const cells=currentSchema.map(c=>{
+    switch(c.type){
+      case 'item_code':
+        return `<td><input ${s} list="dl_order_items" data-key="${c.key}" placeholder="${c.label}" onchange="onItemCodeChange(this)" oninput="onItemCodeChange(this)"></td>`;
+      case 'auto_name':
+        return `<td><input ${sro} data-key="${c.key}" readonly placeholder="自動"></td>`;
+      case 'auto_amt':
+        return `<td><input ${sror} type="number" data-key="${c.key}" readonly></td>`;
+      case 'number_calc':
+        return `<td><input ${sr} type="number" data-key="${c.key}" placeholder="0" min="0" oninput="calcRowAmount(this)"></td>`;
+      case 'number':
+        return `<td><input ${sr} type="number" data-key="${c.key}" placeholder="0" min="0"></td>`;
+      case 'unit':
+        return `<td><select data-key="${c.key}" style="padding:4px;font-size:12px;width:100%;border:1px solid #d8d5cf;border-radius:5px;"><option value="kg">kg</option><option value="ケース">ケース</option><option value="本">本</option></select></td>`;
+      default:
+        return `<td><input ${s} data-key="${c.key}" placeholder="${c.label}"></td>`;
+    }
+  }).join('');
   const tr=document.createElement('tr');
-  tr.innerHTML=`
-    <td><input ${s} list="dl_order_items" data-key="item_code" placeholder="品番"
-      onchange="onItemCodeChange(this)" oninput="onItemCodeChange(this)"></td>
-    <td><input ${sro} data-key="item_name" readonly placeholder="自動"></td>
-    <td><input ${s} data-key="color" placeholder="色"></td>
-    <td><input ${s} data-key="attr" placeholder="属性"></td>
-    ${extraCells}
-    <td><input ${sr} type="number" data-key="qty" placeholder="0" min="0"
-      oninput="calcRowAmount(this)"></td>
-    <td><input ${sr} type="number" data-key="unit_price" placeholder="0" min="0"
-      oninput="calcRowAmount(this)"></td>
-    <td><input ${sro} type="number" data-key="amount" readonly></td>
-    <td><input ${s} data-key="memo" placeholder="メモ"></td>
-    <td style="text-align:center"><button class="btn sm danger" onclick="this.closest('tr').remove()">×</button></td>`;
+  tr.innerHTML=cells+`<td style="text-align:center"><button class="btn sm danger" onclick="this.closest('tr').remove()">×</button></td>`;
   document.getElementById('items-body').appendChild(tr);
 }
 
@@ -1461,8 +1494,13 @@ async function saveOrder(){
       obj[k]=v;
     });
     return obj;
-  }).filter(i=>i.item_code&&i.item_code!=='');
-  if(!items.length){showAlert('明細を1行以上入力してください（品番を入力してください）','err');return;}
+  }).filter(i=>{
+    // 品番マスタ連携の工程は item_code、それ以外は最初のキーで判定
+    const firstKey=currentSchema[0]?.key||'item_code';
+    const v=i[firstKey];
+    return v&&v.trim()!=='';
+  });
+  if(!items.length){showAlert('明細を1行以上入力してください','err');return;}
   const f=D.factories.find(f=>f.id===factoryId);
   const order={
     id:genId(),
@@ -1506,29 +1544,25 @@ function printOrder(id){
   const cat=getCat(o);
   const proc=CAT_TO_PROCESS[cat]||'other';
   const pm=PM[proc]||PM.other;
-  // Detect new-style items (have item_code) vs old-style (have fabricNo/tan/cutQty)
-  const isNew=(o.items||[]).some(i=>i.item_code!=null);
-  let printSchema, qk;
-  if(isNew){
-    qk='qty';
-    const baseCols=[
-      {key:'item_code',label:'品番',type:'text'},
-      {key:'item_name',label:'商品名',type:'text'},
-      {key:'color',label:'色',type:'text'},
-      {key:'attr',label:'属性',type:'text'},
-    ];
-    const extraCols=(EXTRA[proc]||[]).map(e=>({key:e.key,label:e.label,type:'text'}));
-    printSchema=[...baseCols,...extraCols,
-      {key:'qty',label:`数量(${pm.unit})`,type:'number'},
-      {key:'unit_price',label:'単価(円)',type:'number'},
-      {key:'amount',label:'金額(円)',type:'number'},
-    ];
-  }else{
-    qk=QTY_KEY[cat]||'qty';
-    const schema=SCHEMA[cat]||SCHEMA['その他'];
-    const hasUnitCol=(cat==='糸'||cat==='靴下');
-    printSchema=hasUnitCol?schema.filter(c=>c.type!=='unit'):schema;
-  }
+  // 後方互換：古い発注（fabricNo/tan形式）と新形式を判別
+  const isOld=(o.items||[]).some(i=>i.fabricNo!=null||i.tan!=null||i.cutQty!=null);
+  const oldSchemas={
+    '編み':[{key:'fabricNo',label:'生地番号'},{key:'color',label:'カラー名'},{key:'tan',label:'反数'}],
+    '染色':[{key:'fabricNo',label:'生地番号'},{key:'color',label:'カラー名'},{key:'tan',label:'反数'}],
+    '裁断':[{key:'fabricNo',label:'生地番号'},{key:'color',label:'カラー名'},{key:'productName',label:'品物名'},{key:'tan',label:'反数'},{key:'cutQty',label:'裁断数'}],
+    '糸':[{key:'yarnNo',label:'糸番号'},{key:'color',label:'色番'},{key:'count',label:'番手'},{key:'qty',label:'数量'},{key:'qtyUnit',label:'単位'}],
+    '靴下':[{key:'yarnNo',label:'糸番号'},{key:'color',label:'色番'},{key:'count',label:'番手'},{key:'qty',label:'数量'},{key:'productName',label:'品物名'}],
+    'その他':[{key:'fabricNo',label:'品番'},{key:'color',label:'カラー名'},{key:'note',label:'内容'},{key:'qty',label:'数量'}],
+  };
+  const baseSchema=isOld?(oldSchemas[cat]||oldSchemas['その他']):(SCHEMA[cat]||SCHEMA['その他']);
+  const printSchema=baseSchema.filter(c=>c.type!=='unit'&&c.type!=='auto_amt').map(c=>{
+    if(c.key==='qty') return {...c,label:`数量(${pm.unit})`};
+    if(c.key==='unit_price') return {...c,label:'単価(円)'};
+    if(c.key==='amount') return {...c,label:'金額(円)'};
+    return c;
+  });
+  const qkBase=isOld?QTY_KEY[cat]:baseSchema.find(c=>c.type==='number_calc'||c.type==='number')?.key;
+  const qk=qkBase||'qty';
   const thead=printSchema.map(c=>`<th style="padding:7px 10px;border:1px solid #ddd;text-align:left;background:#f5f4f0;font-size:12px">${c.label}</th>`).join('');
   const tbody=(o.items||[]).map((item,idx)=>{
     const cells=printSchema.map(c=>{
