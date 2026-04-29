@@ -9,7 +9,7 @@
 // 4. 発行されたURLを index.html の GAS_API_URL に設定
 // ============================================================
 
-const SS_ID = 'YOUR_SPREADSHEET_ID_HERE'; // ← スプレッドシートIDを設定
+const SS_ID = '1l9QyWxdYcyTTqR7ZMBs-VQS0rj8c2qUp9q399jmy-30';
 
 // ============================================================
 // HTTP ハンドラ
