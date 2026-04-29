@@ -1,0 +1,737 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>工程管理 — mofmofu</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Shippori+Mincho:wght@500;700&family=Noto+Sans+JP:wght@400;500;700&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+<script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+<style>
+  :root {
+    --bg: #f5f1ea;
+    --bg-card: #fffdf8;
+    --ink: #1a1a1a;
+    --ink-soft: #6b6357;
+    --line-color: #d4cdbf;
+    --accent: #a64635;
+    --accent-soft: #c9826f;
+    --accent-bg: #fdf3ee;
+    --ok: #5a7a3e;
+    --ok-bg: #f4f8ec;
+    --warn: #b8842a;
+    --warn-bg: #fcf6e8;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+  html, body {
+    font-family: "Noto Sans JP", sans-serif;
+    background: var(--bg);
+    color: var(--ink);
+    min-height: 100vh;
+    font-size: 14px;
+  }
+
+  .form-screen { background: var(--bg); min-height: 100vh; padding-bottom: 80px; }
+
+  .form-header {
+    background: var(--bg-card); padding: 14px 16px;
+    border-bottom: 1px solid var(--line-color);
+    display: flex; align-items: center; gap: 10px;
+    position: sticky; top: 0; z-index: 20;
+  }
+  .form-close {
+    font-size: 22px; color: var(--ink-soft); width: 24px;
+    cursor: pointer; user-select: none;
+  }
+  .form-title-box { flex: 1; }
+  .form-title {
+    font-family: "Shippori Mincho", serif; font-size: 16px; font-weight: 700;
+  }
+  .form-sub {
+    font-size: 10px; color: var(--ink-soft);
+    font-family: "JetBrains Mono", monospace; letter-spacing: .05em;
+  }
+  .user-badge {
+    font-size: 11px; color: var(--accent); font-weight: 700;
+    background: var(--accent-bg); padding: 4px 10px; border-radius: 12px;
+  }
+
+  .form-body { padding: 16px; }
+
+  /* Mode tabs - 4 modes */
+  .mode-tabs {
+    display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px;
+    background: #ebe5da; padding: 4px; border-radius: 10px; margin-bottom: 20px;
+  }
+  .mtab {
+    padding: 8px 2px; font-size: 10px; font-weight: 700;
+    background: transparent; border: none; border-radius: 7px;
+    color: var(--ink-soft); cursor: pointer; font-family: inherit;
+    transition: all .2s; line-height: 1.3;
+  }
+  .mtab.active {
+    background: var(--bg-card); color: var(--accent);
+    box-shadow: 0 1px 3px rgba(0,0,0,.08);
+  }
+  .mtab .icon { display: block; font-size: 16px; margin-bottom: 2px; }
+
+  .field { margin-bottom: 18px; }
+  .field-label {
+    font-size: 12px; font-weight: 700; color: var(--ink);
+    margin-bottom: 6px; display: flex; align-items: center; gap: 6px;
+  }
+  .field-label .req { color: var(--accent); font-size: 10px; }
+  .field-hint {
+    font-size: 10px; color: var(--ink-soft); margin-top: 4px; line-height: 1.5;
+  }
+
+  .select-wrap { position: relative; }
+  select, input[type=text], input[type=number], input[type=date], textarea {
+    width: 100%; padding: 12px 14px; font-size: 14px;
+    background: var(--bg-card); border: 1px solid var(--line-color); border-radius: 8px;
+    font-family: inherit; color: var(--ink);
+    appearance: none; -webkit-appearance: none;
+  }
+  select { padding-right: 36px; cursor: pointer; }
+  .select-wrap::after {
+    content: '▾'; position: absolute; right: 14px; top: 50%;
+    transform: translateY(-50%); color: var(--ink-soft); pointer-events: none; font-size: 12px;
+  }
+  textarea { resize: vertical; min-height: 60px; }
+
+  /* Pill choices for stages */
+  .stage-pills {
+    display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px;
+  }
+  .pill {
+    padding: 12px 4px; font-size: 11px; font-weight: 500;
+    background: var(--bg-card); border: 1px solid var(--line-color);
+    border-radius: 8px; cursor: pointer; text-align: center;
+    color: var(--ink); transition: all .15s; user-select: none;
+  }
+  .pill.selected {
+    background: var(--accent-bg); border-color: var(--accent);
+    color: var(--accent); font-weight: 700;
+  }
+  .pill.disabled {
+    opacity: .35; cursor: not-allowed; background: #f0ebe0;
+    pointer-events: none;
+  }
+
+  .flow-preview {
+    background: var(--accent-bg); border: 1px dashed var(--accent-soft);
+    border-radius: 8px; padding: 12px; margin: 16px 0;
+    text-align: center; font-size: 13px;
+  }
+  .flow-preview .from-to {
+    font-weight: 700; color: var(--accent); font-size: 14px; margin-bottom: 4px;
+  }
+  .flow-preview .arrow { margin: 0 8px; color: var(--accent-soft); }
+  .flow-preview .qty {
+    font-family: "JetBrains Mono", monospace; font-size: 18px; font-weight: 700;
+    color: var(--accent); margin-top: 4px;
+  }
+
+  .context-box {
+    background: var(--ok-bg); border-left: 3px solid var(--ok);
+    padding: 10px 12px; border-radius: 4px; margin-bottom: 18px;
+    font-size: 11px; line-height: 1.6;
+  }
+  .context-box .ctx-title {
+    font-weight: 700; color: var(--ok); font-size: 11px;
+    letter-spacing: .05em; margin-bottom: 4px;
+  }
+  .context-box.warn { background: var(--warn-bg); border-left-color: var(--warn); }
+  .context-box.warn .ctx-title { color: var(--warn); }
+
+  .qty-row {
+    display: grid; grid-template-columns: 1fr 80px; gap: 8px;
+  }
+  .unit-display {
+    display: flex; align-items: center; justify-content: center;
+    background: var(--accent-bg); border: 1px solid var(--accent-soft);
+    border-radius: 8px; font-weight: 700; color: var(--accent); font-size: 14px;
+  }
+
+  .submit-btn {
+    width: 100%; padding: 14px; background: var(--accent);
+    color: white; border: none; border-radius: 10px;
+    font-size: 15px; font-weight: 700; font-family: inherit;
+    cursor: pointer; margin-top: 8px;
+    box-shadow: 0 4px 12px -4px rgba(166,70,53,.5);
+  }
+  .submit-btn:active { transform: translateY(1px); }
+  .submit-btn:disabled { opacity: .5; cursor: not-allowed; }
+
+  .quick-row {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 16px;
+  }
+  .quick-btn {
+    padding: 10px; background: var(--bg-card); border: 1px solid var(--line-color);
+    border-radius: 6px; font-size: 11px; cursor: pointer; font-family: inherit;
+    color: var(--ink-soft);
+  }
+  .quick-btn:active { background: var(--accent-bg); }
+
+  /* Toast */
+  .toast {
+    position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%);
+    background: var(--ok); color: white; padding: 12px 20px;
+    border-radius: 24px; font-size: 13px; font-weight: 700;
+    box-shadow: 0 8px 20px -8px rgba(90,122,62,.6);
+    opacity: 0; pointer-events: none; transition: opacity .3s;
+    z-index: 100;
+  }
+  .toast.show { opacity: 1; }
+  .toast.error { background: var(--accent); }
+
+  /* Loading */
+  .loading {
+    display: none; text-align: center; padding: 40px;
+    color: var(--ink-soft); font-size: 13px;
+  }
+  .loading.show { display: block; }
+  .spinner {
+    display: inline-block; width: 24px; height: 24px;
+    border: 2px solid var(--line-color); border-top-color: var(--accent);
+    border-radius: 50%; animation: spin 0.8s linear infinite;
+    margin-bottom: 8px;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* Hide elements based on mode */
+  .mode-外部入荷 .field-source { display: none; }
+  .mode-受注追加 .field-source, .mode-受注追加 .field-dest { display: none; }
+  .mode-出荷 .field-source, .mode-出荷 .field-dest { display: none; }
+
+  /* Channel select for 受注追加 */
+  .channel-pills {
+    display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px;
+  }
+</style>
+</head>
+<body>
+
+<div class="form-screen mode-工程移動" id="formScreen">
+
+  <div class="form-header">
+    <div class="form-close" onclick="closeApp()">×</div>
+    <div class="form-title-box">
+      <div class="form-title">工程進捗を入力</div>
+      <div class="form-sub">MOFMOFU PIPELINE INPUT</div>
+    </div>
+    <div class="user-badge" id="userBadge">読込中…</div>
+  </div>
+
+  <div class="form-body" id="formBody">
+
+    <!-- Mode selector -->
+    <div class="mode-tabs">
+      <button class="mtab" data-mode="外部入荷" onclick="switchMode('外部入荷')">
+        <span class="icon">🆕</span>外部入荷
+      </button>
+      <button class="mtab active" data-mode="工程移動" onclick="switchMode('工程移動')">
+        <span class="icon">🔄</span>工程移動
+      </button>
+      <button class="mtab" data-mode="受注追加" onclick="switchMode('受注追加')">
+        <span class="icon">🛒</span>受注追加
+      </button>
+      <button class="mtab" data-mode="出荷" onclick="switchMode('出荷')">
+        <span class="icon">📦</span>出荷
+      </button>
+    </div>
+
+    <!-- 商品 -->
+    <div class="field">
+      <div class="field-label">商品 <span class="req">必須</span></div>
+      <div class="select-wrap">
+        <select id="productSelect" onchange="onProductChange()"></select>
+      </div>
+    </div>
+
+    <!-- SKU -->
+    <div class="field">
+      <div class="field-label">SKU(色) <span class="req">必須</span></div>
+      <div class="select-wrap">
+        <select id="skuSelect" onchange="updateContext()"></select>
+      </div>
+    </div>
+
+    <!-- Stock context -->
+    <div class="context-box" id="contextBox">
+      <div class="ctx-title">▼ 現在の状況</div>
+      <div id="contextContent">SKUを選択してください</div>
+    </div>
+
+    <!-- 移動元 -->
+    <div class="field field-source">
+      <div class="field-label">移動元 <span class="req">必須</span></div>
+      <div class="stage-pills" id="sourcePills"></div>
+      <div class="field-hint">外部入荷の場合は不要</div>
+    </div>
+
+    <!-- 移動先 -->
+    <div class="field field-dest">
+      <div class="field-label">移動先 <span class="req">必須</span></div>
+      <div class="stage-pills" id="destPills"></div>
+      <div class="field-hint">※ 神木さん→出荷など、途中工程をスキップしてもOK</div>
+    </div>
+
+    <!-- Channel (受注追加のみ) -->
+    <div class="field field-channel" style="display: none;">
+      <div class="field-label">販売チャネル <span class="req">必須</span></div>
+      <div class="channel-pills" id="channelPills">
+        <div class="pill" data-channel="楽天">楽天</div>
+        <div class="pill" data-channel="Amazon">Amazon</div>
+        <div class="pill" data-channel="TikTok">TikTok</div>
+        <div class="pill" data-channel="Shopify">Shopify</div>
+      </div>
+    </div>
+
+    <!-- 受注ID選択(出荷モード) -->
+    <div class="field field-orderlink" style="display: none;">
+      <div class="field-label">受注ID <span class="req">必須</span></div>
+      <div class="select-wrap">
+        <select id="orderSelect"></select>
+      </div>
+      <div class="field-hint">出荷消化対象の受注を選択(出荷残が自動で減ります)</div>
+    </div>
+
+    <!-- Flow preview -->
+    <div class="flow-preview" id="flowPreview">
+      <div class="from-to" id="flowText">―</div>
+      <div class="qty" id="flowQty">― 個</div>
+    </div>
+
+    <!-- 数量 -->
+    <div class="field">
+      <div class="field-label">数量 <span class="req">必須</span></div>
+      <div class="qty-row">
+        <input type="number" id="qtyInput" inputmode="numeric" placeholder="0" oninput="updateFlow()">
+        <div class="unit-display" id="unitDisplay">個</div>
+      </div>
+    </div>
+
+    <!-- 備考 -->
+    <div class="field">
+      <div class="field-label">備考(任意)</div>
+      <textarea id="memoInput" placeholder="例: 一部色ムラあり、別便で送付"></textarea>
+    </div>
+
+    <button class="submit-btn" id="submitBtn" onclick="submitForm()">この内容で記録する</button>
+
+    <div class="quick-row">
+      <button class="quick-btn" onclick="copyLast()">↻ 直前の入力をコピー</button>
+      <button class="quick-btn" onclick="openDashboard()">📊 ダッシュボード</button>
+    </div>
+  </div>
+
+  <div class="loading" id="loadingScreen">
+    <div class="spinner"></div>
+    <div>送信中…</div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ============================================================
+// Configuration
+// ============================================================
+const LIFF_ID = '2009935318-eq7U4Fuc';
+const GAS_API_URL = 'YOUR_GAS_WEB_APP_URL_HERE'; // Set after GAS deployment
+const DASHBOARD_URL = 'https://shibuyakoichi-droid.github.io/-/genba/dashboard.html';
+
+// ============================================================
+// Master data (loaded from GAS, falls back to defaults if offline)
+// ============================================================
+const DEFAULT_DATA = {
+  products: [
+    { code: 'tubutubu-babyleg', name: 'つぶつぶベビーレッグ' }
+  ],
+  skus: [
+    { product: 'tubutubu-babyleg', code: 'TBL-KN',  name: 'キナリ' },
+    { product: 'tubutubu-babyleg', code: 'TBL-KNT', name: 'キナリツブ' },
+    { product: 'tubutubu-babyleg', code: 'TBL-SRT', name: 'シロツブ' },
+    { product: 'tubutubu-babyleg', code: 'TBL-CNP', name: 'カラーネップ' },
+    { product: 'tubutubu-babyleg', code: 'TBL-MOM', name: '杢オートミール' }
+  ],
+  stages: [
+    { code: 'S01', name: '神木さん',     order: 1, unit: 'kg', extInput: true,  next: ['エルアイシー'] },
+    { code: 'S02', name: 'エルアイシー', order: 2, unit: '個', extInput: false, next: ['池本さん','刑務所','出荷'] },
+    { code: 'S03', name: '池本さん',     order: 3, unit: '個', extInput: false, next: ['内職','出荷'] },
+    { code: 'S04', name: '刑務所',       order: 3, unit: '個', extInput: false, next: ['内職','出荷'] },
+    { code: 'S05', name: '内職',         order: 4, unit: '個', extInput: false, next: ['実在庫','出荷'] },
+    { code: 'S06', name: '実在庫',       order: 5, unit: '個', extInput: false, next: ['出荷'] },
+    { code: 'S07', name: '出荷',         order: 6, unit: '個', extInput: false, next: [] }
+  ],
+  snapshot: {},
+  orders: []
+};
+
+let masterData = JSON.parse(JSON.stringify(DEFAULT_DATA));
+let currentMode = '工程移動';
+let selectedSource = null;
+let selectedDest = null;
+let selectedChannel = null;
+let userName = '未認証';
+let userId = null;
+let lastSubmission = null;
+
+// ============================================================
+// LIFF init
+// ============================================================
+async function initLiff() {
+  try {
+    if (LIFF_ID && LIFF_ID !== 'YOUR_LIFF_ID_HERE') {
+      await liff.init({ liffId: LIFF_ID });
+      if (!liff.isLoggedIn()) {
+        liff.login();
+        return;
+      }
+      const profile = await liff.getProfile();
+      userName = profile.displayName;
+      userId = profile.userId;
+      document.getElementById('userBadge').textContent = userName;
+    } else {
+      // Local dev mode
+      userName = 'テスト';
+      userId = 'dev-user';
+      document.getElementById('userBadge').textContent = userName + ' (dev)';
+    }
+    await loadMasterData();
+    initUI();
+  } catch (e) {
+    console.error('LIFF init failed:', e);
+    document.getElementById('userBadge').textContent = 'オフライン';
+    initUI();
+  }
+}
+
+async function loadMasterData() {
+  if (!GAS_API_URL || GAS_API_URL === 'YOUR_GAS_WEB_APP_URL_HERE') return;
+  try {
+    const res = await fetch(GAS_API_URL + '?action=getMasters');
+    const data = await res.json();
+    if (data.products) masterData.products = data.products;
+    if (data.skus) masterData.skus = data.skus;
+    if (data.stages) masterData.stages = data.stages;
+    if (data.snapshot) masterData.snapshot = data.snapshot;
+    if (data.orders) masterData.orders = data.orders;
+  } catch (e) {
+    console.warn('Master data load failed, using defaults:', e);
+  }
+}
+
+// ============================================================
+// UI initialization
+// ============================================================
+function initUI() {
+  // Product dropdown
+  const ps = document.getElementById('productSelect');
+  ps.innerHTML = masterData.products
+    .map(p => `<option value="${p.code}">${p.code} ${p.name}</option>`).join('');
+
+  onProductChange();
+  renderStagePills();
+  switchMode('工程移動');
+
+  // Channel pills
+  document.querySelectorAll('#channelPills .pill').forEach(pill => {
+    pill.onclick = () => {
+      document.querySelectorAll('#channelPills .pill').forEach(p => p.classList.remove('selected'));
+      pill.classList.add('selected');
+      selectedChannel = pill.dataset.channel;
+      updateFlow();
+    };
+  });
+}
+
+function onProductChange() {
+  const product = document.getElementById('productSelect').value;
+  const ss = document.getElementById('skuSelect');
+  const skus = masterData.skus.filter(s => s.product === product);
+  ss.innerHTML = skus.map(s => `<option value="${s.code}">${s.code} ${s.name}</option>`).join('');
+  updateContext();
+}
+
+function updateContext() {
+  const skuCode = document.getElementById('skuSelect').value;
+  const sku = masterData.skus.find(s => s.code === skuCode);
+  if (!sku) return;
+  const snap = masterData.snapshot[skuCode] || {};
+  const lines = [];
+  lines.push(`<b>${sku.code} ${sku.name}</b>`);
+  const parts = [];
+  if (snap['神木さん']) parts.push(`神木:${snap['神木さん']}kg`);
+  if (snap['エルアイシー']) parts.push(`エ社:${snap['エルアイシー']}`);
+  if (snap['池本さん']) parts.push(`池本:${snap['池本さん']}`);
+  if (snap['刑務所']) parts.push(`刑務:${snap['刑務所']}`);
+  if (snap['内職']) parts.push(`内職:${snap['内職']}`);
+  if (snap['実在庫']) parts.push(`実在庫:${snap['実在庫']}`);
+  lines.push(parts.length ? parts.join(' / ') : '在庫データなし');
+  if (snap.backlog) lines.push(`出荷残:${snap.backlog}個 ・ 差分:${snap.diff > 0 ? '+' : ''}${snap.diff}`);
+  document.getElementById('contextContent').innerHTML = lines.join('<br>');
+
+  // Update unit display based on selected source/dest
+  updateUnitDisplay();
+  // Update order list (for 出荷 mode)
+  populateOrders();
+  updateFlow();
+}
+
+function renderStagePills() {
+  const sourceNames = ['神木さん','エルアイシー','池本さん','刑務所','内職','実在庫'];
+  const destNames = ['エルアイシー','池本さん','刑務所','内職','実在庫','出荷'];
+
+  document.getElementById('sourcePills').innerHTML = sourceNames
+    .map(n => `<div class="pill" data-stage="${n}">${n}</div>`).join('');
+  document.getElementById('destPills').innerHTML = destNames
+    .map(n => `<div class="pill" data-stage="${n}">${n}</div>`).join('');
+
+  document.querySelectorAll('#sourcePills .pill').forEach(pill => {
+    pill.onclick = () => {
+      if (pill.classList.contains('disabled')) return;
+      document.querySelectorAll('#sourcePills .pill').forEach(p => p.classList.remove('selected'));
+      pill.classList.add('selected');
+      selectedSource = pill.dataset.stage;
+      filterDestPills();
+      updateUnitDisplay();
+      updateFlow();
+    };
+  });
+  document.querySelectorAll('#destPills .pill').forEach(pill => {
+    pill.onclick = () => {
+      if (pill.classList.contains('disabled')) return;
+      document.querySelectorAll('#destPills .pill').forEach(p => p.classList.remove('selected'));
+      pill.classList.add('selected');
+      selectedDest = pill.dataset.stage;
+      updateUnitDisplay();
+      updateFlow();
+    };
+  });
+}
+
+function filterDestPills() {
+  // Same stage cannot be source AND dest
+  document.querySelectorAll('#destPills .pill').forEach(pill => {
+    if (pill.dataset.stage === selectedSource) {
+      pill.classList.add('disabled');
+      pill.classList.remove('selected');
+      if (selectedDest === pill.dataset.stage) selectedDest = null;
+    } else {
+      pill.classList.remove('disabled');
+    }
+  });
+}
+
+function updateUnitDisplay() {
+  const ud = document.getElementById('unitDisplay');
+  let unit = '個';
+  if (currentMode === '外部入荷' && selectedDest === '神木さん') unit = 'kg';
+  if (currentMode === '工程移動' && selectedSource === '神木さん') unit = 'kg';
+  ud.textContent = unit;
+}
+
+function populateOrders() {
+  const sel = document.getElementById('orderSelect');
+  if (!sel) return;
+  const skuCode = document.getElementById('skuSelect').value;
+  const orders = masterData.orders.filter(o => o.sku === skuCode && o.unshipped > 0);
+  sel.innerHTML = orders.length
+    ? orders.map(o => `<option value="${o.id}">${o.id} (${o.channel}) 残:${o.unshipped}個</option>`).join('')
+    : '<option value="">該当する受注なし</option>';
+}
+
+// ============================================================
+// Mode switching
+// ============================================================
+function switchMode(mode) {
+  currentMode = mode;
+  document.getElementById('formScreen').className = 'form-screen mode-' + mode;
+  document.querySelectorAll('.mtab').forEach(t => {
+    t.classList.toggle('active', t.dataset.mode === mode);
+  });
+
+  // Show/hide fields by mode
+  const showSource = (mode === '工程移動' || mode === '出荷');
+  const showDest = (mode === '工程移動' || mode === '外部入荷');
+  const showChannel = (mode === '受注追加');
+  const showOrderLink = (mode === '出荷');
+
+  document.querySelector('.field-source').style.display = showSource ? '' : 'none';
+  document.querySelector('.field-dest').style.display = showDest ? '' : 'none';
+  document.querySelector('.field-channel').style.display = showChannel ? '' : 'none';
+  document.querySelector('.field-orderlink').style.display = showOrderLink ? '' : 'none';
+
+  // Reset selections
+  selectedSource = null;
+  selectedDest = null;
+  selectedChannel = null;
+  document.querySelectorAll('.pill').forEach(p => p.classList.remove('selected'));
+
+  // Auto-fill defaults
+  if (mode === '外部入荷') {
+    // Default destination = 神木さん
+    setTimeout(() => {
+      const pill = document.querySelector('#destPills .pill[data-stage="神木さん"]');
+      if (pill) pill.click();
+    }, 0);
+  } else if (mode === '出荷') {
+    // Force source = 実在庫, dest = 出荷
+    selectedSource = '実在庫';
+    selectedDest = '出荷';
+    populateOrders();
+  } else if (mode === '受注追加') {
+    selectedDest = '出荷残';
+  }
+
+  updateUnitDisplay();
+  updateFlow();
+}
+
+function updateFlow() {
+  const qty = document.getElementById('qtyInput').value || '―';
+  const unit = document.getElementById('unitDisplay').textContent;
+  let flowText = '―';
+
+  if (currentMode === '外部入荷') {
+    flowText = `外部 → ${selectedDest || '?'}`;
+  } else if (currentMode === '工程移動') {
+    flowText = `${selectedSource || '?'} → ${selectedDest || '?'}`;
+  } else if (currentMode === '受注追加') {
+    flowText = `受注 (${selectedChannel || '?'}) → 出荷残 +${qty}`;
+  } else if (currentMode === '出荷') {
+    flowText = `実在庫 → 出荷 (受注消化)`;
+  }
+  document.getElementById('flowText').innerHTML = flowText.replace('→', '<span class="arrow">→</span>');
+  document.getElementById('flowQty').textContent = `${qty} ${unit}`;
+}
+
+// ============================================================
+// Submit
+// ============================================================
+async function submitForm() {
+  const product = document.getElementById('productSelect').value;
+  const skuCode = document.getElementById('skuSelect').value;
+  const sku = masterData.skus.find(s => s.code === skuCode);
+  const qty = parseFloat(document.getElementById('qtyInput').value);
+  const memo = document.getElementById('memoInput').value;
+  const unit = document.getElementById('unitDisplay').textContent;
+
+  // Validation
+  if (!qty || qty <= 0) return showToast('数量を入力してください', true);
+  if (currentMode === '工程移動' && (!selectedSource || !selectedDest))
+    return showToast('移動元・移動先を選択してください', true);
+  if (currentMode === '外部入荷' && !selectedDest)
+    return showToast('入荷先を選択してください', true);
+  if (currentMode === '受注追加' && !selectedChannel)
+    return showToast('販売チャネルを選択してください', true);
+  if (currentMode === '出荷') {
+    const orderSel = document.getElementById('orderSelect');
+    if (!orderSel.value) return showToast('受注IDを選択してください', true);
+  }
+
+  const payload = {
+    action: 'recordEntry',
+    timestamp: new Date().toISOString(),
+    user: userName,
+    userId: userId,
+    mode: currentMode,
+    product: product,
+    skuCode: skuCode,
+    skuName: sku.name,
+    source: currentMode === '外部入荷' || currentMode === '受注追加' ? '—' : selectedSource,
+    dest: currentMode === '受注追加' ? '出荷残' : selectedDest,
+    qty: qty,
+    unit: unit,
+    memo: memo,
+    channel: selectedChannel || '',
+    orderId: currentMode === '出荷' ? document.getElementById('orderSelect').value : ''
+  };
+
+  // Send
+  document.getElementById('formBody').style.display = 'none';
+  document.getElementById('loadingScreen').classList.add('show');
+
+  try {
+    if (GAS_API_URL && GAS_API_URL !== 'YOUR_GAS_WEB_APP_URL_HERE') {
+      const res = await fetch(GAS_API_URL, {
+        method: 'POST',
+        body: JSON.stringify(payload)
+      });
+      const result = await res.json();
+      if (!result.success) throw new Error(result.error || 'Unknown error');
+    } else {
+      // Dev mode: simulate
+      console.log('DEV: would send', payload);
+      await new Promise(r => setTimeout(r, 600));
+    }
+    lastSubmission = payload;
+    showToast('✓ 記録しました');
+    resetForm();
+  } catch (e) {
+    showToast('送信失敗: ' + e.message, true);
+  } finally {
+    document.getElementById('loadingScreen').classList.remove('show');
+    document.getElementById('formBody').style.display = '';
+  }
+}
+
+function resetForm() {
+  document.getElementById('qtyInput').value = '';
+  document.getElementById('memoInput').value = '';
+  switchMode(currentMode);
+}
+
+function copyLast() {
+  if (!lastSubmission) return showToast('直前の入力がありません', true);
+  switchMode(lastSubmission.mode);
+  document.getElementById('productSelect').value = lastSubmission.product;
+  onProductChange();
+  document.getElementById('skuSelect').value = lastSubmission.skuCode;
+  setTimeout(() => {
+    if (lastSubmission.source !== '—') {
+      const p = document.querySelector(`#sourcePills .pill[data-stage="${lastSubmission.source}"]`);
+      if (p) p.click();
+    }
+    if (lastSubmission.dest && lastSubmission.dest !== '出荷残') {
+      const p = document.querySelector(`#destPills .pill[data-stage="${lastSubmission.dest}"]`);
+      if (p) p.click();
+    }
+    document.getElementById('qtyInput').value = lastSubmission.qty;
+    updateFlow();
+  }, 0);
+}
+
+function openDashboard() {
+  if (typeof liff !== 'undefined' && liff.isInClient && liff.isInClient()) {
+    liff.openWindow({ url: DASHBOARD_URL, external: false });
+  } else {
+    window.open(DASHBOARD_URL, '_blank');
+  }
+}
+
+function closeApp() {
+  if (typeof liff !== 'undefined' && liff.isInClient && liff.isInClient()) {
+    liff.closeWindow();
+  } else {
+    history.back();
+  }
+}
+
+function showToast(msg, isError) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.toggle('error', !!isError);
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2400);
+}
+
+// Start
+initLiff();
+</script>
+
+</body>
+</html>
