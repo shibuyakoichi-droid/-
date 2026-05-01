@@ -200,11 +200,21 @@
   }
   @keyframes spin { to { transform: rotate(360deg); } }
 
-  /* 外部入荷: 移動元を非表示 */
+  /* 外部入荷: 移動元を非表示 / 通常の移動先ピルを非表示 */
   .mode-外部入荷 .field-source { display: none; }
+  .mode-外部入荷 .field-dest   { display: none; }
   /* 出荷残更新: 移動元・移動先を非表示 */
   .mode-出荷残更新 .field-source { display: none; }
   .mode-出荷残更新 .field-dest   { display: none; }
+
+  /* 外部入荷の入荷先固定表示（外部入荷モードのみ表示） */
+  .field-dest-fixed { display: none; }
+  .mode-外部入荷 .field-dest-fixed { display: block; }
+  .fixed-dest-display {
+    padding: 12px 14px;
+    background: var(--ok-bg); border: 1px solid var(--ok);
+    border-radius: 8px; font-weight: 700; color: var(--ok); font-size: 14px;
+  }
 </style>
 </head>
 <body>
@@ -263,11 +273,17 @@
       <div class="stage-pills" id="sourcePills"></div>
     </div>
 
-    <!-- 移動先 -->
+    <!-- 移動先（工程移動のみ表示） -->
     <div class="field field-dest">
       <div class="field-label">移動先 <span class="req">必須</span></div>
       <div class="stage-pills" id="destPills"></div>
       <div class="field-hint">※ 途中工程をスキップしてもOK</div>
+    </div>
+
+    <!-- 入荷先（外部入荷モードのみ・神木さん固定） -->
+    <div class="field field-dest-fixed">
+      <div class="field-label">入荷先</div>
+      <div class="fixed-dest-display">🏭 神木さん（糸の投入先）</div>
     </div>
 
     <!-- Flow preview -->
@@ -494,11 +510,10 @@ function filterDestPills() {
 
 function updateUnitDisplay() {
   const ud = document.getElementById('unitDisplay');
-  if (currentMode === '出荷残更新') { ud.textContent = '個'; return; }
-  let unit = '個';
-  if (currentMode === '外部入荷' && selectedDest   === '神木さん') unit = 'kg';
-  if (currentMode === '工程移動' && selectedSource === '神木さん') unit = 'kg';
-  ud.textContent = unit;
+  // 外部入荷: 神木さんへの糸入荷なので常にkg
+  if (currentMode === '外部入荷') { ud.textContent = 'kg'; return; }
+  // 工程移動・出荷残更新: 個数入力（神木さん移動元もスタッフは個数入力）
+  ud.textContent = '個';
 }
 
 // ============================================================
@@ -511,7 +526,7 @@ function switchMode(mode) {
     t.classList.toggle('active', t.dataset.mode === mode));
 
   const showSource = (mode === '工程移動');
-  const showDest   = (mode === '工程移動' || mode === '外部入荷');
+  const showDest   = (mode === '工程移動');
   document.querySelector('.field-source').style.display = showSource ? '' : 'none';
   document.querySelector('.field-dest').style.display   = showDest   ? '' : 'none';
 
@@ -526,10 +541,7 @@ function switchMode(mode) {
     .forEach(p => p.classList.remove('selected', 'disabled'));
 
   if (mode === '外部入荷') {
-    setTimeout(() => {
-      const pill = document.querySelector('#destPills .pill[data-stage="神木さん"]');
-      if (pill) pill.click();
-    }, 0);
+    selectedDest = '神木さん'; // 入荷先は神木さん固定
   }
 
   updateUnitDisplay();

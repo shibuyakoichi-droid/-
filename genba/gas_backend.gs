@@ -12,6 +12,8 @@ const SS_ID = '1l9QyWxdYcyTTqR7ZMBs-VQS0rj8c2qUp9q399jmy-30';
 // LINE設定
 const LINE_TOKEN = 'D+dfSKKq9S3ZXx2xUDAE9r1b8Syt1tgRyGzddtMKHuhMJTDV1EDg+TsZNUfmW+XyszQpXshH9n9xBZ3XA5naGpcWT4a/xjl+bNtPxha2HSFbORUNrbZzYMJ/2Tl382QkDejinEoA8R0wGbVoeAdCzgdB04t89/1O/w1cDnyilFU=';
 const GROUP_ID   = 'Cba1029b36b497b2840668bb08b7e7405';
+// 1足30g換算係数。商品が増えてg/足が変わる場合はここを更新する
+const KG_PER_PCS = 0.030;
 
 // ============================================================
 // HTTP ハンドラ
@@ -107,10 +109,6 @@ function sheetToObjects(sheet) {
 function buildSnapshot(ss) {
   const snapSheet = ss.getSheetByName('Snapshot');
   const snapshot  = {};
-  // 神木さんの換算係数: 1足30g = 0.030kg/個
-  // 商品が増えてkg_per_unitが変わる場合はここを変更する
-  const KG_PER_PCS = 0.030;
-
   if (snapSheet && snapSheet.getLastRow() > 1) {
     const rows = snapSheet.getDataRange().getValues().slice(1);
     rows.forEach(([skuCode, stage, qty]) => {
@@ -229,10 +227,18 @@ function updateSnapshot(ss, p) {
   const qty   = Number(p.qty);
 
   if (p.mode === '外部入荷') {
-    addToSnapshot(sheet, p.skuCode, p.dest, qty);
+    addToSnapshot(sheet, p.skuCode, p.dest, qty); // kgで入荷
+
   } else if (p.mode === '工程移動') {
-    addToSnapshot(sheet, p.skuCode, p.source, -qty);
-    addToSnapshot(sheet, p.skuCode, p.dest,    qty);
+    if (p.source === '神木さん') {
+      // スタッフは個数入力 → kg換算して神木さんを減算、移動先に個数を加算
+      const kgDelta = Math.round(qty * KG_PER_PCS * 1000) / 1000;
+      addToSnapshot(sheet, p.skuCode, '神木さん', -kgDelta);
+      addToSnapshot(sheet, p.skuCode, p.dest, qty);
+    } else {
+      addToSnapshot(sheet, p.skuCode, p.source, -qty);
+      addToSnapshot(sheet, p.skuCode, p.dest,    qty);
+    }
   }
 }
 
