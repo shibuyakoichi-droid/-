@@ -33,14 +33,16 @@ html, body {
   font-size: 14px;
 }
 
-/* ── ヘッダー ── */
+/* ── ヘッダー（sticky ブロック全体: タイトル + バナーを一体で固定） ── */
 .header {
   background: var(--bg-card);
   border-bottom: 1px solid var(--line-color);
-  padding: 14px 16px 10px;
-  position: sticky; top: 0; z-index: 20;
+  position: sticky; top: 0; z-index: 30;
 }
-.header-row { display: flex; align-items: center; justify-content: space-between; }
+.header-main {
+  padding: 14px 16px 8px;
+  display: flex; align-items: center; justify-content: space-between;
+}
 .header-brand { font-family: "Shippori Mincho", serif; font-size: 17px; font-weight: 700; }
 .header-sub { font-family: "JetBrains Mono", monospace; font-size: 10px; color: var(--ink-soft); letter-spacing: .08em; margin-top: 2px; }
 .refresh-btn {
@@ -53,7 +55,24 @@ html, body {
 .refresh-icon { display: inline-block; }
 .refreshing .refresh-icon { animation: spin .7s linear infinite; }
 @keyframes spin { to { transform: rotate(360deg); } }
-.last-updated { font-family: "JetBrains Mono", monospace; font-size: 10px; color: var(--ink-soft); margin-top: 6px; text-align: right; }
+.last-updated {
+  font-family: "JetBrains Mono", monospace; font-size: 10px;
+  color: var(--ink-soft); text-align: right; padding: 0 16px 8px;
+}
+
+/* ── 不足バナー（ヘッダー内に含めてスクロールしても見える） ── */
+.header-banner {
+  padding: 8px 16px; font-size: 12px; font-weight: 700;
+  border-top: 1px solid var(--line-color);
+}
+.header-banner.ok { background: var(--ok-bg);     color: var(--ok); }
+.header-banner.ng { background: var(--accent-bg); color: var(--accent); }
+.banner-link {
+  color: inherit; text-decoration: underline;
+  background: none; border: none; padding: 0 2px;
+  font-size: inherit; font-weight: inherit; font-family: inherit; cursor: pointer;
+}
+.banner-link:hover { opacity: .75; }
 
 /* ── コンテンツ ── */
 .content { padding: 16px; max-width: 620px; margin: 0 auto; padding-bottom: 48px; }
@@ -64,13 +83,8 @@ html, body {
   margin: 20px 0 10px; text-transform: uppercase;
 }
 
-/* ── アラートバナー ── */
-.banner { border-radius: 10px; padding: 11px 14px; font-size: 13px; font-weight: 700; margin-bottom: 4px; }
-.banner.ng { background: var(--accent-bg); border: 1px solid var(--accent-soft); color: var(--accent); }
-.banner.ok { background: var(--ok-bg); border: 1px solid var(--ok); color: var(--ok); }
-
 /* ── 商品タブ ── */
-.ptabs { display: flex; gap: 6px; overflow-x: auto; padding-bottom: 2px; margin-bottom: 4px; scrollbar-width: none; }
+.ptabs { display: flex; gap: 6px; overflow-x: auto; padding-bottom: 2px; scrollbar-width: none; }
 .ptabs::-webkit-scrollbar { display: none; }
 .ptab {
   padding: 7px 14px; font-size: 12px; font-weight: 700;
@@ -82,22 +96,25 @@ html, body {
 
 /* ── パイプラインレース ── */
 .race { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
-.race-card { background: var(--bg-card); border: 1px solid var(--line-color); border-radius: 12px; padding: 14px 8px; text-align: center; }
-.race-card.ok { background: var(--ok-bg); border-color: var(--ok); }
+.race-card {
+  background: var(--bg-card); border: 1px solid var(--line-color);
+  border-radius: 12px; padding: 14px 8px; text-align: center;
+}
+.race-card.ok { background: var(--ok-bg);     border-color: var(--ok); }
 .race-card.ng { background: var(--accent-bg); border-color: var(--accent-soft); }
-.race-lbl { font-size: 10px; color: var(--ink-soft); margin-bottom: 6px; }
-.race-val { font-family: "JetBrains Mono", monospace; font-size: 22px; font-weight: 700; line-height: 1; }
+.race-lbl  { font-size: 10px; color: var(--ink-soft); margin-bottom: 6px; line-height: 1.4; }
+.race-val  { font-family: "JetBrains Mono", monospace; font-size: 22px; font-weight: 700; line-height: 1; }
 .race-card.ok .race-val { color: var(--ok); }
 .race-card.ng .race-val { color: var(--accent); }
-.race-unit { font-size: 10px; color: var(--ink-soft); margin-top: 4px; font-family: "JetBrains Mono", monospace; }
+.race-unit { font-size: 9px; color: var(--ink-soft); margin-top: 4px; font-family: "JetBrains Mono", monospace; }
 
 /* ── サプライチェーン ── */
 .chain-wrap {
   background: var(--bg-card); border: 1px solid var(--line-color);
   border-radius: 12px; padding: 16px 14px; overflow-x: auto; scrollbar-width: thin;
 }
-.chain { display: flex; align-items: center; gap: 0; min-width: max-content; }
-.cn { display: flex; flex-direction: column; align-items: center; min-width: 64px; }
+.chain { display: flex; align-items: center; min-width: max-content; }
+.cn    { display: flex; flex-direction: column; align-items: center; min-width: 64px; }
 .cn-name { font-size: 10px; color: var(--ink-soft); margin-bottom: 5px; white-space: nowrap; }
 .cn-badge {
   width: 48px; height: 48px; border-radius: 50%;
@@ -113,11 +130,12 @@ html, body {
 /* ── SKUマトリクス ── */
 .matrix-wrap { background: var(--bg-card); border: 1px solid var(--line-color); border-radius: 12px; overflow: hidden; }
 .matrix-scroll { overflow-x: auto; }
-table.matrix { width: 100%; border-collapse: collapse; font-size: 12px; min-width: 500px; }
+table.matrix { width: 100%; border-collapse: collapse; font-size: 12px; min-width: 620px; }
 table.matrix th {
   background: var(--bg); padding: 8px 6px;
   text-align: center; font-size: 10px; color: var(--ink-soft);
-  font-weight: 700; border-bottom: 1px solid var(--line-color); white-space: nowrap;
+  font-weight: 700; border-bottom: 1px solid var(--line-color);
+  white-space: nowrap; line-height: 1.4;
 }
 table.matrix th:first-child { text-align: left; padding-left: 14px; }
 table.matrix td {
@@ -132,23 +150,15 @@ table.matrix td:first-child {
 table.matrix tr:last-child td { border-bottom: none; }
 table.matrix tr.ng-row td { background: var(--accent-bg); }
 table.matrix tr.ng-row td:first-child { color: var(--accent); }
-.diff-ok { color: var(--ok); font-weight: 700; }
-.diff-ng { color: var(--accent); font-weight: 700; }
-.sub-kg { display: block; font-size: 9px; color: var(--ink-soft); }
-
-/* ── 受注リスト ── */
-.orders { display: flex; flex-direction: column; gap: 8px; }
-.order-row {
-  background: var(--bg-card); border: 1px solid var(--line-color);
-  border-radius: 8px; padding: 10px 14px;
-  display: flex; align-items: center; gap: 8px;
-}
-.order-id { font-family: "JetBrains Mono", monospace; font-size: 10px; color: var(--ink-soft); flex-shrink: 0; }
-.order-name { flex: 1; font-size: 12px; font-weight: 700; }
-.order-ch { font-size: 10px; color: var(--ink-soft); background: var(--bg); border: 1px solid var(--line-color); border-radius: 10px; padding: 2px 8px; flex-shrink: 0; }
-.order-qty { font-family: "JetBrains Mono", monospace; font-size: 13px; font-weight: 700; color: var(--accent); flex-shrink: 0; }
-
-.empty { text-align: center; padding: 20px; color: var(--ink-soft); font-size: 12px; }
+.diff-ok   { color: var(--ok);     font-weight: 700; }
+.diff-ng   { color: var(--accent); font-weight: 700; }
+.diff-zero { color: var(--ink-soft); }
+.col-total { background: rgba(90,122,62,.06); font-weight: 700; color: var(--ok); }
+.ng-row .col-total { background: rgba(166,70,53,.08); color: var(--accent); }
+.sub-kg  { display: block; font-size: 9px; color: var(--ink-soft); }
+.sku-name { display: block; font-weight: 400; color: var(--ink-soft); font-size: 10px; margin-top: 1px; }
+/* sticky ヘッダーの高さ分オフセット（アンカージャンプ時） */
+tr[id] { scroll-margin-top: 140px; }
 
 /* ── ローディング ── */
 .loading {
@@ -170,13 +180,15 @@ table.matrix tr.ng-row td:first-child { color: var(--accent); }
   .race-val { font-size: 18px; }
   .cn-badge { width: 42px; height: 42px; font-size: 10px; }
   .cn { min-width: 56px; }
+  .header-main { padding: 12px 12px 6px; }
 }
 </style>
 </head>
 <body>
 
+<!-- ヘッダー（sticky: タイトル + バナーをまとめて固定） -->
 <div class="header">
-  <div class="header-row">
+  <div class="header-main">
     <div>
       <div class="header-brand">mofmofu 工程管理</div>
       <div class="header-sub">PIPELINE DASHBOARD</div>
@@ -186,11 +198,11 @@ table.matrix tr.ng-row td:first-child { color: var(--accent); }
     </button>
   </div>
   <div class="last-updated" id="lastUpdated">読み込み中...</div>
+  <!-- 不足バナー: ヘッダー内に含まれるため、スクロールしても常に見える -->
+  <div class="header-banner" id="bannerInHeader" style="display:none"></div>
 </div>
 
 <div class="content">
-
-  <div id="banner" class="banner ng" style="display:none"></div>
 
   <div class="sec">商品</div>
   <div class="ptabs" id="ptabs"></div>
@@ -203,14 +215,14 @@ table.matrix tr.ng-row td:first-child { color: var(--accent); }
       <div class="race-unit">個</div>
     </div>
     <div class="race-card" id="racePipeline">
-      <div class="race-lbl">パイプライン</div>
+      <div class="race-lbl">工 程 合 計</div>
       <div class="race-val" id="valPipeline">—</div>
-      <div class="race-unit">個</div>
+      <div class="race-unit">個換算</div>
     </div>
     <div class="race-card" id="raceDiff">
       <div class="race-lbl">差 分</div>
       <div class="race-val" id="valDiff">—</div>
-      <div class="race-unit">個</div>
+      <div class="race-unit">＋不足 ／ −余裕</div>
     </div>
   </div>
 
@@ -232,6 +244,7 @@ table.matrix tr.ng-row td:first-child { color: var(--accent); }
             <th>刑務所</th>
             <th>内職</th>
             <th>実在庫</th>
+            <th>工程合計<br>(個換算)</th>
             <th>出荷残</th>
             <th>差分</th>
           </tr>
@@ -240,9 +253,6 @@ table.matrix tr.ng-row td:first-child { color: var(--accent); }
       </table>
     </div>
   </div>
-
-  <div class="sec">未出荷の受注</div>
-  <div class="orders" id="orders"></div>
 
   <div class="bottom-nav">
     <a href="./index.html" class="bottom-link">← 入力フォームに戻る</a>
@@ -256,14 +266,13 @@ table.matrix tr.ng-row td:first-child { color: var(--accent); }
 </div>
 
 <script>
-const GAS_API_URL = 'YOUR_GAS_WEB_APP_URL_HERE';
-const KG_PER_UNIT = 0.030;
-const REFRESH_MS = 5 * 60 * 1000;
+const GAS_API_URL = 'https://script.google.com/macros/s/AKfycbx9OJmADgkcN_HzcM_GQ7SoH573SFx7rdjj_a8-_Ew3gBCpa66QfvmVD3DUhJBGMcDt/exec';
+const KG_PER_PCS  = 0.030; // 1足30g
+const REFRESH_MS  = 5 * 60 * 1000;
 
+// フォールバック用モックデータ（GAS未設定・オフライン時に表示）
 const MOCK = {
-  products: [
-    { code: 'tubutubu-babyleg', name: 'つぶつぶベビーレッグ' }
-  ],
+  products: [{ code: 'tubutubu-babyleg', name: 'つぶつぶベビーレッグ' }],
   skus: [
     { product: 'tubutubu-babyleg', code: 'TBL-KN',  name: 'キナリ' },
     { product: 'tubutubu-babyleg', code: 'TBL-KNT', name: 'キナリツブ' },
@@ -272,50 +281,50 @@ const MOCK = {
     { product: 'tubutubu-babyleg', code: 'TBL-MOM', name: '杢オートミール' }
   ],
   snapshot: {
-    'TBL-KN':  { '神木さん': 3.0, 'エルアイシー': 100, '池本さん': 30, '刑務所': 20, '内職': 10, '実在庫': 5, backlog: 300 },
-    'TBL-KNT': { '神木さん': 0,   'エルアイシー': 0,   '池本さん': 0,  '刑務所': 0,  '内職': 0,  '実在庫': 0, backlog: 50 },
-    'TBL-SRT': { '神木さん': 4.5, 'エルアイシー': 50,  '池本さん': 0,  '刑務所': 0,  '内職': 0,  '実在庫': 0, backlog: 80 },
-    'TBL-CNP': { '神木さん': 0,   'エルアイシー': 0,   '池本さん': 0,  '刑務所': 0,  '内職': 0,  '実在庫': 0, backlog: 40 },
-    'TBL-MOM': { '神木さん': 1.5, 'エルアイシー': 0,   '池本さん': 0,  '刑務所': 0,  '内職': 0,  '実在庫': 0, backlog: 20 }
-  },
-  orders: [
-    { id: 'ORD-001', sku: 'TBL-KN',  skuName: 'キナリ',       unshipped: 80, channel: '楽天' },
-    { id: 'ORD-002', sku: 'TBL-SRT', skuName: 'シロツブ',     unshipped: 40, channel: '楽天' },
-    { id: 'ORD-003', sku: 'TBL-CNP', skuName: 'カラーネップ', unshipped: 40, channel: 'Amazon' }
-  ]
+    'TBL-KN':  { '神木さん': 3.0, 'エルアイシー': 100, '池本さん': 30, '刑務所': 20, '内職': 10, '実在庫': 5,  backlog: 300, kamikiPcs: 100, processTotal: 265, diff: 35   },
+    'TBL-KNT': { '神木さん': 0,   'エルアイシー': 0,   '池本さん': 0,  '刑務所': 0,  '内職': 0,  '実在庫': 0,  backlog: 50,  kamikiPcs: 0,   processTotal: 0,   diff: 50   },
+    'TBL-SRT': { '神木さん': 4.5, 'エルアイシー': 50,  '池本さん': 0,  '刑務所': 0,  '内職': 0,  '実在庫': 0,  backlog: 80,  kamikiPcs: 150, processTotal: 200, diff: -120 },
+    'TBL-CNP': { '神木さん': 0,   'エルアイシー': 0,   '池本さん': 0,  '刑務所': 0,  '内職': 0,  '実在庫': 0,  backlog: 40,  kamikiPcs: 0,   processTotal: 0,   diff: 40   },
+    'TBL-MOM': { '神木さん': 1.5, 'エルアイシー': 0,   '池本さん': 0,  '刑務所': 0,  '内職': 0,  '実在庫': 0,  backlog: 20,  kamikiPcs: 50,  processTotal: 50,  diff: -30  }
+  }
 };
 
-let data = null;
+let data           = null;
 let currentProduct = null;
-let refreshTimer = null;
+let refreshTimer   = null;
 
-function calcPipeline(snap) {
-  return Math.floor((snap['神木さん'] || 0) / KG_PER_UNIT)
+// GASが返す計算済み値を優先、なければクライアント側で計算
+function getProcessTotal(snap) {
+  if (snap.processTotal != null) return snap.processTotal;
+  const kPcs = Math.round((snap['神木さん'] || 0) / KG_PER_PCS);
+  return kPcs
     + (snap['エルアイシー'] || 0)
-    + (snap['池本さん'] || 0)
-    + (snap['刑務所'] || 0)
-    + (snap['内職'] || 0)
-    + (snap['実在庫'] || 0);
+    + (snap['池本さん']     || 0)
+    + (snap['刑務所']       || 0)
+    + (snap['内職']         || 0)
+    + (snap['実在庫']       || 0);
 }
 
+function getDiff(snap) {
+  if (snap.diff != null) return snap.diff;
+  return (snap.backlog || 0) - getProcessTotal(snap); // 出荷残 - 工程合計（プラス = 不足）
+}
+
+// ── データ取得 ──────────────────────────────────────────────
 async function loadData() {
   document.getElementById('refreshBtn').classList.add('refreshing');
   document.getElementById('loading').classList.add('show');
   try {
-    if (GAS_API_URL !== 'YOUR_GAS_WEB_APP_URL_HERE') {
-      const res = await fetch(GAS_API_URL + '?action=getMasters');
-      data = await res.json();
-    } else {
-      await new Promise(r => setTimeout(r, 400));
-      data = MOCK;
-    }
+    const res = await fetch(GAS_API_URL + '?action=getMasters');
+    data = await res.json();
   } catch {
     data = MOCK;
   }
   const now = new Date();
   document.getElementById('lastUpdated').textContent =
-    '最終更新: ' + now.toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' }) + '　(5分ごと自動更新)';
-  if (!currentProduct && data.products.length) currentProduct = data.products[0].code;
+    '最終更新: ' + now.toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' })
+    + '　(5分ごと自動更新)';
+  if (!currentProduct && data.products?.length) currentProduct = data.products[0].code;
   render();
   document.getElementById('refreshBtn').classList.remove('refreshing');
   document.getElementById('loading').classList.remove('show');
@@ -323,19 +332,20 @@ async function loadData() {
   refreshTimer = setTimeout(loadData, REFRESH_MS);
 }
 
+// ── 全セクション描画 ────────────────────────────────────────
 function render() {
   renderTabs();
-  const skus = data.skus.filter(s => s.product === currentProduct);
+  const skus = (data.skus || []).filter(s => s.product === currentProduct);
   renderBanner(skus);
   renderRace(skus);
   renderChain(skus);
   renderMatrix(skus);
-  renderOrders(skus);
 }
 
 function renderTabs() {
-  document.getElementById('ptabs').innerHTML = data.products.map(p =>
-    `<button class="ptab${p.code === currentProduct ? ' active' : ''}" onclick="selectProduct('${p.code}')">${p.name}</button>`
+  document.getElementById('ptabs').innerHTML = (data.products || []).map(p =>
+    `<button class="ptab${p.code === currentProduct ? ' active' : ''}"
+       onclick="selectProduct('${p.code}')">${p.name}</button>`
   ).join('');
 }
 
@@ -344,108 +354,100 @@ function selectProduct(code) {
   render();
 }
 
+// ── バナー（ヘッダー内固定・不足SKU名クリックで行ジャンプ） ──
 function renderBanner(skus) {
-  const shortages = skus.filter(s => {
-    const snap = data.snapshot[s.code] || {};
-    return calcPipeline(snap) < (snap.backlog || 0);
-  }).map(s => s.name);
-  const el = document.getElementById('banner');
+  const el       = document.getElementById('bannerInHeader');
+  const shortage = skus.filter(s => getDiff(data.snapshot[s.code] || {}) > 0);
   el.style.display = '';
-  if (shortages.length) {
-    el.className = 'banner ng';
-    el.textContent = '⚠️ 在庫不足 SKU: ' + shortages.join('、');
+  if (shortage.length) {
+    el.className = 'header-banner ng';
+    el.innerHTML = '⚠️ 在庫不足: ' +
+      shortage.map(s =>
+        `<button class="banner-link" onclick="jumpTo('sku-${s.code}')">${s.name}</button>`
+      ).join('、');
   } else {
-    el.className = 'banner ok';
+    el.className  = 'header-banner ok';
     el.textContent = '✓ 全 SKU 在庫充足';
   }
 }
 
+function jumpTo(id) {
+  const el = document.getElementById(id);
+  if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+}
+
+// ── PIPELINE RACE（出荷残 / 工程合計 / 差分） ─────────────────
 function renderRace(skus) {
   let totalBacklog = 0, totalPipeline = 0;
   skus.forEach(s => {
-    const snap = data.snapshot[s.code] || {};
-    totalBacklog += (snap.backlog || 0);
-    totalPipeline += calcPipeline(snap);
+    const snap    = data.snapshot[s.code] || {};
+    totalBacklog  += (snap.backlog || 0);
+    totalPipeline += getProcessTotal(snap);
   });
-  const diff = totalPipeline - totalBacklog;
-  document.getElementById('valBacklog').textContent = totalBacklog.toLocaleString();
+  const diff = totalBacklog - totalPipeline; // 出荷残 - 工程合計（プラス = 不足）
+  document.getElementById('valBacklog').textContent  = totalBacklog.toLocaleString();
   document.getElementById('valPipeline').textContent = totalPipeline.toLocaleString();
-  document.getElementById('valDiff').textContent = (diff >= 0 ? '+' : '') + diff.toLocaleString();
-  document.getElementById('raceDiff').className = 'race-card ' + (diff >= 0 ? 'ok' : 'ng');
+  document.getElementById('valDiff').textContent     = (diff > 0 ? '+' : '') + diff.toLocaleString();
+  document.getElementById('raceDiff').className      = 'race-card ' + (diff > 0 ? 'ng' : 'ok');
 }
 
+// ── SUPPLY CHAIN（拠点別合計フロー） ───────────────────────
 function renderChain(skus) {
-  const total = {};
-  ['神木さん','エルアイシー','池本さん','刑務所','内職','実在庫'].forEach(n => { total[n] = 0; });
+  let totalKg = 0;
+  const totals = { 'エルアイシー': 0, '池本さん': 0, '刑務所': 0, '内職': 0, '実在庫': 0 };
   skus.forEach(s => {
     const snap = data.snapshot[s.code] || {};
-    Object.keys(total).forEach(n => { total[n] += (snap[n] || 0); });
+    totalKg += (snap['神木さん'] || 0);
+    Object.keys(totals).forEach(k => { totals[k] += (snap[k] || 0); });
   });
+  const totalKo = Math.round(totalKg / KG_PER_PCS);
+  const kachi   = totals['池本さん'] + totals['刑務所'];
 
-  const kg = total['神木さん'];
-  const ko = Math.floor(kg / KG_PER_UNIT);
-  const kachi = total['池本さん'] + total['刑務所'];
-
-  function node(name, display, hasStock, sub) {
-    return `<div class="cn">
+  const node = (name, display, hasStock, sub) =>
+    `<div class="cn">
       <div class="cn-name">${name}</div>
       <div class="cn-badge${hasStock ? ' has' : ''}">${display}</div>
       <div class="cn-sub">${sub || ''}</div>
     </div>`;
-  }
   const ar = '<div class="chain-ar">→</div>';
 
   document.getElementById('chain').innerHTML =
-    node('神木さん',   kg.toFixed(1) + 'kg', kg > 0,     '≈' + ko.toLocaleString() + '個')
+    node('神木さん',    totalKg.toFixed(1) + 'kg', totalKg > 0, '≈' + totalKo.toLocaleString() + '個')
     + ar
-    + node('エルアイシー', total['エルアイシー'],          total['エルアイシー'] > 0, '個')
+    + node('エルアイシー', totals['エルアイシー'], totals['エルアイシー'] > 0, '個')
     + ar
-    + node('加工',     kachi,                             kachi > 0,                 '池本+刑務所')
+    + node('加工',      kachi,                    kachi > 0,                 '池本+刑務所')
     + ar
-    + node('内職',     total['内職'],                     total['内職'] > 0,         '個')
+    + node('内職',      totals['内職'],            totals['内職'] > 0,        '個')
     + ar
-    + node('実在庫',   total['実在庫'],                   total['実在庫'] > 0,       '個');
+    + node('実在庫',    totals['実在庫'],           totals['実在庫'] > 0,      '個');
 }
 
+// ── SKU MATRIX ────────────────────────────────────────────
 function renderMatrix(skus) {
   document.getElementById('matrixBody').innerHTML = skus.map(s => {
-    const snap = data.snapshot[s.code] || {};
-    const kg = snap['神木さん'] || 0;
-    const ko = Math.floor(kg / KG_PER_UNIT);
-    const pl = calcPipeline(snap);
-    const bl = snap.backlog || 0;
-    const diff = pl - bl;
-    const sign = diff >= 0 ? '+' : '';
-    return `<tr class="${diff < 0 ? 'ng-row' : ''}">
-      <td>${s.code}<br><span style="font-weight:400;color:var(--ink-soft);font-family:inherit;font-size:10px">${s.name}</span></td>
-      <td>${kg.toFixed(1)}kg<span class="sub-kg">≈${ko}個</span></td>
+    const snap   = data.snapshot[s.code] || {};
+    const kg     = snap['神木さん'] || 0;
+    const kPcs   = snap.kamikiPcs != null ? snap.kamikiPcs : Math.round(kg / KG_PER_PCS);
+    const pt     = getProcessTotal(snap);
+    const bl     = snap.backlog || 0;
+    const diff   = getDiff(snap);
+    const sign   = diff > 0 ? '+' : '';
+    const diffCls = diff > 0 ? 'diff-ng' : diff < 0 ? 'diff-ok' : 'diff-zero';
+
+    return `<tr id="sku-${s.code}" class="${diff > 0 ? 'ng-row' : ''}">
+      <td>${s.code}<span class="sku-name">${s.name}</span></td>
+      <td>${kg.toFixed(1)}kg<span class="sub-kg">≈${kPcs}個</span></td>
       <td>${snap['エルアイシー'] || 0}</td>
-      <td>${snap['池本さん'] || 0}</td>
-      <td>${snap['刑務所'] || 0}</td>
-      <td>${snap['内職'] || 0}</td>
-      <td>${snap['実在庫'] || 0}</td>
+      <td>${snap['池本さん']     || 0}</td>
+      <td>${snap['刑務所']       || 0}</td>
+      <td>${snap['内職']         || 0}</td>
+      <td>${snap['実在庫']       || 0}</td>
+      <td class="col-total">${pt}</td>
       <td>${bl}</td>
-      <td class="${diff >= 0 ? 'diff-ok' : 'diff-ng'}">${sign}${diff}</td>
+      <td class="${diffCls}">${sign}${diff}</td>
     </tr>`;
   }).join('');
-}
-
-function renderOrders(skus) {
-  const skuCodes = new Set(skus.map(s => s.code));
-  const orders = (data.orders || []).filter(o => skuCodes.has(o.sku));
-  const el = document.getElementById('orders');
-  if (!orders.length) {
-    el.innerHTML = '<div class="empty">未出荷の受注はありません</div>';
-    return;
-  }
-  el.innerHTML = orders.map(o =>
-    `<div class="order-row">
-      <span class="order-id">${o.id}</span>
-      <span class="order-name">${o.skuName}</span>
-      <span class="order-ch">${o.channel}</span>
-      <span class="order-qty">残 ${o.unshipped}個</span>
-    </div>`
-  ).join('');
 }
 
 loadData();
