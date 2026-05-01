@@ -1,15 +1,17 @@
 // ============================================================
-// mofmofu 工程管理 — Google Apps Script バックエンド
+// mofmofu 工程管理 — Google Apps Script バックエンド (v2)
 // ============================================================
-// 【デプロイ手順】
-// 1. スプレッドシートを新規作成し、そのIDを SS_ID に設定
-// 2. スクリプトエディタで setupSheets() を一度だけ手動実行
-// 3. デプロイ → 新しいデプロイ → ウェブアプリ
-//    実行ユーザー: 自分 / アクセスできるユーザー: 全員
-// 4. 発行されたURLを index.html の GAS_API_URL に設定
+// v2変更: 受注管理をクロスモールに移行。
+//   「受注追加」「出荷」モード削除。
+//   「出荷残更新」モード追加（スタッフが出荷残を直接入力）。
+//   backlogの管理をOrdersシートからSnapshotシートに変更。
 // ============================================================
 
 const SS_ID = '1l9QyWxdYcyTTqR7ZMBs-VQS0rj8c2qUp9q399jmy-30';
+
+// LINE設定
+const LINE_TOKEN = 'D+dfSKKq9S3ZXx2xUDAE9r1b8Syt1tgRyGzddtMKHuhMJTDV1EDg+TsZNUfmW+XyszQpXshH9n9xBZ3XA5naGpcWT4a/xjl+bNtPxha2HSFbORUNrbZzYMJ/2Tl382QkDejinEoA8R0wGbVoeAdCzgdB04t89/1O/w1cDnyilFU=';
+const GROUP_ID   = 'Cba1029b36b497b2840668bb08b7e7405';
 
 // ============================================================
 // HTTP ハンドラ
@@ -29,6 +31,12 @@ function doGet(e) {
 function doPost(e) {
   try {
     const payload = JSON.parse(e.postData.contents);
+
+    // LINE Webhook（グループID取得用）
+    if (payload.events) {
+      return handleLineWebhook(payload);
+    }
+
     if (payload.action === 'recordEntry') {
       return respond(recordEntry(payload));
     }
@@ -38,6 +46,21 @@ function doPost(e) {
   }
 }
 
+// LINE Webhook: groupId をスプレッドシートとログに記録
+function handleLineWebhook(payload) {
+  payload.events.forEach(function(event) {
+    if (event.source && event.source.type === 'group') {
+      const gid = event.source.groupId;
+      Logger.log('🎯 GROUP_ID: ' + gid);
+      const ss = SpreadsheetApp.openById(SS_ID);
+      let sheet = ss.getSheetByName('_GroupIdLog');
+      if (!sheet) sheet = ss.insertSheet('_GroupIdLog');
+      sheet.appendRow([new Date(), gid, event.source.userId || '']);
+    }
+  });
+  return ContentService.createTextOutput('OK').setMimeType(ContentService.MimeType.TEXT);
+}
+
 function respond(data) {
   return ContentService
     .createTextOutput(JSON.stringify(data))
@@ -45,7 +68,7 @@ function respond(data) {
 }
 
 // ============================================================
-// getMasters — 商品・SKU・工程・在庫スナップショット・受注を返す
+// getMasters — 商品・SKU・工程・在庫スナップショットを返す
 // ============================================================
 
 function getMasters() {
@@ -55,16 +78,14 @@ function getMasters() {
   const skus     = sheetToObjects(ss.getSheetByName('SKUs'));
   const stages   = sheetToObjects(ss.getSheetByName('Stages'));
   const snapshot = buildSnapshot(ss);
-  const orders   = getOpenOrders(ss);
 
-  // Stages の型変換
   stages.forEach(s => {
     s.order    = Number(s.order);
     s.extInput = (s.extInput === true || s.extInput === 'TRUE');
     s.next     = s.next ? String(s.next).split(',').map(x => x.trim()).filter(Boolean) : [];
   });
 
-  return { products, skus, stages, snapshot, orders };
+  return { products, skus, stages, snapshot };
 }
 
 // シートの1行目をヘッダーとしてオブジェクト配列に変換
@@ -82,11 +103,13 @@ function sheetToObjects(sheet) {
     });
 }
 
-// Snapshot シートから { skuCode: { stageName: qty, backlog, diff } } を生成
+// Snapshotシートから在庫・工程合計・差分を生成
 function buildSnapshot(ss) {
-  const snapSheet   = ss.getSheetByName('Snapshot');
-  const ordersSheet = ss.getSheetByName('Orders');
-  const snapshot    = {};
+  const snapSheet = ss.getSheetByName('Snapshot');
+  const snapshot  = {};
+  // 神木さんの換算係数: 1足30g = 0.030kg/個
+  // 商品が増えてkg_per_unitが変わる場合はここを変更する
+  const KG_PER_PCS = 0.030;
 
   if (snapSheet && snapSheet.getLastRow() > 1) {
     const rows = snapSheet.getDataRange().getValues().slice(1);
@@ -97,41 +120,24 @@ function buildSnapshot(ss) {
     });
   }
 
-  // 出荷残（未出荷受注合計）を集計
-  if (ordersSheet && ordersSheet.getLastRow() > 1) {
-    const orders = sheetToObjects(ordersSheet);
-    orders.forEach(o => {
-      const unshipped = Number(o.unshipped) || 0;
-      if (unshipped <= 0) return;
-      if (!snapshot[o.sku]) snapshot[o.sku] = {};
-      snapshot[o.sku].backlog = (snapshot[o.sku].backlog || 0) + unshipped;
-    });
-  }
-
-  // diff = 実在庫 − backlog
+  // 工程合計・差分計算
+  // 神木さんはkg→個換算して工程合計に含める（他はすべて個単位）
+  const processStages = ['エルアイシー', '池本さん', '刑務所', '内職', '実在庫'];
   Object.keys(snapshot).forEach(sku => {
-    const stock  = snapshot[sku]['実在庫'] || 0;
-    const backlog = snapshot[sku].backlog  || 0;
-    snapshot[sku].diff = stock - backlog;
+    const s          = snapshot[sku];
+    const kamikiKg   = s['神木さん'] || 0;
+    const kamikiPcs  = Math.round(kamikiKg / KG_PER_PCS);
+    const stagePcs   = processStages.reduce((sum, st) => sum + (s[st] || 0), 0);
+    const processTotal = kamikiPcs + stagePcs;
+    const backlog    = s['backlog'] || 0;
+
+    s.kamikiPcs    = kamikiPcs;
+    s.processTotal = processTotal;
+    s.backlog      = backlog;
+    s.diff         = backlog - processTotal; // 出荷残 - 工程合計（プラスが不足）
   });
 
   return snapshot;
-}
-
-// 未出荷残がある受注のみ返す
-function getOpenOrders(ss) {
-  const sheet = ss.getSheetByName('Orders');
-  if (!sheet) return [];
-  return sheetToObjects(sheet)
-    .filter(o => Number(o.unshipped) > 0)
-    .map(o => ({
-      id:        o.id,
-      sku:       o.sku,
-      channel:   o.channel,
-      totalQty:  Number(o.totalQty),
-      unshipped: Number(o.unshipped),
-      createdAt: o.createdAt
-    }));
 }
 
 // ============================================================
@@ -141,22 +147,62 @@ function getOpenOrders(ss) {
 function recordEntry(payload) {
   const ss   = SpreadsheetApp.openById(SS_ID);
   const lock = LockService.getScriptLock();
-  lock.waitLock(15000); // 同時書き込み防止
+  lock.waitLock(15000);
 
   try {
     appendLog(ss, payload);
-    updateSnapshot(ss, payload);
 
-    if (payload.mode === '受注追加') {
-      addOrder(ss, payload);
-    } else if (payload.mode === '出荷' && payload.orderId) {
-      consumeOrder(ss, payload);
+    if (payload.mode === '出荷残更新') {
+      setBacklog(ss, payload.skuCode, Number(payload.qty));
+    } else {
+      updateSnapshot(ss, payload);
     }
 
+    checkAndAlert(payload.skuCode, payload.skuName);
     return { success: true };
   } finally {
     lock.releaseLock();
   }
+}
+
+// 不足チェック → LINE通知（diff > 0 = 出荷残 > 工程合計 = 不足）
+function checkAndAlert(skuCode, skuName) {
+  if (!LINE_TOKEN || !GROUP_ID) return;
+  const ss   = SpreadsheetApp.openById(SS_ID);
+  const snap = buildSnapshot(ss);
+  if (snap[skuCode] && snap[skuCode].diff > 0) {
+    const d = snap[skuCode];
+    sendLineAlert(
+      '⚠️ 不足アラート\n' +
+      skuName + '\n' +
+      '工程合計: ' + d.processTotal + '個 / 出荷残: ' + d.backlog + '個\n' +
+      '不足: ' + d.diff + '個\n' +
+      '神木さんへの追加発注を検討してください'
+    );
+  }
+}
+
+// LINE Push 送信
+function sendLineAlert(text) {
+  if (!LINE_TOKEN || !GROUP_ID) return;
+  try {
+    UrlFetchApp.fetch('https://api.line.me/v2/bot/message/push', {
+      method: 'post',
+      contentType: 'application/json',
+      headers: { 'Authorization': 'Bearer ' + LINE_TOKEN },
+      payload: JSON.stringify({ to: GROUP_ID, messages: [{ type: 'text', text: text }] }),
+      muteHttpExceptions: true
+    });
+  } catch (e) {
+    Logger.log('LINE送信エラー: ' + e);
+  }
+}
+
+// 毎日17:00リマインダー（時間トリガーで実行）
+function sendDailyReminder() {
+  const today = Utilities.formatDate(new Date(), 'Asia/Tokyo', 'M月d日');
+  const liffUrl = 'https://liff.line.me/2009935318-eq7U4Fuc';
+  sendLineAlert('📦 ' + today + ' 入力リマインド\n本日の進捗を入力してください。\n▼ ' + liffUrl);
 }
 
 // Log シートに1行追記
@@ -169,38 +215,43 @@ function appendLog(ss, p) {
     p.product,
     p.skuCode,
     p.skuName,
-    p.source  || '',
-    p.dest    || '',
+    p.source || '',
+    p.dest   || '',
     Number(p.qty),
     p.unit,
-    p.memo    || '',
-    p.channel || '',
-    p.orderId || ''
+    p.memo   || ''
   ]);
 }
 
-// Snapshot シートの在庫数を更新
+// Snapshotシートの在庫数を更新（外部入荷・工程移動）
 function updateSnapshot(ss, p) {
   const sheet = ss.getSheetByName('Snapshot');
   const qty   = Number(p.qty);
 
   if (p.mode === '外部入荷') {
     addToSnapshot(sheet, p.skuCode, p.dest, qty);
-
   } else if (p.mode === '工程移動') {
     addToSnapshot(sheet, p.skuCode, p.source, -qty);
     addToSnapshot(sheet, p.skuCode, p.dest,    qty);
-
-  } else if (p.mode === '出荷') {
-    // 実在庫から出荷 → 実在庫を減らすのみ（出荷は在庫外）
-    addToSnapshot(sheet, p.skuCode, '実在庫', -qty);
   }
-  // 受注追加は Orders のみ変更（Snapshot は変わらない）
 }
 
-// Snapshot の特定セルに加算（行がなければ新規追加）
+// 出荷残更新: Snapshotの 'backlog' 行を上書き
+function setBacklog(ss, skuCode, qty) {
+  const sheet = ss.getSheetByName('Snapshot');
+  const data  = sheet.getDataRange().getValues();
+  for (let i = 1; i < data.length; i++) {
+    if (data[i][0] === skuCode && data[i][1] === 'backlog') {
+      sheet.getRange(i + 1, 3).setValue(qty);
+      return;
+    }
+  }
+  sheet.appendRow([skuCode, 'backlog', qty]);
+}
+
+// Snapshotの特定セルに加算（行がなければ新規追加）
 function addToSnapshot(sheet, skuCode, stage, delta) {
-  if (!stage || stage === '—' || stage === '出荷残' || stage === '出荷') return;
+  if (!stage || stage === '—' || stage === '出荷') return;
 
   const data = sheet.getDataRange().getValues();
   for (let i = 1; i < data.length; i++) {
@@ -210,38 +261,8 @@ function addToSnapshot(sheet, skuCode, stage, delta) {
       return;
     }
   }
-  // 行が存在しない場合 — 加算のみ追加（マイナスは在庫なしのため無視）
   if (delta > 0) {
     sheet.appendRow([skuCode, stage, delta]);
-  }
-}
-
-// 受注追加: Orders に新規行を追加
-function addOrder(ss, p) {
-  const date = Utilities.formatDate(new Date(), 'Asia/Tokyo', 'yyyyMMdd');
-  const rand = Math.random().toString(36).substr(2, 4).toUpperCase();
-  const id   = 'ORD-' + date + '-' + rand;
-
-  ss.getSheetByName('Orders').appendRow([
-    id,
-    p.skuCode,
-    p.channel,
-    Number(p.qty),
-    Number(p.qty), // unshipped = totalQty（初期値）
-    p.timestamp
-  ]);
-}
-
-// 出荷: Orders の unshipped を減算
-function consumeOrder(ss, p) {
-  const sheet = ss.getSheetByName('Orders');
-  const data  = sheet.getDataRange().getValues();
-  for (let i = 1; i < data.length; i++) {
-    if (data[i][0] === p.orderId) {
-      const newVal = Math.max(0, Number(data[i][4]) - Number(p.qty));
-      sheet.getRange(i + 1, 5).setValue(newVal);
-      return;
-    }
   }
 }
 
@@ -254,8 +275,7 @@ function setupSheets() {
 
   createSheet(ss, 'Log', [
     'timestamp','user','userId','mode','product',
-    'skuCode','skuName','source','dest','qty',
-    'unit','memo','channel','orderId'
+    'skuCode','skuName','source','dest','qty','unit','memo'
   ]);
 
   createSheet(ss, 'Products',
@@ -282,13 +302,11 @@ function setupSheets() {
       ['S03', '池本さん',     3, '個', false, '内職,出荷'],
       ['S04', '刑務所',       3, '個', false, '内職,出荷'],
       ['S05', '内職',         4, '個', false, '実在庫,出荷'],
-      ['S06', '実在庫',       5, '個', false, '出荷'],
-      ['S07', '出荷',         6, '個', false, '']
+      ['S06', '実在庫',       5, '個', false, '出荷']
     ]
   );
 
   createSheet(ss, 'Snapshot', ['skuCode', 'stage', 'qty']);
-  createSheet(ss, 'Orders',   ['id', 'sku', 'channel', 'totalQty', 'unshipped', 'createdAt']);
 
   Logger.log('✅ setupSheets 完了');
 }
@@ -299,7 +317,6 @@ function createSheet(ss, name, headers, rows) {
   if (sheet.getLastRow() === 0) {
     sheet.appendRow(headers);
     if (rows) rows.forEach(r => sheet.appendRow(r));
-    // ヘッダー行を太字・背景色で装飾
     sheet.getRange(1, 1, 1, headers.length)
       .setFontWeight('bold')
       .setBackground('#f3f0e8');

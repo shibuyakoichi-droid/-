@@ -59,9 +59,9 @@
 
   .form-body { padding: 16px; }
 
-  /* Mode tabs - 4 modes */
+  /* Mode tabs — 3 modes */
   .mode-tabs {
-    display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px;
+    display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px;
     background: #ebe5da; padding: 4px; border-radius: 10px; margin-bottom: 20px;
   }
   .mtab {
@@ -87,7 +87,7 @@
   }
 
   .select-wrap { position: relative; }
-  select, input[type=text], input[type=number], input[type=date], textarea {
+  select, input[type=text], input[type=number], textarea {
     width: 100%; padding: 12px 14px; font-size: 14px;
     background: var(--bg-card); border: 1px solid var(--line-color); border-radius: 8px;
     font-family: inherit; color: var(--ink);
@@ -200,15 +200,11 @@
   }
   @keyframes spin { to { transform: rotate(360deg); } }
 
-  /* Hide elements based on mode */
+  /* 外部入荷: 移動元を非表示 */
   .mode-外部入荷 .field-source { display: none; }
-  .mode-受注追加 .field-source, .mode-受注追加 .field-dest { display: none; }
-  .mode-出荷 .field-source, .mode-出荷 .field-dest { display: none; }
-
-  /* Channel select for 受注追加 */
-  .channel-pills {
-    display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px;
-  }
+  /* 出荷残更新: 移動元・移動先を非表示 */
+  .mode-出荷残更新 .field-source { display: none; }
+  .mode-出荷残更新 .field-dest   { display: none; }
 </style>
 </head>
 <body>
@@ -234,11 +230,8 @@
       <button class="mtab active" data-mode="工程移動" onclick="switchMode('工程移動')">
         <span class="icon">🔄</span>工程移動
       </button>
-      <button class="mtab" data-mode="受注追加" onclick="switchMode('受注追加')">
-        <span class="icon">🛒</span>受注追加
-      </button>
-      <button class="mtab" data-mode="出荷" onclick="switchMode('出荷')">
-        <span class="icon">📦</span>出荷
+      <button class="mtab" data-mode="出荷残更新" onclick="switchMode('出荷残更新')">
+        <span class="icon">📋</span>出荷残更新
       </button>
     </div>
 
@@ -268,45 +261,24 @@
     <div class="field field-source">
       <div class="field-label">移動元 <span class="req">必須</span></div>
       <div class="stage-pills" id="sourcePills"></div>
-      <div class="field-hint">外部入荷の場合は不要</div>
     </div>
 
     <!-- 移動先 -->
     <div class="field field-dest">
       <div class="field-label">移動先 <span class="req">必須</span></div>
       <div class="stage-pills" id="destPills"></div>
-      <div class="field-hint">※ 神木さん→出荷など、途中工程をスキップしてもOK</div>
-    </div>
-
-    <!-- Channel (受注追加のみ) -->
-    <div class="field field-channel" style="display: none;">
-      <div class="field-label">販売チャネル <span class="req">必須</span></div>
-      <div class="channel-pills" id="channelPills">
-        <div class="pill" data-channel="楽天">楽天</div>
-        <div class="pill" data-channel="Amazon">Amazon</div>
-        <div class="pill" data-channel="TikTok">TikTok</div>
-        <div class="pill" data-channel="Shopify">Shopify</div>
-      </div>
-    </div>
-
-    <!-- 受注ID選択(出荷モード) -->
-    <div class="field field-orderlink" style="display: none;">
-      <div class="field-label">受注ID <span class="req">必須</span></div>
-      <div class="select-wrap">
-        <select id="orderSelect"></select>
-      </div>
-      <div class="field-hint">出荷消化対象の受注を選択(出荷残が自動で減ります)</div>
+      <div class="field-hint">※ 途中工程をスキップしてもOK</div>
     </div>
 
     <!-- Flow preview -->
-    <div class="flow-preview" id="flowPreview">
+    <div class="flow-preview">
       <div class="from-to" id="flowText">―</div>
       <div class="qty" id="flowQty">― 個</div>
     </div>
 
     <!-- 数量 -->
     <div class="field">
-      <div class="field-label">数量 <span class="req">必須</span></div>
+      <div class="field-label" id="qtyLabel">数量 <span class="req">必須</span></div>
       <div class="qty-row">
         <input type="number" id="qtyInput" inputmode="numeric" placeholder="0" oninput="updateFlow()">
         <div class="unit-display" id="unitDisplay">個</div>
@@ -319,7 +291,7 @@
       <textarea id="memoInput" placeholder="例: 一部色ムラあり、別便で送付"></textarea>
     </div>
 
-    <button class="submit-btn" id="submitBtn" onclick="submitForm()">この内容で記録する</button>
+    <button class="submit-btn" onclick="submitForm()">この内容で記録する</button>
 
     <div class="quick-row">
       <button class="quick-btn" onclick="copyLast()">↻ 直前の入力をコピー</button>
@@ -339,17 +311,16 @@
 // ============================================================
 // Configuration
 // ============================================================
-const LIFF_ID = '2009935318-eq7U4Fuc';
-const GAS_API_URL = 'https://script.google.com/macros/s/AKfycbxgFWefTnzwQawCCIndD3IiwNDs-dtZjemuxz_XXzYvjCNhYIYTGOTepOjPYbRCf0Vj/exec';
+const LIFF_ID       = '2009935318-eq7U4Fuc';
+const GAS_API_URL   = 'https://script.google.com/macros/s/AKfycbxgFWefTnzwQawCCIndD3IiwNDs-dtZjemuxz_XXzYvjCNhYIYTGOTepOjPYbRCf0Vj/exec';
 const DASHBOARD_URL = 'https://shibuyakoichi-droid.github.io/ec-tools/genba/dashboard.html';
+const KG_PER_PCS    = 0.030; // 1足30g = 0.030kg/個
 
 // ============================================================
-// Master data (loaded from GAS, falls back to defaults if offline)
+// Master data（GASから取得、失敗時はデフォルト値を使用）
 // ============================================================
 const DEFAULT_DATA = {
-  products: [
-    { code: 'tubutubu-babyleg', name: 'つぶつぶベビーレッグ' }
-  ],
+  products: [{ code: 'tubutubu-babyleg', name: 'つぶつぶベビーレッグ' }],
   skus: [
     { product: 'tubutubu-babyleg', code: 'TBL-KN',  name: 'キナリ' },
     { product: 'tubutubu-babyleg', code: 'TBL-KNT', name: 'キナリツブ' },
@@ -363,20 +334,17 @@ const DEFAULT_DATA = {
     { code: 'S03', name: '池本さん',     order: 3, unit: '個', extInput: false, next: ['内職','出荷'] },
     { code: 'S04', name: '刑務所',       order: 3, unit: '個', extInput: false, next: ['内職','出荷'] },
     { code: 'S05', name: '内職',         order: 4, unit: '個', extInput: false, next: ['実在庫','出荷'] },
-    { code: 'S06', name: '実在庫',       order: 5, unit: '個', extInput: false, next: ['出荷'] },
-    { code: 'S07', name: '出荷',         order: 6, unit: '個', extInput: false, next: [] }
+    { code: 'S06', name: '実在庫',       order: 5, unit: '個', extInput: false, next: ['出荷'] }
   ],
-  snapshot: {},
-  orders: []
+  snapshot: {}
 };
 
-let masterData = JSON.parse(JSON.stringify(DEFAULT_DATA));
-let currentMode = '工程移動';
+let masterData     = JSON.parse(JSON.stringify(DEFAULT_DATA));
+let currentMode    = '工程移動';
 let selectedSource = null;
-let selectedDest = null;
-let selectedChannel = null;
-let userName = '未認証';
-let userId = null;
+let selectedDest   = null;
+let userName       = '未認証';
+let userId         = null;
 let lastSubmission = null;
 
 // ============================================================
@@ -386,18 +354,14 @@ async function initLiff() {
   try {
     if (LIFF_ID && LIFF_ID !== 'YOUR_LIFF_ID_HERE') {
       await liff.init({ liffId: LIFF_ID });
-      if (!liff.isLoggedIn()) {
-        liff.login();
-        return;
-      }
+      if (!liff.isLoggedIn()) { liff.login(); return; }
       const profile = await liff.getProfile();
       userName = profile.displayName;
-      userId = profile.userId;
+      userId   = profile.userId;
       document.getElementById('userBadge').textContent = userName;
     } else {
-      // Local dev mode
       userName = 'テスト';
-      userId = 'dev-user';
+      userId   = 'dev-user';
       document.getElementById('userBadge').textContent = userName + ' (dev)';
     }
     await loadMasterData();
@@ -412,13 +376,12 @@ async function initLiff() {
 async function loadMasterData() {
   if (!GAS_API_URL || GAS_API_URL === 'YOUR_GAS_WEB_APP_URL_HERE') return;
   try {
-    const res = await fetch(GAS_API_URL + '?action=getMasters');
+    const res  = await fetch(GAS_API_URL + '?action=getMasters');
     const data = await res.json();
     if (data.products) masterData.products = data.products;
-    if (data.skus) masterData.skus = data.skus;
-    if (data.stages) masterData.stages = data.stages;
+    if (data.skus)     masterData.skus     = data.skus;
+    if (data.stages)   masterData.stages   = data.stages;
     if (data.snapshot) masterData.snapshot = data.snapshot;
-    if (data.orders) masterData.orders = data.orders;
   } catch (e) {
     console.warn('Master data load failed, using defaults:', e);
   }
@@ -428,67 +391,72 @@ async function loadMasterData() {
 // UI initialization
 // ============================================================
 function initUI() {
-  // Product dropdown
   const ps = document.getElementById('productSelect');
   ps.innerHTML = masterData.products
     .map(p => `<option value="${p.code}">${p.code} ${p.name}</option>`).join('');
-
   onProductChange();
   renderStagePills();
   switchMode('工程移動');
-
-  // Channel pills
-  document.querySelectorAll('#channelPills .pill').forEach(pill => {
-    pill.onclick = () => {
-      document.querySelectorAll('#channelPills .pill').forEach(p => p.classList.remove('selected'));
-      pill.classList.add('selected');
-      selectedChannel = pill.dataset.channel;
-      updateFlow();
-    };
-  });
 }
 
 function onProductChange() {
   const product = document.getElementById('productSelect').value;
-  const ss = document.getElementById('skuSelect');
-  const skus = masterData.skus.filter(s => s.product === product);
-  ss.innerHTML = skus.map(s => `<option value="${s.code}">${s.code} ${s.name}</option>`).join('');
+  const skus    = masterData.skus.filter(s => s.product === product);
+  document.getElementById('skuSelect').innerHTML =
+    skus.map(s => `<option value="${s.code}">${s.code} ${s.name}</option>`).join('');
   updateContext();
 }
 
 function updateContext() {
   const skuCode = document.getElementById('skuSelect').value;
-  const sku = masterData.skus.find(s => s.code === skuCode);
+  const sku     = masterData.skus.find(s => s.code === skuCode);
   if (!sku) return;
   const snap = masterData.snapshot[skuCode] || {};
+
   const lines = [];
   lines.push(`<b>${sku.code} ${sku.name}</b>`);
+
+  // 各拠点の数量（神木さんはkg＋個換算を併記）
   const parts = [];
-  if (snap['神木さん']) parts.push(`神木:${snap['神木さん']}kg`);
+  if (snap['神木さん']) {
+    const kPcs = snap.kamikiPcs != null ? snap.kamikiPcs : Math.round(snap['神木さん'] / KG_PER_PCS);
+    parts.push(`神木:${snap['神木さん']}kg(≈${kPcs}個)`);
+  }
   if (snap['エルアイシー']) parts.push(`エ社:${snap['エルアイシー']}`);
-  if (snap['池本さん']) parts.push(`池本:${snap['池本さん']}`);
-  if (snap['刑務所']) parts.push(`刑務:${snap['刑務所']}`);
-  if (snap['内職']) parts.push(`内職:${snap['内職']}`);
-  if (snap['実在庫']) parts.push(`実在庫:${snap['実在庫']}`);
+  if (snap['池本さん'])     parts.push(`池本:${snap['池本さん']}`);
+  if (snap['刑務所'])       parts.push(`刑務:${snap['刑務所']}`);
+  if (snap['内職'])         parts.push(`内職:${snap['内職']}`);
+  if (snap['実在庫'])       parts.push(`実在庫:${snap['実在庫']}`);
   lines.push(parts.length ? parts.join(' / ') : '在庫データなし');
-  if (snap.backlog) lines.push(`出荷残:${snap.backlog}個 ・ 差分:${snap.diff > 0 ? '+' : ''}${snap.diff}`);
+
+  // 工程合計・出荷残・差分
+  const pt   = snap.processTotal != null ? snap.processTotal : 0;
+  const bl   = snap.backlog      != null ? snap.backlog      : 0;
+  const diff = snap.diff         != null ? snap.diff         : bl - pt;
+  lines.push(`工程合計: ${pt}個 ｜ 出荷残: ${bl}個`);
+  const diffLabel = diff > 0
+    ? `🔴 不足 +${diff}個`
+    : diff < 0
+      ? `✅ 余裕 ${diff}個`
+      : '✅ ピッタリ';
+  lines.push(`差分: ${diffLabel}`);
+
+  const box = document.getElementById('contextBox');
+  box.className = diff > 0 ? 'context-box warn' : 'context-box';
   document.getElementById('contextContent').innerHTML = lines.join('<br>');
 
-  // Update unit display based on selected source/dest
   updateUnitDisplay();
-  // Update order list (for 出荷 mode)
-  populateOrders();
   updateFlow();
 }
 
 function renderStagePills() {
   const sourceNames = ['神木さん','エルアイシー','池本さん','刑務所','内職','実在庫'];
-  const destNames = ['エルアイシー','池本さん','刑務所','内職','実在庫','出荷'];
+  const destNames   = ['エルアイシー','池本さん','刑務所','内職','実在庫','出荷'];
 
-  document.getElementById('sourcePills').innerHTML = sourceNames
-    .map(n => `<div class="pill" data-stage="${n}">${n}</div>`).join('');
-  document.getElementById('destPills').innerHTML = destNames
-    .map(n => `<div class="pill" data-stage="${n}">${n}</div>`).join('');
+  document.getElementById('sourcePills').innerHTML =
+    sourceNames.map(n => `<div class="pill" data-stage="${n}">${n}</div>`).join('');
+  document.getElementById('destPills').innerHTML =
+    destNames.map(n => `<div class="pill" data-stage="${n}">${n}</div>`).join('');
 
   document.querySelectorAll('#sourcePills .pill').forEach(pill => {
     pill.onclick = () => {
@@ -514,34 +482,23 @@ function renderStagePills() {
 }
 
 function filterDestPills() {
-  // Same stage cannot be source AND dest
   document.querySelectorAll('#destPills .pill').forEach(pill => {
-    if (pill.dataset.stage === selectedSource) {
-      pill.classList.add('disabled');
+    const isSame = pill.dataset.stage === selectedSource;
+    pill.classList.toggle('disabled', isSame);
+    if (isSame && selectedDest === pill.dataset.stage) {
       pill.classList.remove('selected');
-      if (selectedDest === pill.dataset.stage) selectedDest = null;
-    } else {
-      pill.classList.remove('disabled');
+      selectedDest = null;
     }
   });
 }
 
 function updateUnitDisplay() {
   const ud = document.getElementById('unitDisplay');
+  if (currentMode === '出荷残更新') { ud.textContent = '個'; return; }
   let unit = '個';
-  if (currentMode === '外部入荷' && selectedDest === '神木さん') unit = 'kg';
+  if (currentMode === '外部入荷' && selectedDest   === '神木さん') unit = 'kg';
   if (currentMode === '工程移動' && selectedSource === '神木さん') unit = 'kg';
   ud.textContent = unit;
-}
-
-function populateOrders() {
-  const sel = document.getElementById('orderSelect');
-  if (!sel) return;
-  const skuCode = document.getElementById('skuSelect').value;
-  const orders = masterData.orders.filter(o => o.sku === skuCode && o.unshipped > 0);
-  sel.innerHTML = orders.length
-    ? orders.map(o => `<option value="${o.id}">${o.id} (${o.channel}) 残:${o.unshipped}個</option>`).join('')
-    : '<option value="">該当する受注なし</option>';
 }
 
 // ============================================================
@@ -550,41 +507,29 @@ function populateOrders() {
 function switchMode(mode) {
   currentMode = mode;
   document.getElementById('formScreen').className = 'form-screen mode-' + mode;
-  document.querySelectorAll('.mtab').forEach(t => {
-    t.classList.toggle('active', t.dataset.mode === mode);
-  });
+  document.querySelectorAll('.mtab').forEach(t =>
+    t.classList.toggle('active', t.dataset.mode === mode));
 
-  // Show/hide fields by mode
-  const showSource = (mode === '工程移動' || mode === '出荷');
-  const showDest = (mode === '工程移動' || mode === '外部入荷');
-  const showChannel = (mode === '受注追加');
-  const showOrderLink = (mode === '出荷');
-
+  const showSource = (mode === '工程移動');
+  const showDest   = (mode === '工程移動' || mode === '外部入荷');
   document.querySelector('.field-source').style.display = showSource ? '' : 'none';
-  document.querySelector('.field-dest').style.display = showDest ? '' : 'none';
-  document.querySelector('.field-channel').style.display = showChannel ? '' : 'none';
-  document.querySelector('.field-orderlink').style.display = showOrderLink ? '' : 'none';
+  document.querySelector('.field-dest').style.display   = showDest   ? '' : 'none';
 
-  // Reset selections
+  // 数量ラベルを切り替え
+  document.getElementById('qtyLabel').innerHTML = mode === '出荷残更新'
+    ? '現在の出荷残（個） <span class="req">必須</span>'
+    : '数量 <span class="req">必須</span>';
+
   selectedSource = null;
-  selectedDest = null;
-  selectedChannel = null;
-  document.querySelectorAll('.pill').forEach(p => p.classList.remove('selected'));
+  selectedDest   = null;
+  document.querySelectorAll('#sourcePills .pill, #destPills .pill')
+    .forEach(p => p.classList.remove('selected', 'disabled'));
 
-  // Auto-fill defaults
   if (mode === '外部入荷') {
-    // Default destination = 神木さん
     setTimeout(() => {
       const pill = document.querySelector('#destPills .pill[data-stage="神木さん"]');
       if (pill) pill.click();
     }, 0);
-  } else if (mode === '出荷') {
-    // Force source = 実在庫, dest = 出荷
-    selectedSource = '実在庫';
-    selectedDest = '出荷';
-    populateOrders();
-  } else if (mode === '受注追加') {
-    selectedDest = '出荷残';
   }
 
   updateUnitDisplay();
@@ -592,21 +537,24 @@ function switchMode(mode) {
 }
 
 function updateFlow() {
-  const qty = document.getElementById('qtyInput').value || '―';
+  const qty  = document.getElementById('qtyInput').value || '―';
   const unit = document.getElementById('unitDisplay').textContent;
-  let flowText = '―';
+  let text = '―';
+  let subtext = `${qty} ${unit}`;
 
   if (currentMode === '外部入荷') {
-    flowText = `外部 → ${selectedDest || '?'}`;
+    text = `外部 → ${selectedDest || '?'}`;
   } else if (currentMode === '工程移動') {
-    flowText = `${selectedSource || '?'} → ${selectedDest || '?'}`;
-  } else if (currentMode === '受注追加') {
-    flowText = `受注 (${selectedChannel || '?'}) → 出荷残 +${qty}`;
-  } else if (currentMode === '出荷') {
-    flowText = `実在庫 → 出荷 (受注消化)`;
+    text = `${selectedSource || '?'} → ${selectedDest || '?'}`;
+  } else if (currentMode === '出荷残更新') {
+    text    = `出荷残を ${qty} 個 にセット`;
+    subtext = '';
   }
-  document.getElementById('flowText').innerHTML = flowText.replace('→', '<span class="arrow">→</span>');
-  document.getElementById('flowQty').textContent = `${qty} ${unit}`;
+
+  document.getElementById('flowText').innerHTML = currentMode === '出荷残更新'
+    ? text
+    : text.replace('→', '<span class="arrow">→</span>');
+  document.getElementById('flowQty').textContent = subtext;
 }
 
 // ============================================================
@@ -615,56 +563,43 @@ function updateFlow() {
 async function submitForm() {
   const product = document.getElementById('productSelect').value;
   const skuCode = document.getElementById('skuSelect').value;
-  const sku = masterData.skus.find(s => s.code === skuCode);
-  const qty = parseFloat(document.getElementById('qtyInput').value);
-  const memo = document.getElementById('memoInput').value;
-  const unit = document.getElementById('unitDisplay').textContent;
+  const sku     = masterData.skus.find(s => s.code === skuCode);
+  const qty     = parseFloat(document.getElementById('qtyInput').value);
+  const memo    = document.getElementById('memoInput').value;
+  const unit    = document.getElementById('unitDisplay').textContent;
 
-  // Validation
-  if (!qty || qty <= 0) return showToast('数量を入力してください', true);
+  if (!qty || qty <= 0)
+    return showToast('数量を入力してください', true);
   if (currentMode === '工程移動' && (!selectedSource || !selectedDest))
     return showToast('移動元・移動先を選択してください', true);
   if (currentMode === '外部入荷' && !selectedDest)
     return showToast('入荷先を選択してください', true);
-  if (currentMode === '受注追加' && !selectedChannel)
-    return showToast('販売チャネルを選択してください', true);
-  if (currentMode === '出荷') {
-    const orderSel = document.getElementById('orderSelect');
-    if (!orderSel.value) return showToast('受注IDを選択してください', true);
-  }
 
   const payload = {
-    action: 'recordEntry',
+    action:    'recordEntry',
     timestamp: new Date().toISOString(),
-    user: userName,
-    userId: userId,
-    mode: currentMode,
-    product: product,
-    skuCode: skuCode,
-    skuName: sku.name,
-    source: currentMode === '外部入荷' || currentMode === '受注追加' ? '—' : selectedSource,
-    dest: currentMode === '受注追加' ? '出荷残' : selectedDest,
-    qty: qty,
-    unit: unit,
-    memo: memo,
-    channel: selectedChannel || '',
-    orderId: currentMode === '出荷' ? document.getElementById('orderSelect').value : ''
+    user:      userName,
+    userId:    userId,
+    mode:      currentMode,
+    product:   product,
+    skuCode:   skuCode,
+    skuName:   sku.name,
+    source:    (currentMode === '外部入荷' || currentMode === '出荷残更新') ? '—' : selectedSource,
+    dest:      currentMode === '出荷残更新' ? '—' : selectedDest,
+    qty:       qty,
+    unit:      unit,
+    memo:      memo
   };
 
-  // Send
   document.getElementById('formBody').style.display = 'none';
   document.getElementById('loadingScreen').classList.add('show');
 
   try {
     if (GAS_API_URL && GAS_API_URL !== 'YOUR_GAS_WEB_APP_URL_HERE') {
-      const res = await fetch(GAS_API_URL, {
-        method: 'POST',
-        body: JSON.stringify(payload)
-      });
+      const res    = await fetch(GAS_API_URL, { method: 'POST', body: JSON.stringify(payload) });
       const result = await res.json();
       if (!result.success) throw new Error(result.error || 'Unknown error');
     } else {
-      // Dev mode: simulate
       console.log('DEV: would send', payload);
       await new Promise(r => setTimeout(r, 600));
     }
@@ -680,7 +615,7 @@ async function submitForm() {
 }
 
 function resetForm() {
-  document.getElementById('qtyInput').value = '';
+  document.getElementById('qtyInput').value  = '';
   document.getElementById('memoInput').value = '';
   switchMode(currentMode);
 }
@@ -692,11 +627,11 @@ function copyLast() {
   onProductChange();
   document.getElementById('skuSelect').value = lastSubmission.skuCode;
   setTimeout(() => {
-    if (lastSubmission.source !== '—') {
+    if (lastSubmission.source && lastSubmission.source !== '—') {
       const p = document.querySelector(`#sourcePills .pill[data-stage="${lastSubmission.source}"]`);
       if (p) p.click();
     }
-    if (lastSubmission.dest && lastSubmission.dest !== '出荷残') {
+    if (lastSubmission.dest && lastSubmission.dest !== '—') {
       const p = document.querySelector(`#destPills .pill[data-stage="${lastSubmission.dest}"]`);
       if (p) p.click();
     }
@@ -729,7 +664,6 @@ function showToast(msg, isError) {
   setTimeout(() => t.classList.remove('show'), 2400);
 }
 
-// Start
 initLiff();
 </script>
 
