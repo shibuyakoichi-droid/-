@@ -447,8 +447,8 @@ async function load(){
   const[r1,r2,r_items,r_prices]=await Promise.all([
     sb.from('om_orders').select('*').order('date',{ascending:false}),
     sb.from('factories').select('*').order('name'),
-    sb.from('items').select('*').order('item_code'),
-    sb.from('prices').select('*'),
+    sb.from('items').select('*').order('item_code').limit(5000),
+    sb.from('master_prices').select('*'),
   ]);
   if(r1.error||r2.error){showAlert('データ読み込みに失敗しました','err');return;}
   D.orders=(r1.data||[]).map(o=>({...o,factoryId:o.factory_id,createdAt:o.created_at}));
@@ -502,9 +502,15 @@ function getCat(order){
   const f=D.factories.find(f=>f.id===order.factoryId);
   return f?f.category:(order.category||'その他');
 }
+function getProductCode(item_code){
+  const item=D.items.find(x=>x.item_code===item_code);
+  if(item&&item.memo){try{const m=JSON.parse(item.memo);if(m.parent)return m.parent;}catch(e){}}
+  return item_code;
+}
 function getOrderPrice(fac_id,item_code){
   if(!fac_id||!item_code)return '';
-  const p=D.prices.find(x=>x.fac_id===fac_id&&x.item_code===item_code);
+  const product_code=getProductCode(item_code);
+  const p=D.prices.find(x=>x.fac_id===fac_id&&x.product_code===product_code);
   return p?p.unit_price:'';
 }
 const calcAmt=(q,p)=>{const a=Math.round(parseFloat(q)*parseFloat(p));return isNaN(a)?'':a;};
