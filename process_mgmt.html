@@ -372,27 +372,27 @@ const SB_URL='https://yukcdqnnevomhdcpsvms.supabase.co';
 const SB_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inl1a2NkcW5uZXZvbWhkY3Bzdm1zIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY0Mjc2MTUsImV4cCI6MjA5MjAwMzYxNX0.XBSc2kQNwR_bleSwrfYZD8l0fbKTbL1Z3S7ewEtSkDc';
 const sb=supabase.createClient(SB_URL,SB_KEY);
 
-const LOCATIONS=[
-  {id:'l1',name:'神共ニット',  process:'編み',  badge:'badge-ami'},
-  {id:'l2',name:'V-TEC',       process:'編み',  badge:'badge-ami'},
-  {id:'l3',name:'コンセプト',  process:'裁断',  badge:'badge-sai'},
-  {id:'l4',name:'メリット',    process:'編み',  badge:'badge-ami'},
-  {id:'l5',name:'坂本繊維',    process:'染色',  badge:'badge-some'},
-  {id:'l6',name:'松田染工場',  process:'染色',  badge:'badge-some'},
-  {id:'l7',name:'池本さん',    process:'縫製',  badge:'badge-hoso'},
-  {id:'l8',name:'刑務所',      process:'縫製',  badge:'badge-hoso'},
-  {id:'l9',name:'内職',        process:'内職',  badge:'badge-naishoku'},
-  {id:'l0',name:'エルアイシー',process:'実在庫',badge:'badge-stock'},
-  {id:'lp',name:'ピクシー様',  process:'縫製',  badge:'badge-hoso'},
-  {id:'ls',name:'ソーイング井東',process:'裁断',badge:'badge-sai'},
-];
-const FABRIC_PROCS=['編み','染色'];
-function loc(id){return LOCATIONS.find(l=>l.id===id)||{name:'不明',process:'—',badge:''};}
+// 工程コード→日本語・バッジのマッピング
+const PROC_LABEL={knit:'編み',dye:'染色',cut:'裁断',sew:'縫製',inner:'内職',stock:'実在庫',socks:'靴下',yarn:'糸',other:'その他'};
+const PROC_BADGE={knit:'badge-ami',dye:'badge-some',cut:'badge-sai',sew:'badge-hoso',inner:'badge-naishoku',stock:'badge-stock',socks:'badge-hoso',yarn:'badge-some',other:'badge-stock'};
+const FABRIC_PROCS=['knit','dye']; // 生地工程（反単位）
 
-let fabrics=[], products=[], logs=[], master=[];
+let locations=[], fabrics=[], products=[], logs=[], master=[];
+
+function loc(id){
+  const l=locations.find(l=>l.id===id);
+  if(!l) return {name:'不明',process:'—',badge:''};
+  return {id:l.id, name:l.name, process:PROC_LABEL[l.process]||l.process, badge:PROC_BADGE[l.process]||''};
+}
+
+async function loadLocations(){
+  const{data,error}=await sb.from('factories').select('*').order('process').order('name');
+  if(!error) locations=data||[];
+}
 
 async function init(){
   setStatus('読み込み中…');
+  await loadLocations();
   populateSelects();
   await Promise.all([loadFabrics(),loadProducts(),loadLogs(),loadMaster()]);
   setStatus('');
@@ -425,12 +425,12 @@ function showAlert(msg,type='ok'){
 }
 
 function populateSelects(){
-  const locOpts=LOCATIONS.map(l=>`<option value="${l.id}">${l.name}（${l.process}）</option>`).join('');
+  const locOpts=locations.map(l=>`<option value="${l.id}">${l.name}（${PROC_LABEL[l.process]||l.process}）</option>`).join('');
   ['add-fabric-loc','add-prod-loc'].forEach(id=>{
     const el=document.getElementById(id);
     if(el)el.innerHTML=locOpts;
   });
-  const cutLocOpts=LOCATIONS.filter(l=>l.process==='裁断').map(l=>`<option value="${l.id}">${l.name}</option>`).join('');
+  const cutLocOpts=locations.filter(l=>l.process==='cut').map(l=>`<option value="${l.id}">${l.name}</option>`).join('');
   document.getElementById('c-loc').innerHTML='<option value="">選択してください</option>'+cutLocOpts;
   const filterOpts='<option value="">場所: すべて</option>'+locOpts;
   document.getElementById('map-loc').innerHTML=filterOpts;
@@ -448,12 +448,12 @@ function applyFilter(){
 
 function renderSummary(){
   const totals={};
-  LOCATIONS.forEach(l=>totals[l.process]=(totals[l.process]||0));
+  locations.forEach(l=>{const label=PROC_LABEL[l.process]||l.process;totals[label]=(totals[label]||0);});
   fabrics.forEach(f=>{const p=loc(f.location_id).process;totals[p]=(totals[p]||0)+f.qty;});
   products.forEach(p=>{const pr=loc(p.location_id).process;totals[pr]=(totals[pr]||0)+p.qty;});
   const procs=['編み','染色','裁断','縫製','内職','実在庫'];
   document.getElementById('summary-row').innerHTML=procs.map(p=>{
-    const isFab=FABRIC_PROCS.includes(p);
+    const isFab=['編み','染色'].includes(p);
     const border=p==='裁断'?'border-left:2px solid #c8c4bc;':'';
     const bg=isFab?'background:#fffdf5;':'';
     return `<div class="s-card" style="${border}${bg}">
@@ -575,9 +575,9 @@ function onMoveItemChange(){
   const unit=type==='fabric'?'反':'枚';
   document.getElementById('m-qty-label').textContent=`数量 *（${unit}）`;
   document.getElementById('m-hint').textContent=`現在: ${item.qty}${unit} @ ${loc(item.location_id).name}`;
-  const locOpts=LOCATIONS.map(l=>`<option value="${l.id}" ${l.id===item.location_id?'selected':''}>${l.name}（${l.process}）</option>`).join('');
+  const locOpts=locations.map(l=>`<option value="${l.id}" ${l.id===item.location_id?'selected':''}>${l.name}（${PROC_LABEL[l.process]||l.process}）</option>`).join('');
   document.getElementById('m-from').innerHTML='<option value="">選択</option>'+locOpts;
-  document.getElementById('m-to').innerHTML='<option value="">選択</option>'+LOCATIONS.map(l=>`<option value="${l.id}">${l.name}（${l.process}）</option>`).join('');
+  document.getElementById('m-to').innerHTML='<option value="">選択</option>'+locations.map(l=>`<option value="${l.id}">${l.name}（${PROC_LABEL[l.process]||l.process}）</option>`).join('');
 }
 
 async function saveMove(){
