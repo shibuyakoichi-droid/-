@@ -288,7 +288,7 @@ const SUPABASE_URL='https://yukcdqnnevomhdcpsvms.supabase.co';
 const SUPABASE_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inl1a2NkcW5uZXZvbWhkY3Bzdm1zIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY0Mjc2MTUsImV4cCI6MjA5MjAwMzYxNX0.XBSc2kQNwR_bleSwrfYZD8l0fbKTbL1Z3S7ewEtSkDc';
 const sb=supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
 
-let D={products:[],allProducts:[],setCompositions:[],currentStock:[],forecasts:[],progress:[],monthlySales:[],fabricUsage:[],fabricLocations:[]};
+let D={products:[],allProducts:[],setCompositions:[],currentStock:[],forecasts:[],progress:[],monthlySales:[],fabricUsage:[],fabricLocations:[],items:[]};
 let alertFilter='all';
 let fabricView='req';
 
@@ -329,7 +329,7 @@ async function fetchAllRows(queryFn){
 
 // ── データ読み込み（軽量版） ────────────────────────
 async function loadAll(){
-  const[r1,r2,r3,r4,r5,r6,r7,r8]=await Promise.all([
+  const[r1,r2,r3,r4,r5,r6,r7,r8,r9]=await Promise.all([
     fetchAllRows((f,t)=>sb.from('products').select('*').order('code').range(f,t)),
     fetchAllRows((f,t)=>sb.from('set_compositions').select('*').order('set_code').range(f,t)),
     fetchAllRows((f,t)=>sb.from('current_stock').select('*').range(f,t)),
@@ -338,6 +338,7 @@ async function loadAll(){
     fetchAllRows((f,t)=>sb.from('monthly_sales').select('*').order('year_month',{ascending:false}).range(f,t)),
     fetchAllRows((f,t)=>sb.from('fabric_usage').select('*').range(f,t)),
     fetchAllRows((f,t)=>sb.from('fabric_locations').select('*').range(f,t)),
+    fetchAllRows((f,t)=>sb.from('items').select('item_code,item_name,memo').range(f,t)),
   ]);
   if(r1.error||r2.error){showAlert('データ読み込みに失敗しました','err');return;}
   D.allProducts=r1.data||[];
@@ -349,6 +350,7 @@ async function loadAll(){
   D.monthlySales=r6.data||[];
   D.fabricUsage=r7.data||[];
   D.fabricLocations=r8.data||[];
+  D.items=r9.data||[];
   updateLastImportInfo();
 }
 
@@ -519,6 +521,16 @@ async function processCSVFile(file){
     const setMap={};
     D.setCompositions.forEach(s=>{if(!setMap[s.set_code])setMap[s.set_code]=[];setMap[s.set_code].push({base:s.base_code,mult:s.multiplier});});
 
+    // itemsテーブルからSKU→{親品番,色,サイズ}のマップを構築
+    const skuMap={};
+    D.items.forEach(item=>{
+      if(!item.memo)return;
+      try{
+        const m=JSON.parse(item.memo);
+        skuMap[item.item_code]={parent:m.parent||item.item_code,color:m['色']||'',size:m['サイズ']||''};
+      }catch(e){}
+    });
+
     for(let i=1;i<rows.length;i++){
       const row=rows[i];
       if(!row[codeIdx])continue;
@@ -530,16 +542,24 @@ async function processCSVFile(file){
       const color=row[3]||'';
       const sizeAttr=row[5]||'';
       if(setMap[code]){
+        // セット品：構成SKUを色レベルまで分解して記録
         setMap[code].forEach(comp=>{
-          if(!stockMap[comp.base])stockMap[comp.base]={name:comp.base,qty:0};
-          stockMap[comp.base].qty+=stockQty;
+          const sku=skuMap[comp.base];
+          const parentCode=sku?sku.parent:comp.base;
+          const compColor=sku?sku.color:'';
+          const compSize=sku?sku.size:'';
+          if(!stockMap[parentCode])stockMap[parentCode]={name:parentCode,qty:0};
+          stockMap[parentCode].qty+=stockQty*comp.mult;
+          if(salesQty>0){
+            salesRows.push({code:parentCode,name:parentCode,color:compColor,size_attr:compSize,year_month:importYM,sales_qty:salesQty*comp.mult});
+          }
         });
       }else{
         if(!stockMap[code])stockMap[code]={name,qty:0};
         stockMap[code].qty+=stockQty;
         if(name&&!stockMap[code].name)stockMap[code].name=name;
+        if(salesQty>0)salesRows.push({code:origCode,name,color,size_attr:sizeAttr,year_month:importYM,sales_qty:salesQty});
       }
-      if(salesQty>0)salesRows.push({code:origCode,name,color,size_attr:sizeAttr,year_month:importYM,sales_qty:salesQty});
     }
 
     // 同一キー（品番+色+サイズ+年月）を集計して重複を除去
@@ -551,17 +571,9 @@ async function processCSVFile(file){
     });
     const dedupedSalesRows=Object.values(salesAgg);
 
-    // 月別予測の自動計算（販売実績÷日数×30）
+    // 月別予測の自動計算（セットはすでに分解済みなので単純集計）
     const salesByCode={};
     dedupedSalesRows.forEach(s=>{
-      const comps=setMap[s.code];
-      if(comps){
-        comps.forEach(comp=>{
-          if(!salesByCode[comp.base])salesByCode[comp.base]=0;
-          salesByCode[comp.base]+=s.sales_qty*comp.mult;
-        });
-        return;
-      }
       if(!salesByCode[s.code])salesByCode[s.code]=0;
       salesByCode[s.code]+=s.sales_qty;
     });
