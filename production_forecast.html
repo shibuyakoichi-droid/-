@@ -521,13 +521,18 @@ async function processCSVFile(file){
     const setMap={};
     D.setCompositions.forEach(s=>{if(!setMap[s.set_code])setMap[s.set_code]=[];setMap[s.set_code].push({base:s.base_code,mult:s.multiplier});});
 
-    // itemsテーブルからSKU→{親品番,色,サイズ}のマップを構築
+    // SKU→{親品番,色,サイズ} と (親品番+色)→SKU の双方向マップを構築
     const skuMap={};
+    const itemByParentColor={};
     D.items.forEach(item=>{
       if(!item.memo)return;
       try{
         const m=JSON.parse(item.memo);
-        skuMap[item.item_code]={parent:m.parent||item.item_code,color:m['色']||'',size:m['サイズ']||''};
+        const parent=m.parent||item.item_code;
+        const color=m['色']||'';
+        const size=m['サイズ']||'';
+        skuMap[item.item_code]={parent,color,size};
+        if(parent&&color) itemByParentColor[`${parent}|${color}`]=item.item_code;
       }catch(e){}
     });
 
@@ -535,15 +540,19 @@ async function processCSVFile(file){
       const row=rows[i];
       if(!row[codeIdx])continue;
       const origCode=row[codeIdx].trim();
-      let code=origCode;
       const name=nameIdx>=0?row[nameIdx]:'';
       const stockQty=Math.max(parseInt(row[stockIdx])||0,0);
       const salesQty=qtyIdx>=0?(parseInt(row[qtyIdx])||0):0;
       const color=row[3]||'';
       const sizeAttr=row[5]||'';
-      if(setMap[code]){
+
+      // CSVの(商品コード+属性1名)からSKUを逆引きしてセット判定
+      const resolvedSku=itemByParentColor[`${origCode}|${color}`];
+      const setComps=resolvedSku?setMap[resolvedSku]:null;
+
+      if(setComps){
         // セット品：構成SKUを色レベルまで分解して記録
-        setMap[code].forEach(comp=>{
+        setComps.forEach(comp=>{
           const sku=skuMap[comp.base];
           const parentCode=sku?sku.parent:comp.base;
           const compColor=sku?sku.color:'';
@@ -555,9 +564,9 @@ async function processCSVFile(file){
           }
         });
       }else{
-        if(!stockMap[code])stockMap[code]={name,qty:0};
-        stockMap[code].qty+=stockQty;
-        if(name&&!stockMap[code].name)stockMap[code].name=name;
+        if(!stockMap[origCode])stockMap[origCode]={name,qty:0};
+        stockMap[origCode].qty+=stockQty;
+        if(name&&!stockMap[origCode].name)stockMap[origCode].name=name;
         if(salesQty>0)salesRows.push({code:origCode,name,color,size_attr:sizeAttr,year_month:importYM,sales_qty:salesQty});
       }
     }
