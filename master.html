@@ -1,0 +1,529 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>マスタ管理 — SOWAN</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Helvetica Neue',Arial,'Hiragino Kaku Gothic ProN',sans-serif;font-size:14px;color:#1a1a1a;background:#f5f4f0;min-height:100vh}
+.topbar{background:#fff;border-bottom:1px solid #e8e6e0;padding:0 24px;display:flex;align-items:center;height:56px;position:sticky;top:0;z-index:100;gap:12px}
+.topbar-title{font-size:15px;font-weight:600}
+.topbar-sub{font-size:11px;color:#aaa;border-left:1px solid #e8e6e0;padding-left:12px}
+.container{max-width:1100px;margin:0 auto;padding:24px 20px}
+.tabs{display:flex;gap:2px;background:#e8e6e0;border-radius:8px;padding:3px;margin-bottom:24px;flex-wrap:wrap}
+.tab{padding:7px 16px;font-size:13px;cursor:pointer;border:none;background:none;color:#666;border-radius:6px;font-family:inherit;white-space:nowrap;transition:all .15s}
+.tab.active{background:#fff;color:#1a1a1a;font-weight:600;box-shadow:0 1px 3px rgba(0,0,0,.08)}
+.panel{display:none}.panel.active{display:block}
+.notice{background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;padding:10px 14px;font-size:12px;color:#1e40af;margin-bottom:20px}
+.add-form{background:#fff;border:1px solid #e8e6e0;border-radius:12px;padding:16px 20px;margin-bottom:16px}
+.add-form-title{font-size:11px;font-weight:600;color:#999;text-transform:uppercase;letter-spacing:.06em;margin-bottom:12px}
+.form-row{display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap}
+.form-group{display:flex;flex-direction:column;gap:4px;flex:1;min-width:100px}
+.form-group label{font-size:11px;font-weight:500;color:#666}
+input,select,textarea{padding:8px 10px;border:1px solid #d8d5cf;border-radius:7px;font-size:13px;background:#fff;font-family:inherit;color:#1a1a1a;width:100%}
+input:focus,select:focus{outline:none;border-color:#999;box-shadow:0 0 0 3px rgba(0,0,0,.05)}
+.sec-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;flex-wrap:wrap;gap:8px}
+.sec-title{font-size:14px;font-weight:700;display:flex;align-items:center;gap:8px}
+.sec-count{font-size:12px;color:#999;font-weight:400}
+.btn{padding:8px 16px;border:1px solid #d8d5cf;border-radius:8px;font-size:13px;cursor:pointer;background:#fff;color:#1a1a1a;font-family:inherit;transition:all .15s;white-space:nowrap;display:inline-flex;align-items:center;gap:5px}
+.btn:hover{background:#f5f4f0}
+.btn.primary{background:#1a1a1a;color:#fff;border-color:#1a1a1a}
+.btn.primary:hover{background:#333}
+.btn.ghost{background:none;border:none;color:#999;cursor:pointer;font-size:13px;padding:4px 8px;font-family:inherit}
+.btn.ghost:hover{color:#1a1a1a}
+.btn.ghost.danger:hover{color:#a32d2d}
+.btn.sm{padding:4px 10px;font-size:12px}
+.table-wrap{background:#fff;border:1px solid #e8e6e0;border-radius:12px;overflow:hidden;margin-bottom:16px}
+table{width:100%;border-collapse:collapse}
+thead th{font-size:11px;font-weight:600;color:#999;text-transform:uppercase;letter-spacing:.04em;padding:10px 16px;border-bottom:1px solid #e8e6e0;text-align:left;background:#faf9f7;white-space:nowrap}
+tbody td{padding:10px 16px;border-bottom:1px solid #f0ede8;font-size:13px;vertical-align:middle}
+tbody tr:last-child td{border-bottom:none}
+tbody tr:hover td{background:#faf9f7}
+.badge{display:inline-block;padding:2px 9px;border-radius:999px;font-size:11px;font-weight:600}
+.proc-knit{background:#e1f5ee;color:#0a6b50}
+.proc-dye{background:#faeeda;color:#7a4d0a}
+.proc-cut{background:#e6f1fb;color:#1a5fa0}
+.proc-sew{background:#fbeaf0;color:#8a2244}
+.proc-stock{background:#f0ede8;color:#555}
+.proc-inner{background:#f3eafd;color:#6b2fa0}
+.proc-yarn{background:#fff0e8;color:#9a4500}
+.proc-socks{background:#fce8f0;color:#8a2244}
+.proc-other{background:#f0ede8;color:#777}
+.matrix-wrap{overflow-x:auto;background:#fff;border:1px solid #e8e6e0;border-radius:12px;margin-bottom:16px}
+.matrix-table{border-collapse:collapse;font-size:12px;white-space:nowrap;width:100%}
+.matrix-table th{padding:10px 14px;border-bottom:1px solid #e8e6e0;border-right:1px solid #f0ede8;background:#faf9f7;font-size:11px;font-weight:600;color:#999;text-align:center}
+.matrix-table th.row-header{text-align:left;min-width:160px;position:sticky;left:0;z-index:2;background:#faf9f7}
+.matrix-table td{padding:5px 8px;border-bottom:1px solid #f0ede8;border-right:1px solid #f5f3f0;text-align:center;vertical-align:middle}
+.matrix-table td.row-label{text-align:left;padding:8px 14px;background:#fff;position:sticky;left:0;z-index:1;border-right:1px solid #e8e6e0}
+.matrix-table tbody tr:last-child td{border-bottom:none}
+.matrix-table tbody tr:hover td{background:#faf9f7}
+.matrix-table tbody tr:hover td.row-label{background:#faf9f7}
+.price-cell input{width:80px;padding:5px 8px;font-size:12px;text-align:right;border:1px solid #e8e6e0;border-radius:6px;background:#f5f4f0}
+.price-cell input:focus{background:#fff;border-color:#999;outline:none;box-shadow:0 0 0 2px rgba(0,0,0,.05)}
+.ptab{padding:6px 14px;font-size:12px;cursor:pointer;border:none;background:none;color:#666;border-radius:6px;font-family:inherit;white-space:nowrap;transition:all .15s}
+.ptab.active{background:#fff;color:#1a1a1a;font-weight:600;box-shadow:0 1px 3px rgba(0,0,0,.08)}
+.ppanel{display:none}.ppanel.active{display:block}
+.filter-bar{display:flex;gap:8px;align-items:center;margin-bottom:14px;flex-wrap:wrap}
+.filter-bar select,.filter-bar input[type=text]{width:auto;padding:6px 10px;font-size:12px}
+.loading{text-align:center;padding:40px;color:#aaa;font-size:13px}
+.empty{text-align:center;padding:30px;color:#bbb;font-size:12px}
+.proc-col{font-size:10px;color:#bbb;margin-top:1px}
+.group-block{border-bottom:1px solid #e8e6e0}
+.group-header{display:flex;align-items:center;gap:6px;padding:11px 16px;cursor:pointer;background:#fff;transition:background .1s}
+.group-header:hover{background:#faf9f7}
+.group-toggle{font-size:10px;color:#aaa;width:14px;transition:transform .15s;display:inline-block}
+.group-toggle.open{transform:rotate(90deg)}
+.group-children{background:#fff}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="topbar-title">🗂 マスタ管理</div>
+  <div class="topbar-sub">SOWAN 共通マスタ — 全システム連携</div>
+  <a href="top.html" style="margin-left:auto;font-size:12px;color:#aaa;text-decoration:none">← ポータルに戻る</a>
+</div>
+
+<div class="container">
+  <div class="notice">ℹ️ ここで更新した内容は <strong>発注管理・在処管理・納品書管理</strong> のすべてに即時反映されます。</div>
+
+  <div class="tabs">
+    <button class="tab active" onclick="switchTab('factories')">🏭 工場・場所</button>
+    <button class="tab" onclick="switchTab('products')">📋 商品管理番号</button>
+    <button class="tab" onclick="switchTab('skus')">🏷️ SKU管理番号</button>
+    <button class="tab" onclick="switchTab('fabrics')">🧵 生地品番</button>
+    <button class="tab" onclick="switchTab('colors')">🎨 生地カラー</button>
+    <button class="tab" onclick="switchTab('prices')">💴 単価</button>
+  </div>
+
+  <!-- 工場・場所マスタ -->
+  <div class="panel active" id="panel-factories">
+    <div class="add-form">
+      <div class="add-form-title">＋ 工場・場所を追加</div>
+      <div class="form-row">
+        <div class="form-group" style="flex:2"><label>名前</label><input type="text" id="new-fac-name" placeholder="例：〇〇ニット"></div>
+        <div class="form-group"><label>工程</label>
+          <select id="new-fac-proc"><option value="knit">編み</option><option value="dye">染色</option><option value="cut">裁断</option><option value="sew">縫製</option><option value="socks">靴下</option><option value="yarn">糸</option><option value="inner">内職</option><option value="stock">自社在庫</option><option value="other">その他</option></select>
+        </div>
+        <div class="form-group"><label>数量単位</label>
+          <select id="new-fac-unit"><option value="反">反</option><option value="枚">枚</option><option value="足">足</option><option value="kg">kg</option></select>
+        </div>
+        <button class="btn primary" onclick="addFactory()">追加</button>
+      </div>
+    </div>
+    <div class="sec-header">
+      <div class="sec-title">一覧 <span class="sec-count" id="fac-count">読込中...</span></div>
+    </div>
+    <div class="table-wrap"><div id="fac-table"><div class="loading">読み込み中...</div></div></div>
+  </div>
+
+  <!-- 商品管理番号マスタ -->
+  <div class="panel" id="panel-products">
+    <div class="add-form">
+      <div class="add-form-title">＋ 商品管理番号を追加</div>
+      <div class="form-row">
+        <div class="form-group"><label>商品管理番号</label><input type="text" id="new-prod-code" placeholder="例：tubutubu-babyleg"></div>
+        <div class="form-group" style="flex:2"><label>商品名</label><input type="text" id="new-prod-name" placeholder="例：つぶつぶベビーレッグウォーマー"></div>
+        <div class="form-group"><label>工程</label>
+          <select id="new-prod-proc"><option value="sew">縫製</option><option value="socks">靴下</option><option value="cut">裁断</option><option value="knit">編み</option><option value="dye">染色</option></select>
+        </div>
+        <button class="btn primary" onclick="addProduct()">追加</button>
+      </div>
+    </div>
+    <div class="sec-header">
+      <div class="sec-title">商品管理番号一覧 <span class="sec-count" id="prod-count">読込中...</span></div>
+      <div class="filter-bar" style="margin:0">
+        <input type="text" id="prod-search" placeholder="番号・商品名で検索..." style="width:220px" oninput="filterProducts()">
+        <select id="prod-proc-filter" onchange="filterProducts()">
+          <option value="">すべての工程</option>
+          <option value="sew">縫製</option><option value="socks">靴下</option><option value="cut">裁断</option><option value="knit">編み</option><option value="dye">染色</option>
+        </select>
+      </div>
+    </div>
+    <div class="table-wrap"><div id="prod-table"><div class="loading">読み込み中...</div></div></div>
+  </div>
+
+  <!-- SKU管理番号 -->
+  <div class="panel" id="panel-skus">
+    <div class="add-form">
+      <div class="add-form-title">＋ SKUを追加</div>
+      <div class="form-row">
+        <div class="form-group"><label>商品管理番号</label>
+          <select id="new-sku-parent"><option value="">選択してください</option></select>
+        </div>
+        <div class="form-group"><label>SKUコード</label><input type="text" id="new-sku-code" placeholder="例：tubutubu-babyleg0101"></div>
+        <div class="form-group" style="flex:2"><label>SKU名</label><input type="text" id="new-sku-name" placeholder="例：キナリ F"></div>
+        <button class="btn primary" onclick="addSku()">追加</button>
+      </div>
+    </div>
+    <div class="sec-header">
+      <div class="sec-title">SKU一覧 <span class="sec-count" id="sku-count">読込中...</span></div>
+      <div class="filter-bar" style="margin:0">
+        <input type="text" id="sku-search" placeholder="コード・名前で検索..." style="width:220px" oninput="filterSkus()">
+        <select id="sku-parent-filter" onchange="filterSkus()"><option value="">すべての商品管理番号</option></select>
+      </div>
+    </div>
+    <div class="table-wrap"><div id="sku-table"><div class="loading">読み込み中...</div></div></div>
+  </div>
+
+  <!-- 生地品番マスタ -->
+  <div class="panel" id="panel-fabrics">
+    <div class="add-form">
+      <div class="add-form-title">＋ 生地品番を追加</div>
+      <div class="form-row">
+        <div class="form-group"><label>生地品番（生地に書いてある番号）</label><input type="text" id="new-fab-code" placeholder="例：P66"></div>
+        <div class="form-group" style="flex:2"><label>品名</label><input type="text" id="new-fab-name" placeholder="例：つぶつぶ天竺"></div>
+        <div class="form-group"><label>素材</label><input type="text" id="new-fab-material" placeholder="例：綿100%"></div>
+        <button class="btn primary" onclick="addFabric()">追加</button>
+      </div>
+    </div>
+    <div class="sec-header">
+      <div class="sec-title">生地品番一覧 <span class="sec-count" id="fab-count">読込中...</span></div>
+      <div class="filter-bar" style="margin:0">
+        <input type="text" id="fab-search" placeholder="品番・品名で検索..." style="width:220px" oninput="filterFabrics()">
+      </div>
+    </div>
+    <div class="table-wrap"><div id="fab-table"><div class="loading">読み込み中...</div></div></div>
+  </div>
+
+  <!-- 生地カラーマスタ -->
+  <div class="panel" id="panel-colors">
+    <div class="add-form">
+      <div class="add-form-title">＋ 生地カラーを追加</div>
+      <div class="form-row">
+        <div class="form-group"><label>生地品番</label>
+          <select id="new-color-fabric"><option value="">選択してください</option></select>
+        </div>
+        <div class="form-group" style="flex:2"><label>カラー名</label>
+          <input type="text" id="new-color-name" placeholder="例：ソーピング">
+        </div>
+        <div class="form-group"><label>単価（円/反）</label>
+          <input type="number" id="new-color-price" placeholder="例：1300">
+        </div>
+        <button class="btn primary" onclick="addColor()">追加</button>
+      </div>
+    </div>
+    <div class="sec-header">
+      <div class="sec-title">生地カラー一覧 <span class="sec-count" id="color-count">読込中...</span></div>
+      <div class="filter-bar" style="margin:0">
+        <input type="text" id="color-search" placeholder="品番・カラーで検索..." style="width:220px" oninput="filterColors()">
+        <select id="color-fabric-filter" onchange="filterColors()"><option value="">すべての生地品番</option></select>
+      </div>
+    </div>
+    <div class="table-wrap"><div id="color-table"><div class="loading">読み込み中...</div></div></div>
+  </div>
+
+  <!-- 単価マスタ -->
+  <div class="panel" id="panel-prices">
+    <div style="background:#fff;border:1px solid #e8e6e0;border-radius:12px;padding:12px 20px;margin-bottom:16px;font-size:12px;color:#666;line-height:1.7">
+      空欄は「取引なし」として扱われます。<br>
+      <span style="color:#0a6b50;font-weight:600">編み・染色</span> は <strong>生地品番×カラー × 工場</strong>（円/反）　／
+      <span style="color:#1a5fa0;font-weight:600">裁断・縫製</span> は <strong>商品管理番号 × 工場</strong>（円/枚）
+    </div>
+    <div style="display:flex;gap:2px;background:#e8e6e0;border-radius:8px;padding:3px;margin-bottom:20px;flex-wrap:wrap">
+      <button class="ptab active" onclick="switchPtab('knit')">🧶 編み単価</button>
+      <button class="ptab" onclick="switchPtab('dye')">🎨 染色単価</button>
+      <button class="ptab" onclick="switchPtab('cut')">✂️ 裁断単価</button>
+      <button class="ptab" onclick="switchPtab('sew')">🪡 縫製単価</button>
+      <button class="ptab" onclick="switchPtab('socks-tan')">🧦 靴下編み単価</button>
+      <button class="ptab" onclick="switchPtab('socks-kg')">⚖️ 靴下kg単価</button>
+    </div>
+    <div class="ppanel active" id="ppanel-knit">
+      <div class="sec-header"><div class="sec-title">編み単価 <span class="sec-count">生地品番 × 編み工場 / 円・反</span></div><button class="btn primary sm">💾 保存</button></div>
+      <div class="matrix-wrap"><div id="matrix-knit"><div class="loading">読み込み中...</div></div></div>
+    </div>
+    <div class="ppanel" id="ppanel-dye">
+      <div class="sec-header"><div class="sec-title">染色単価 <span class="sec-count">生地品番×カラー × 染色工場 / 円・反</span></div><button class="btn primary sm">💾 保存</button></div>
+      <div class="matrix-wrap"><div id="matrix-dye"><div class="loading">読み込み中...</div></div></div>
+    </div>
+    <div class="ppanel" id="ppanel-cut">
+      <div class="sec-header"><div class="sec-title">裁断単価 <span class="sec-count">商品管理番号 × 裁断工場 / 円・枚</span></div><button class="btn primary sm">💾 保存</button></div>
+      <div class="matrix-wrap"><div id="matrix-cut"><div class="loading">読み込み中...</div></div></div>
+    </div>
+    <div class="ppanel" id="ppanel-sew">
+      <div class="sec-header"><div class="sec-title">縫製単価 <span class="sec-count">商品管理番号 × 縫製工場 / 円・枚</span></div><button class="btn primary sm">💾 保存</button></div>
+      <div class="matrix-wrap"><div id="matrix-sew"><div class="loading">読み込み中...</div></div></div>
+    </div>
+    <div class="ppanel" id="ppanel-socks-tan">
+      <div class="sec-header"><div class="sec-title">靴下編み単価 <span class="sec-count">靴下品番 × 靴下工場 / 円・足</span></div><button class="btn primary sm">💾 保存</button></div>
+      <div class="matrix-wrap"><div id="matrix-socks-tan"><div class="loading">読み込み中...</div></div></div>
+    </div>
+    <div class="ppanel" id="ppanel-socks-kg">
+      <div class="sec-header"><div class="sec-title">靴下kg単価 <span class="sec-count">靴下品番 × 靴下工場 / 円・kg</span></div><button class="btn primary sm">💾 保存</button></div>
+      <div class="matrix-wrap"><div id="matrix-socks-kg"><div class="loading">読み込み中...</div></div></div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+const SUPABASE_URL = 'https://yukcdqnnevomhdcpsvms.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inl1a2NkcW5uZXZvbWhkY3Bzdm1zIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY0Mjc2MTUsImV4cCI6MjA5MjAwMzYxNX0.XBSc2kQNwR_bleSwrfYZD8l0fbKTbL1Z3S7ewEtSkDc';
+const _sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+let factories=[], items=[], prices=[], products=[], fabrics=[], fabricColors=[];
+let allItems=[], allProducts=[], allFabrics=[], allFabricColors=[];
+
+const PROC_LABEL={knit:'編み',dye:'染色',cut:'裁断',sew:'縫製',socks:'靴下',yarn:'糸',inner:'内職',stock:'自社在庫',other:'その他'};
+const PROC_CLASS={knit:'proc-knit',dye:'proc-dye',cut:'proc-cut',sew:'proc-sew',socks:'proc-socks',yarn:'proc-yarn',inner:'proc-inner',stock:'proc-stock',other:'proc-other'};
+
+function procBadge(p){return `<span class="badge ${PROC_CLASS[p]||'proc-other'}">${PROC_LABEL[p]||p}</span>`;}
+
+function toggleGroup(id){
+  const el=document.getElementById(id),tog=document.getElementById('tog_'+id),open=el.style.display==='none';
+  el.style.display=open?'block':'none';
+  tog.classList.toggle('open',open);
+}
+
+const TABS=['factories','products','skus','fabrics','colors','prices'];
+function switchTab(id){
+  TABS.forEach((t,i)=>document.querySelectorAll('.tab')[i].classList.toggle('active',t===id));
+  document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
+  document.getElementById('panel-'+id).classList.add('active');
+}
+const PTABS=['knit','dye','cut','sew','socks-tan','socks-kg'];
+function switchPtab(id){
+  document.querySelectorAll('.ptab').forEach((t,i)=>t.classList.toggle('active',PTABS[i]===id));
+  document.querySelectorAll('.ppanel').forEach(p=>p.classList.remove('active'));
+  document.getElementById('ppanel-'+id).classList.add('active');
+}
+
+async function loadAll(){
+  const [fr,ir,pr,mpr,mfr,mfcr]=await Promise.all([
+    _sb.from('factories').select('*').order('process').order('name'),
+    _sb.from('items').select('*').order('item_code').limit(5000),
+    _sb.from('master_prices').select('*'),
+    _sb.from('master_products').select('*').order('process').order('product_code'),
+    _sb.from('master_fabrics').select('*').order('fabric_code'),
+    _sb.from('master_fabric_colors').select('*').order('fabric_code').order('color_name'),
+  ]);
+  factories=fr.data||[]; items=ir.data||[]; allItems=[...items];
+  prices=pr.data||[]; products=mpr.data||[]; allProducts=[...products];
+  fabrics=mfr.data||[]; allFabrics=[...fabrics];
+  fabricColors=mfcr.data||[]; allFabricColors=[...fabricColors];
+  renderFactories(); renderProducts(products); renderSkus(items);
+  renderFabrics(fabrics); renderColors(fabricColors);
+  populateSkuFilters(); populateColorFilters(); renderPriceMatrices();
+}
+
+/* 工場 */
+function renderFactories(){
+  const el=document.getElementById('fac-table');
+  document.getElementById('fac-count').textContent=factories.length+'件';
+  if(!factories.length){el.innerHTML='<div class="empty">登録がありません</div>';return;}
+  let h=`<table><thead><tr><th>ID</th><th>名前</th><th>工程</th><th>単位</th><th style="width:90px"></th></tr></thead><tbody>`;
+  factories.forEach(f=>{h+=`<tr><td style="color:#aaa;font-family:monospace;font-size:11px">${f.id}</td><td>${f.name}</td><td>${procBadge(f.process)}</td><td>${f.unit||'—'}</td><td><button class="btn ghost sm">編集</button><button class="btn ghost sm danger">削除</button></td></tr>`;});
+  el.innerHTML=h+'</tbody></table>';
+}
+async function addFactory(){
+  const name=document.getElementById('new-fac-name').value.trim();
+  if(!name)return alert('名前を入力してください');
+  const proc=document.getElementById('new-fac-proc').value,unit=document.getElementById('new-fac-unit').value;
+  const id='fac_'+Date.now().toString(36);
+  const {error}=await _sb.from('factories').insert({id,name,process:proc,unit});
+  if(error){alert('追加エラー: '+error.message);return;}
+  document.getElementById('new-fac-name').value='';
+  const {data}=await _sb.from('factories').select('*').order('process').order('name');
+  factories=data||[]; renderFactories(); renderPriceMatrices();
+}
+
+/* 商品管理番号 */
+function renderProducts(list){
+  const el=document.getElementById('prod-table');
+  document.getElementById('prod-count').textContent=list.length+'件（全'+allProducts.length+'件）';
+  if(!list.length){el.innerHTML='<div class="empty">該当する商品がありません</div>';return;}
+  let h=`<table><thead><tr><th>商品管理番号</th><th>商品名</th><th>工程</th><th style="width:90px"></th></tr></thead><tbody>`;
+  list.forEach(p=>{h+=`<tr><td style="font-family:monospace;font-weight:600;font-size:12px">${p.product_code}</td><td>${p.product_name||'—'}</td><td>${p.process?procBadge(p.process):'<span style="color:#bbb">—</span>'}</td><td><button class="btn ghost sm">編集</button><button class="btn ghost sm danger">削除</button></td></tr>`;});
+  el.innerHTML=h+'</tbody></table>';
+}
+function filterProducts(){
+  const q=document.getElementById('prod-search').value.toLowerCase(),proc=document.getElementById('prod-proc-filter').value;
+  let list=allProducts;
+  if(q) list=list.filter(p=>(p.product_code+' '+(p.product_name||'')).toLowerCase().includes(q));
+  if(proc) list=list.filter(p=>p.process===proc);
+  renderProducts(list);
+}
+async function addProduct(){
+  const code=document.getElementById('new-prod-code').value.trim();
+  if(!code)return alert('商品管理番号を入力してください');
+  const name=document.getElementById('new-prod-name').value.trim(),proc=document.getElementById('new-prod-proc').value;
+  const {error}=await _sb.from('master_products').insert({product_code:code,product_name:name,process:proc});
+  if(error){alert('追加エラー: '+error.message);return;}
+  document.getElementById('new-prod-code').value=''; document.getElementById('new-prod-name').value='';
+  const {data}=await _sb.from('master_products').select('*').order('process').order('product_code');
+  products=data||[]; allProducts=[...products]; renderProducts(products); populateSkuFilters(); renderPriceMatrices();
+}
+
+/* SKU */
+function parseMemo(item){try{return JSON.parse(item.memo||'{}');}catch{return {};}}
+function renderSkus(list){
+  const el=document.getElementById('sku-table'),total=allItems.length;
+  document.getElementById('sku-count').textContent=(list.length<total?list.length+'件（全'+total+'件）':total+'件');
+  if(!list.length){el.innerHTML='<div class="empty">該当するSKUがありません</div>';return;}
+  const groups={};
+  list.forEach(i=>{const p=parseMemo(i).parent;if(p){if(!groups[p])groups[p]=[];groups[p].push(i);}});
+  let h='';
+  Object.entries(groups).forEach(([parent,skus])=>{
+    const gid='sg_'+parent.replace(/[^a-zA-Z0-9]/g,'_');
+    const prod=allProducts.find(p=>p.product_code===parent);
+    h+=`<div class="group-block"><div class="group-header" onclick="toggleGroup('${gid}')"><span class="group-toggle" id="tog_${gid}">▶</span><span style="font-family:monospace;font-weight:700;font-size:13px">${parent}</span><span style="color:#888;font-size:12px;margin-left:8px">${prod?prod.product_name:''}</span><span style="color:#aaa;font-size:12px;margin-left:8px">${skus.length}件</span></div><div class="group-children" id="${gid}" style="display:none"><table style="width:100%;border-collapse:collapse"><thead><tr style="background:#faf9f7"><th style="padding:6px 16px 6px 32px;font-size:11px;color:#999;text-align:left">SKUコード</th><th style="padding:6px 16px;font-size:11px;color:#999;text-align:left">SKU名</th><th style="width:90px"></th></tr></thead><tbody>`;
+    skus.forEach(i=>{h+=`<tr style="border-bottom:1px solid #f0ede8"><td style="padding:8px 16px 8px 32px;font-family:monospace;font-size:12px">${i.item_code}</td><td style="padding:8px 16px;font-size:12px">${i.item_name||'—'}</td><td style="padding:8px 16px;text-align:right"><button class="btn ghost sm">編集</button><button class="btn ghost sm danger">削除</button></td></tr>`;});
+    h+=`</tbody></table></div></div>`;
+  });
+  el.innerHTML=h||'<div class="empty">SKUがありません</div>';
+}
+function filterSkus(){
+  const q=document.getElementById('sku-search').value.toLowerCase(),parent=document.getElementById('sku-parent-filter').value;
+  let list=allItems;
+  if(q) list=list.filter(i=>(i.item_code+' '+(i.item_name||'')).toLowerCase().includes(q));
+  if(parent) list=list.filter(i=>parseMemo(i).parent===parent);
+  renderSkus(list);
+}
+function populateSkuFilters(){
+  const opts=allProducts.map(p=>`<option value="${p.product_code}">${p.product_code}（${p.product_name||''}）</option>`).join('');
+  document.getElementById('sku-parent-filter').innerHTML='<option value="">すべての商品管理番号</option>'+opts;
+  document.getElementById('new-sku-parent').innerHTML='<option value="">選択してください</option>'+opts;
+}
+async function addSku(){
+  const parent=document.getElementById('new-sku-parent').value,code=document.getElementById('new-sku-code').value.trim(),name=document.getElementById('new-sku-name').value.trim();
+  if(!code||!parent)return alert('商品管理番号とSKUコードを入力してください');
+  const prod=allProducts.find(p=>p.product_code===parent);
+  const {error}=await _sb.from('items').insert({id:'sku_'+Date.now().toString(36),item_code:code,item_name:name,memo:JSON.stringify({p:prod?.process||'sew',parent})});
+  if(error){alert('追加エラー: '+error.message);return;}
+  document.getElementById('new-sku-code').value=''; document.getElementById('new-sku-name').value='';
+  const {data}=await _sb.from('items').select('*').order('item_code').limit(5000);
+  items=data||[]; allItems=[...items]; filterSkus();
+}
+
+/* 生地品番 */
+function renderFabrics(list){
+  const el=document.getElementById('fab-table');
+  document.getElementById('fab-count').textContent=list.length+'件（全'+allFabrics.length+'件）';
+  if(!list.length){el.innerHTML='<div class="empty">該当する生地がありません</div>';return;}
+  let h=`<table><thead><tr><th>生地品番</th><th>品名</th><th>素材</th><th>メモ</th><th style="width:90px"></th></tr></thead><tbody>`;
+  list.forEach(f=>{h+=`<tr><td style="font-family:monospace;font-weight:600">${f.fabric_code}</td><td>${f.fabric_name||'<span style="color:#bbb">未設定</span>'}</td><td>${f.material||'<span style="color:#bbb">—</span>'}</td><td>${f.note||''}</td><td><button class="btn ghost sm">編集</button><button class="btn ghost sm danger">削除</button></td></tr>`;});
+  el.innerHTML=h+'</tbody></table>';
+}
+function filterFabrics(){
+  const q=document.getElementById('fab-search').value.toLowerCase();
+  renderFabrics(allFabrics.filter(f=>(f.fabric_code+' '+(f.fabric_name||'')).toLowerCase().includes(q)));
+}
+async function addFabric(){
+  const code=document.getElementById('new-fab-code').value.trim();
+  if(!code)return alert('生地品番を入力してください');
+  const name=document.getElementById('new-fab-name').value.trim(),mat=document.getElementById('new-fab-material').value.trim();
+  const {error}=await _sb.from('master_fabrics').insert({fabric_code:code,fabric_name:name||null,material:mat||null});
+  if(error){alert('追加エラー: '+error.message);return;}
+  document.getElementById('new-fab-code').value=''; document.getElementById('new-fab-name').value=''; document.getElementById('new-fab-material').value='';
+  const {data}=await _sb.from('master_fabrics').select('*').order('fabric_code');
+  fabrics=data||[]; allFabrics=[...fabrics]; renderFabrics(fabrics); renderPriceMatrices();
+}
+
+/* 生地カラー */
+function renderColors(list){
+  const el=document.getElementById('color-table');
+  document.getElementById('color-count').textContent=allFabricColors.length+'件';
+  if(!list.length){el.innerHTML='<div class="empty">該当するカラーがありません</div>';return;}
+  const groups={};
+  list.forEach(c=>{if(!groups[c.fabric_code])groups[c.fabric_code]=[];groups[c.fabric_code].push(c);});
+  let h='';
+  Object.entries(groups).forEach(([fab,colors])=>{
+    const gid='cg_'+fab.replace(/[^a-zA-Z0-9]/g,'_');
+    h+=`<div class="group-block"><div class="group-header" onclick="toggleGroup('${gid}')"><span class="group-toggle" id="tog_${gid}">▶</span><span style="font-family:monospace;font-weight:700;font-size:13px">${fab}</span><span style="color:#aaa;font-size:12px;margin-left:8px">${colors.length}色</span></div><div class="group-children" id="${gid}" style="display:none"><table style="width:100%;border-collapse:collapse">`;
+    colors.forEach(c=>{h+=`<tr style="border-bottom:1px solid #f0ede8"><td style="padding:8px 16px 8px 32px;font-size:13px">${c.color_name}</td><td style="text-align:right;padding:8px 16px;width:90px"><button class="btn ghost sm">編集</button><button class="btn ghost sm danger">削除</button></td></tr>`;});
+    h+=`</table></div></div>`;
+  });
+  el.innerHTML=h;
+}
+function filterColors(){
+  const q=document.getElementById('color-search').value.toLowerCase(),fab=document.getElementById('color-fabric-filter').value;
+  let list=allFabricColors;
+  if(q) list=list.filter(c=>(c.fabric_code+' '+c.color_name).toLowerCase().includes(q));
+  if(fab) list=list.filter(c=>c.fabric_code===fab);
+  renderColors(list);
+}
+function populateColorFilters(){
+  const unique=[...new Set(allFabricColors.map(c=>c.fabric_code))].sort();
+  const opts=unique.map(f=>`<option value="${f}">${f}</option>`).join('');
+  document.getElementById('color-fabric-filter').innerHTML='<option value="">すべての生地品番</option>'+opts;
+  document.getElementById('new-color-fabric').innerHTML='<option value="">選択してください</option>'+opts;
+}
+async function addColor(){
+  const fabric=document.getElementById('new-color-fabric').value,name=document.getElementById('new-color-name').value.trim();
+  if(!fabric||!name)return alert('生地品番とカラー名を入力してください');
+  const price=document.getElementById('new-color-price').value;
+  const {error}=await _sb.from('master_fabric_colors').insert({fabric_code:fabric,color_name:name,unit_price:price?parseFloat(price):1300});
+  if(error){alert('追加エラー: '+error.message);return;}
+  document.getElementById('new-color-name').value=''; document.getElementById('new-color-price').value='';
+  const {data}=await _sb.from('master_fabric_colors').select('*').order('fabric_code').order('color_name');
+  fabricColors=data||[]; allFabricColors=[...fabricColors]; filterColors(); renderPriceMatrices();
+}
+
+/* 単価マトリクス */
+function getPrice(facId,code){const p=prices.find(x=>x.fac_id===facId&&x.product_code===code);return p?p.unit_price:'';}
+function getFabricColorPrice(fc,cn){const c=allFabricColors.find(x=>x.fabric_code===fc&&x.color_name===cn);return c?c.unit_price:'';}
+
+function renderPriceMatrices(){
+  const knitFacs=factories.filter(f=>f.process==='knit'),dyeFacs=factories.filter(f=>f.process==='dye');
+  const cutFacs=factories.filter(f=>f.process==='cut'),sewFacs=factories.filter(f=>f.process==='sew');
+  const socksFacs=factories.filter(f=>f.process==='socks');
+  const cutSewProds=allProducts.filter(p=>p.process==='cut'||p.process==='sew');
+  const socksProds=allProducts.filter(p=>p.process==='socks');
+  buildFabricOnlyMatrix('matrix-knit',allFabrics,knitFacs);
+  buildFabricColorMatrix('matrix-dye',allFabricColors,dyeFacs);
+  buildProductMatrix('matrix-cut',cutSewProds,cutFacs);
+  buildProductMatrix('matrix-sew',cutSewProds,sewFacs);
+  buildProductMatrix('matrix-socks-tan',socksProds,socksFacs);
+  buildProductMatrix('matrix-socks-kg',socksProds,socksFacs);
+}
+function buildFabricOnlyMatrix(elId,rowFabs,colFacs){
+  const el=document.getElementById(elId);
+  if(!rowFabs.length){el.innerHTML='<div class="empty">生地品番がありません</div>';return;}
+  if(!colFacs.length){el.innerHTML='<div class="empty">工場がありません</div>';return;}
+  let h=`<table class="matrix-table"><thead><tr><th class="row-header">生地品番</th>`;
+  colFacs.forEach(f=>h+=`<th>${f.name}<div class="proc-col">${f.unit||''}</div></th>`);
+  h+=`</tr></thead><tbody>`;
+  rowFabs.forEach(f=>{
+    h+=`<tr><td class="row-label"><span style="font-family:monospace;font-size:12px;font-weight:600">${f.fabric_code}</span><div style="font-size:11px;color:#aaa">${f.fabric_name||''}</div></td>`;
+    colFacs.forEach(fac=>{h+=`<td class="price-cell"><input type="number" placeholder="—" value="${getPrice(fac.id,f.fabric_code)}"></td>`;});
+    h+=`</tr>`;
+  });
+  el.innerHTML=h+'</tbody></table>';
+}
+function buildFabricColorMatrix(elId,rowColors,colFacs){
+  const el=document.getElementById(elId);
+  if(!rowColors.length){el.innerHTML='<div class="empty">生地カラーがありません</div>';return;}
+  if(!colFacs.length){el.innerHTML='<div class="empty">工場がありません</div>';return;}
+  let h=`<table class="matrix-table"><thead><tr><th class="row-header" style="min-width:180px">生地品番 / カラー</th>`;
+  colFacs.forEach(f=>h+=`<th>${f.name}<div class="proc-col">${f.unit||''}</div></th>`);
+  h+=`</tr></thead><tbody>`;
+  let prev='';
+  rowColors.forEach(c=>{
+    if(c.fabric_code!==prev){prev=c.fabric_code;h+=`<tr style="background:#f5f4f0"><td colspan="${colFacs.length+1}" style="padding:8px 16px;font-family:monospace;font-size:12px;font-weight:700;color:#1a1a1a;border-bottom:1px solid #e8e6e0">📦 ${c.fabric_code}</td></tr>`;}
+    h+=`<tr><td class="row-label" style="padding-left:28px;font-size:12px">${c.color_name}</td>`;
+    colFacs.forEach(fac=>{h+=`<td class="price-cell"><input type="number" placeholder="—" value="${getFabricColorPrice(c.fabric_code,c.color_name)}"></td>`;});
+    h+=`</tr>`;
+  });
+  el.innerHTML=h+'</tbody></table>';
+}
+function buildProductMatrix(elId,rowProds,colFacs){
+  const el=document.getElementById(elId);
+  if(!rowProds.length){el.innerHTML='<div class="empty">商品管理番号がありません</div>';return;}
+  if(!colFacs.length){el.innerHTML='<div class="empty">工場がありません</div>';return;}
+  let h=`<table class="matrix-table"><thead><tr><th class="row-header">商品管理番号</th>`;
+  colFacs.forEach(f=>h+=`<th>${f.name}<div class="proc-col">${f.unit||''}</div></th>`);
+  h+=`</tr></thead><tbody>`;
+  rowProds.forEach(p=>{
+    h+=`<tr><td class="row-label"><span style="font-family:monospace;font-size:12px">${p.product_code}</span><div style="font-size:11px;color:#aaa">${p.product_name||''}</div></td>`;
+    colFacs.forEach(f=>{h+=`<td class="price-cell"><input type="number" placeholder="—" value="${getPrice(f.id,p.product_code)}"></td>`;});
+    h+=`</tr>`;
+  });
+  el.innerHTML=h+'</tbody></table>';
+}
+
+loadAll();
+</script>
+</body>
+</html>
