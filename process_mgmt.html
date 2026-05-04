@@ -1,0 +1,770 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>在処管理 — SOWAN</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Helvetica Neue',Arial,'Hiragino Kaku Gothic ProN',sans-serif;font-size:14px;color:#1a1a1a;background:#f5f4f0;min-height:100vh}
+.topbar{background:#fff;border-bottom:1px solid #e8e6e0;padding:0 24px;display:flex;align-items:center;justify-content:space-between;height:56px;position:sticky;top:0;z-index:100}
+.topbar-title{font-size:15px;font-weight:600}
+.topbar-sub{font-size:11px;color:#888;margin-top:2px}
+.topbar-right{display:flex;gap:8px;align-items:center}
+.container{max-width:1100px;margin:0 auto;padding:20px}
+.tabs{display:flex;gap:2px;background:#e8e6e0;border-radius:8px;padding:3px;margin-bottom:20px;width:fit-content}
+.tab{padding:7px 18px;font-size:13px;cursor:pointer;border:none;background:none;color:#666;border-radius:6px;font-family:inherit;white-space:nowrap}
+.tab.active{background:#fff;color:#1a1a1a;font-weight:500;box-shadow:0 1px 3px rgba(0,0,0,.08)}
+.panel{display:none}.panel.active{display:block}
+.btn{padding:7px 16px;border:1px solid #d8d5cf;border-radius:8px;font-size:13px;cursor:pointer;background:#fff;color:#1a1a1a;font-family:inherit;transition:all .15s;white-space:nowrap}
+.btn:hover{background:#f5f4f0}
+.btn.primary{background:#1a1a1a;color:#fff;border-color:#1a1a1a}
+.btn.primary:hover{background:#333}
+.btn.accent{background:#b86a00;color:#fff;border-color:#b86a00}
+.btn.accent:hover{background:#9a5800}
+.btn.sm{padding:4px 12px;font-size:12px}
+.btn.ghost{background:none;border:none;color:#bbb;cursor:pointer;font-size:18px;padding:2px 6px;line-height:1;font-family:inherit}
+.btn.ghost:hover{color:#555}
+.btn.danger{color:#a32d2d;border-color:#f0c0c0}
+.btn.danger:hover{background:#fcebeb}
+.filter-bar{display:flex;gap:8px;align-items:center;margin-bottom:14px;flex-wrap:wrap}
+input[type=text],input[type=number],select,textarea{padding:8px 10px;border:1px solid #d8d5cf;border-radius:7px;font-size:13px;background:#fff;font-family:inherit;color:#1a1a1a}
+input:focus,select:focus,textarea:focus{outline:none;border-color:#999;box-shadow:0 0 0 3px rgba(0,0,0,.05)}
+.card{background:#fff;border:1px solid #e8e6e0;border-radius:12px;padding:20px;margin-bottom:16px}
+.section-label{font-size:11px;font-weight:600;color:#999;text-transform:uppercase;letter-spacing:.08em;margin-bottom:10px}
+/* サマリー */
+.summary-row{display:grid;grid-template-columns:repeat(6,1fr);gap:10px;margin-bottom:20px}
+.s-card{background:#fff;border:1px solid #e8e6e0;border-radius:10px;padding:12px 14px;text-align:center}
+.s-label{font-size:11px;color:#999;margin-bottom:4px;display:flex;align-items:center;justify-content:center;gap:4px}
+.s-num{font-size:20px;font-weight:700}
+.s-unit{font-size:10px;color:#aaa;margin-top:1px}
+/* セクション */
+.section-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
+.section-title{font-size:13px;font-weight:600;display:flex;align-items:center;gap:8px}
+/* テーブル */
+.table-wrap{background:#fff;border:1px solid #e8e6e0;border-radius:12px;overflow:hidden;margin-bottom:20px}
+table{width:100%;border-collapse:collapse}
+th{font-size:11px;font-weight:600;color:#999;text-transform:uppercase;letter-spacing:.04em;padding:10px 14px;border-bottom:1px solid #e8e6e0;text-align:left;background:#faf9f7;white-space:nowrap}
+th.r,td.r{text-align:right}
+td{padding:10px 14px;border-bottom:1px solid #f0ede8;font-size:13px;vertical-align:middle}
+tr:last-child td{border-bottom:none}
+tr:hover td{background:#faf9f7}
+.badge{display:inline-block;font-size:11px;font-weight:600;padding:2px 9px;border-radius:20px}
+.badge-fabric{background:#fef9ee;color:#8a5a00;border:1px solid #f0d890}
+.badge-product{background:#eef4fa;color:#1a5fa0;border:1px solid #b8d4f0}
+.badge-ami{background:#e1f5ee;color:#0a6b50}
+.badge-some{background:#faeeda;color:#7a4d0a}
+.badge-sai{background:#e6f1fb;color:#1a5fa0}
+.badge-hoso{background:#fbeaf0;color:#8a2244}
+.badge-naishoku{background:#f3eafd;color:#6b2fa0}
+.badge-stock{background:#eaf3de;color:#3a6d10}
+.qty{font-weight:600}
+.unit{font-size:10px;font-weight:400;color:#aaa;margin-left:2px}
+.empty{text-align:center;padding:40px;color:#aaa;font-size:13px}
+.spinner-wrap{display:flex;align-items:center;justify-content:center;padding:40px;color:#aaa;gap:8px}
+.spinner{display:inline-block;width:16px;height:16px;border:2px solid #e0e0e0;border-top-color:#555;border-radius:50%;animation:spin .7s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+/* モーダル */
+.overlay{position:fixed;inset:0;background:rgba(0,0,0,.45);display:none;align-items:center;justify-content:center;z-index:200;padding:16px}
+.overlay.open{display:flex}
+.modal{background:#fff;border-radius:16px;width:560px;max-width:100%;max-height:92vh;display:flex;flex-direction:column;box-shadow:0 8px 40px rgba(0,0,0,.2)}
+.modal.wide{width:640px}
+.modal-head{padding:20px 24px 14px;border-bottom:1px solid #e8e6e0;flex-shrink:0}
+.modal-title{font-size:16px;font-weight:600}
+.modal-sub{font-size:12px;color:#888;margin-top:3px}
+.modal-body{padding:20px 24px;overflow-y:auto;flex:1}
+.modal-foot{padding:14px 24px;border-top:1px solid #e8e6e0;display:flex;justify-content:flex-end;gap:8px;flex-shrink:0}
+.form-row{display:grid;gap:10px;margin-bottom:14px}
+.form-row.col2{grid-template-columns:1fr 1fr}
+.form-row.col3{grid-template-columns:1fr auto 1fr}
+.form-group label{display:block;font-size:12px;font-weight:500;color:#666;margin-bottom:4px}
+.form-group input,.form-group select{width:100%}
+.arrow-mid{display:flex;align-items:flex-end;justify-content:center;padding-bottom:10px;font-size:20px;color:#ccc}
+.hint{font-size:11px;color:#aaa;margin-top:3px}
+.divider{border:none;border-top:1px solid #e8e6e0;margin:16px 0}
+.alert{padding:10px 14px;border-radius:8px;font-size:13px;margin-bottom:12px}
+.alert-err{background:#fcebeb;color:#a32d2d;border:1px solid #f0c0c0}
+.alert-ok{background:#eaf3de;color:#3a6d10;border:1px solid #b8d98a}
+/* 裁断モーダル */
+.fabric-box{background:#fffdf5;border:1px solid #f0d890;border-radius:10px;padding:14px 16px;margin-bottom:4px}
+.fabric-box-label{font-size:11px;font-weight:600;color:#8a5a00;margin-bottom:10px;display:flex;align-items:center;gap:6px}
+.products-box{background:#eef4fa;border:1px dashed #b8d4f0;border-radius:8px;padding:12px 14px;margin-top:10px}
+.products-box-label{font-size:11px;font-weight:600;color:#1a5fa0;margin-bottom:8px}
+.product-row{display:grid;grid-template-columns:1fr 1fr 80px 28px;gap:8px;align-items:end;margin-bottom:8px}
+.product-row:last-child{margin-bottom:0}
+.product-row input{padding:6px 8px;font-size:12px}
+.product-row label{font-size:11px}
+.add-prod-btn{background:none;border:1px dashed #b8d4f0;border-radius:6px;color:#1a5fa0;font-size:12px;cursor:pointer;padding:5px 12px;width:100%;font-family:inherit;margin-top:8px}
+.add-prod-btn:hover{background:#e8f0f8}
+/* サジェスト */
+.suggest-wrap{position:relative}
+.suggest-list{position:absolute;top:100%;left:0;right:0;background:#fff;border:1px solid #d8d5cf;border-radius:8px;box-shadow:0 4px 16px rgba(0,0,0,.12);z-index:300;max-height:200px;overflow-y:auto;margin-top:2px}
+.suggest-item{padding:8px 12px;cursor:pointer;font-size:13px;border-bottom:1px solid #f0ede8}
+.suggest-item:last-child{border-bottom:none}
+.suggest-item:hover,.suggest-item.active{background:#f5f4f0}
+.suggest-code{font-family:monospace;font-size:11px;color:#888;margin-right:6px}
+.suggest-fabric{font-size:11px;color:#aaa;margin-left:6px}
+/* ログ */
+.log-type-move{color:#1a5fa0}
+.log-type-cut{color:#b86a00}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div>
+    <div class="topbar-title">在処管理</div>
+    <div class="topbar-sub">SOWAN — 生地・商品の在処</div>
+  </div>
+  <div class="topbar-right">
+    <span id="load-status" style="font-size:12px;color:#aaa"></span>
+    <button class="btn accent" onclick="openCutModal()">✂ 裁断を記録</button>
+    <button class="btn primary" onclick="openMoveModal()">→ 移動を記録</button>
+  </div>
+</div>
+
+<div class="container">
+  <div id="alert-area"></div>
+
+  <div class="tabs">
+    <button class="tab active" id="tab-btn-map" onclick="switchTab('map')">在処マップ</button>
+    <button class="tab" id="tab-btn-log" onclick="switchTab('log')">操作ログ</button>
+    <button class="tab" id="tab-btn-add" onclick="switchTab('add')">生地・商品を登録</button>
+  </div>
+
+  <!-- 在処マップ -->
+  <div class="panel active" id="tab-map">
+    <div class="summary-row" id="summary-row"></div>
+    <div class="filter-bar">
+      <input type="text" id="map-search" placeholder="品番・生地番号・カラーで絞り込み" style="width:240px" oninput="applyFilter()">
+      <select id="map-loc" onchange="applyFilter()">
+        <option value="">場所: すべて</option>
+      </select>
+    </div>
+
+    <!-- 生地セクション -->
+    <div class="section-head">
+      <div class="section-title">
+        <span class="badge badge-fabric">生地</span>
+        編み〜染色の在処
+        <span id="fabric-count" style="font-size:12px;font-weight:400;color:#aaa"></span>
+      </div>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr>
+          <th>生地番号</th><th>カラー</th>
+          <th class="r">数量</th><th>現在地</th><th>工程</th><th>メモ</th><th></th>
+        </tr></thead>
+        <tbody id="fabric-tbody"></tbody>
+      </table>
+    </div>
+
+    <!-- 商品セクション -->
+    <div class="section-head">
+      <div class="section-title">
+        <span class="badge badge-product">商品</span>
+        裁断〜実在庫の在処
+        <span id="product-count" style="font-size:12px;font-weight:400;color:#aaa"></span>
+      </div>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr>
+          <th>品番</th><th>商品名</th>
+          <th class="r">数量</th><th>現在地</th><th>工程</th><th></th>
+        </tr></thead>
+        <tbody id="product-tbody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- 操作ログ -->
+  <div class="panel" id="tab-log">
+    <div class="filter-bar">
+      <select id="log-type" onchange="renderLog()">
+        <option value="">操作: すべて</option>
+        <option value="move_fabric">生地の移動</option>
+        <option value="move_product">商品の移動</option>
+        <option value="cut">裁断</option>
+      </select>
+      <select id="log-staff" onchange="renderLog()">
+        <option value="">担当: すべて</option>
+        <option value="森本">森本さん</option>
+        <option value="木梨">木梨さん</option>
+        <option value="渋谷">渋谷</option>
+      </select>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr>
+          <th>日時</th><th>操作</th><th>内容</th><th>担当</th><th>メモ</th>
+        </tr></thead>
+        <tbody id="log-tbody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- 登録タブ -->
+  <div class="panel" id="tab-add">
+    <div class="card">
+      <div class="section-label">生地を登録</div>
+      <div class="form-row col2" style="max-width:560px">
+        <div class="form-group suggest-wrap">
+          <label>生地番号 *</label>
+          <input type="text" id="add-fabric-no" placeholder="例: S42" autocomplete="off" oninput="suggest('fabric-no',this.value)" onblur="hideSuggest('fabric-no')">
+          <div class="suggest-list" id="suggest-fabric-no" style="display:none"></div>
+        </div>
+        <div class="form-group"><label>カラー</label><input type="text" id="add-fabric-color" placeholder="例: チャコールグレー"></div>
+      </div>
+      <div class="form-row col2" style="max-width:560px">
+        <div class="form-group"><label>数量（反）*</label><input type="number" id="add-fabric-qty" min="1" placeholder="0"></div>
+        <div class="form-group"><label>現在地 *</label><select id="add-fabric-loc"></select></div>
+      </div>
+      <div class="form-group" style="max-width:560px;margin-bottom:14px"><label>メモ（任意）</label><input type="text" id="add-fabric-memo" placeholder="任意"></div>
+      <button class="btn primary" onclick="addFabric()">生地を登録する</button>
+    </div>
+    <div class="card">
+      <div class="section-label">商品を登録</div>
+      <div class="form-row col2" style="max-width:560px">
+        <div class="form-group suggest-wrap">
+          <label>品番 *</label>
+          <input type="text" id="add-prod-code" placeholder="例: mocchi-CG" autocomplete="off" oninput="suggest('prod-code',this.value)" onblur="hideSuggest('prod-code')">
+          <div class="suggest-list" id="suggest-prod-code" style="display:none"></div>
+        </div>
+        <div class="form-group"><label>商品名</label><input type="text" id="add-prod-name" placeholder="マスタから自動入力されます"></div>
+      </div>
+      <div class="form-row col2" style="max-width:560px">
+        <div class="form-group"><label>数量（枚）*</label><input type="number" id="add-prod-qty" min="1" placeholder="0"></div>
+        <div class="form-group"><label>現在地 *</label><select id="add-prod-loc"></select></div>
+      </div>
+      <button class="btn primary" onclick="addProduct()">商品を登録する</button>
+    </div>
+  </div>
+</div>
+
+<!-- 移動モーダル -->
+<div class="overlay" id="move-overlay" onclick="closeOverlay(event,'move-overlay')">
+  <div class="modal">
+    <div class="modal-head">
+      <div class="modal-title">→ 移動を記録する</div>
+      <div class="modal-sub">生地・商品を工場間で移動したときに記録します</div>
+    </div>
+    <div class="modal-body">
+      <div id="move-alert"></div>
+      <div class="form-group" style="margin-bottom:14px">
+        <label>品番 / 生地番号 *</label>
+        <select id="m-item" onchange="onMoveItemChange()">
+          <option value="">選択してください</option>
+        </select>
+      </div>
+      <div class="form-row col3">
+        <div class="form-group">
+          <label>移動元 *</label>
+          <select id="m-from"><option value="">選択</option></select>
+          <div id="m-hint" class="hint"></div>
+        </div>
+        <div class="arrow-mid">→</div>
+        <div class="form-group">
+          <label>移動先 *</label>
+          <select id="m-to"><option value="">選択</option></select>
+        </div>
+      </div>
+      <div class="form-row col2">
+        <div class="form-group">
+          <label id="m-qty-label">数量 *</label>
+          <input type="number" id="m-qty" min="1" placeholder="例: 200">
+        </div>
+        <div class="form-group">
+          <label>担当者</label>
+          <select id="m-staff">
+            <option value="木梨">木梨さん</option>
+            <option value="森本">森本さん</option>
+            <option value="渋谷">渋谷</option>
+            <option value="その他">その他</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-group">
+        <label>メモ（任意）</label>
+        <input type="text" id="m-memo" placeholder="例: 一部不良あり">
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn" onclick="document.getElementById('move-overlay').classList.remove('open')">キャンセル</button>
+      <button class="btn primary" onclick="saveMove()">記録する</button>
+    </div>
+  </div>
+</div>
+
+<!-- 裁断モーダル -->
+<div class="overlay" id="cut-overlay" onclick="closeOverlay(event,'cut-overlay')">
+  <div class="modal wide">
+    <div class="modal-head">
+      <div class="modal-title">✂ 裁断を記録する</div>
+      <div class="modal-sub">生地を使って商品を裁断します。生地が減り、商品が生まれます。</div>
+    </div>
+    <div class="modal-body">
+      <div id="cut-alert"></div>
+      <div class="fabric-box">
+        <div class="fabric-box-label">
+          <span class="badge badge-fabric" style="font-size:10px">生地</span>
+          使った生地
+        </div>
+        <div class="form-row col3" style="margin-bottom:6px">
+          <div class="form-group">
+            <label>生地 *</label>
+            <select id="c-fabric" onchange="onCutFabricChange()">
+              <option value="">選択してください</option>
+            </select>
+          </div>
+          <div class="arrow-mid">→</div>
+          <div class="form-group">
+            <label>使用反数 *</label>
+            <input type="number" id="c-tan" min="1" placeholder="0">
+          </div>
+        </div>
+        <div id="c-hint" class="hint" style="margin-bottom:4px"></div>
+
+        <div class="products-box">
+          <div class="products-box-label">↳ この生地から生まれる商品</div>
+          <div style="display:grid;grid-template-columns:1fr 1fr 80px 28px;gap:6px;margin-bottom:6px;padding:0 2px">
+            <span style="font-size:11px;color:#999">品番 *</span>
+            <span style="font-size:11px;color:#999">商品名</span>
+            <span style="font-size:11px;color:#999">裁断枚数 *</span>
+            <span></span>
+          </div>
+          <div id="cut-products"></div>
+          <button class="add-prod-btn" onclick="addProdRow()">＋ 同じ生地から別の商品も作る</button>
+        </div>
+      </div>
+
+      <div class="divider"></div>
+      <div class="form-row col2">
+        <div class="form-group">
+          <label>裁断場所 *</label>
+          <select id="c-loc"><option value="">選択してください</option></select>
+        </div>
+        <div class="form-group">
+          <label>担当者</label>
+          <select id="c-staff">
+            <option value="木梨">木梨さん</option>
+            <option value="森本">森本さん</option>
+            <option value="渋谷">渋谷</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-group">
+        <label>メモ（任意）</label>
+        <input type="text" id="c-memo" placeholder="例: ロット A-0503">
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn" onclick="document.getElementById('cut-overlay').classList.remove('open')">キャンセル</button>
+      <button class="btn accent" onclick="saveCut()">裁断を記録する</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const SB_URL='https://yukcdqnnevomhdcpsvms.supabase.co';
+const SB_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inl1a2NkcW5uZXZvbWhkY3Bzdm1zIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY0Mjc2MTUsImV4cCI6MjA5MjAwMzYxNX0.XBSc2kQNwR_bleSwrfYZD8l0fbKTbL1Z3S7ewEtSkDc';
+const sb=supabase.createClient(SB_URL,SB_KEY);
+
+const LOCATIONS=[
+  {id:'l1',name:'神共ニット',  process:'編み',  badge:'badge-ami'},
+  {id:'l2',name:'V-TEC',       process:'編み',  badge:'badge-ami'},
+  {id:'l3',name:'コンセプト',  process:'裁断',  badge:'badge-sai'},
+  {id:'l4',name:'メリット',    process:'編み',  badge:'badge-ami'},
+  {id:'l5',name:'坂本繊維',    process:'染色',  badge:'badge-some'},
+  {id:'l6',name:'松田染工場',  process:'染色',  badge:'badge-some'},
+  {id:'l7',name:'池本さん',    process:'縫製',  badge:'badge-hoso'},
+  {id:'l8',name:'刑務所',      process:'縫製',  badge:'badge-hoso'},
+  {id:'l9',name:'内職',        process:'内職',  badge:'badge-naishoku'},
+  {id:'l0',name:'エルアイシー',process:'実在庫',badge:'badge-stock'},
+  {id:'lp',name:'ピクシー様',  process:'縫製',  badge:'badge-hoso'},
+  {id:'ls',name:'ソーイング井東',process:'裁断',badge:'badge-sai'},
+];
+const FABRIC_PROCS=['編み','染色'];
+function loc(id){return LOCATIONS.find(l=>l.id===id)||{name:'不明',process:'—',badge:''};}
+
+let fabrics=[], products=[], logs=[], master=[];
+
+async function init(){
+  setStatus('読み込み中…');
+  populateSelects();
+  await Promise.all([loadFabrics(),loadProducts(),loadLogs(),loadMaster()]);
+  setStatus('');
+  renderAll();
+}
+
+async function loadMaster(){
+  const{data,error}=await sb.from('process_master').select('*').eq('active',true).order('product_code');
+  if(!error) master=data||[];
+}
+
+async function loadFabrics(){
+  const{data,error}=await sb.from('process_fabrics').select('*').order('fabric_no');
+  if(!error)fabrics=data||[];
+}
+async function loadProducts(){
+  const{data,error}=await sb.from('process_products').select('*').order('code');
+  if(!error)products=data||[];
+}
+async function loadLogs(){
+  const{data,error}=await sb.from('process_logs').select('*').order('logged_at',{ascending:false}).limit(200);
+  if(!error)logs=data||[];
+}
+
+function setStatus(m){document.getElementById('load-status').textContent=m;}
+function showAlert(msg,type='ok'){
+  const a=document.getElementById('alert-area');
+  a.innerHTML=`<div class="alert alert-${type}" style="margin-bottom:14px">${msg}</div>`;
+  setTimeout(()=>a.innerHTML='',4000);
+}
+
+function populateSelects(){
+  const locOpts=LOCATIONS.map(l=>`<option value="${l.id}">${l.name}（${l.process}）</option>`).join('');
+  ['add-fabric-loc','add-prod-loc'].forEach(id=>{
+    const el=document.getElementById(id);
+    if(el)el.innerHTML=locOpts;
+  });
+  const cutLocOpts=LOCATIONS.filter(l=>l.process==='裁断').map(l=>`<option value="${l.id}">${l.name}</option>`).join('');
+  document.getElementById('c-loc').innerHTML='<option value="">選択してください</option>'+cutLocOpts;
+  const filterOpts='<option value="">場所: すべて</option>'+locOpts;
+  document.getElementById('map-loc').innerHTML=filterOpts;
+}
+
+function renderAll(){applyFilter();renderLog();}
+
+function applyFilter(){
+  const q=(document.getElementById('map-search').value||'').toLowerCase();
+  const lf=document.getElementById('map-loc').value;
+  renderSummary();
+  renderFabrics(q,lf);
+  renderProducts(q,lf);
+}
+
+function renderSummary(){
+  const totals={};
+  LOCATIONS.forEach(l=>totals[l.process]=(totals[l.process]||0));
+  fabrics.forEach(f=>{const p=loc(f.location_id).process;totals[p]=(totals[p]||0)+f.qty;});
+  products.forEach(p=>{const pr=loc(p.location_id).process;totals[pr]=(totals[pr]||0)+p.qty;});
+  const procs=['編み','染色','裁断','縫製','内職','実在庫'];
+  document.getElementById('summary-row').innerHTML=procs.map(p=>{
+    const isFab=FABRIC_PROCS.includes(p);
+    const border=p==='裁断'?'border-left:2px solid #c8c4bc;':'';
+    const bg=isFab?'background:#fffdf5;':'';
+    return `<div class="s-card" style="${border}${bg}">
+      <div class="s-label">${p} <span class="badge ${isFab?'badge-fabric':'badge-product'}" style="font-size:9px;padding:1px 5px">${isFab?'生地':'商品'}</span></div>
+      <div class="s-num">${(totals[p]||0).toLocaleString()}</div>
+      <div class="s-unit">${isFab?'反':'枚'}</div>
+    </div>`;
+  }).join('');
+}
+
+function renderFabrics(q,lf){
+  const rows=fabrics.filter(f=>{
+    if(lf&&f.location_id!==lf)return false;
+    if(q&&!(f.fabric_no+f.color).toLowerCase().includes(q))return false;
+    return true;
+  });
+  document.getElementById('fabric-count').textContent=`${rows.length}件`;
+  const tb=document.getElementById('fabric-tbody');
+  if(!rows.length){
+    tb.innerHTML=`<tr><td colspan="7"><div class="empty">登録された生地がありません<br><span style="font-size:12px">「生地・商品を登録」タブから追加してください</span></div></td></tr>`;
+    return;
+  }
+  tb.innerHTML=rows.map(f=>{
+    const l=loc(f.location_id);
+    return `<tr>
+      <td><code style="font-size:12px">${f.fabric_no}</code></td>
+      <td style="color:#555">${f.color}</td>
+      <td class="r"><span class="qty">${f.qty}</span><span class="unit">反</span></td>
+      <td>${l.name}</td>
+      <td><span class="badge ${l.badge}">${l.process}</span></td>
+      <td style="color:#aaa;font-size:12px">${f.memo||''}</td>
+      <td style="white-space:nowrap">
+        <button class="btn sm" onclick="openMoveWith('fabric','${f.id}')">移動</button>
+        <button class="btn sm danger" onclick="deleteItem('fabric','${f.id}')" style="margin-left:4px">削除</button>
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+function renderProducts(q,lf){
+  const rows=products.filter(p=>{
+    if(lf&&p.location_id!==lf)return false;
+    if(q&&!(p.code+p.name).toLowerCase().includes(q))return false;
+    return true;
+  });
+  document.getElementById('product-count').textContent=`${rows.length}件`;
+  const tb=document.getElementById('product-tbody');
+  if(!rows.length){
+    tb.innerHTML=`<tr><td colspan="6"><div class="empty">登録された商品がありません<br><span style="font-size:12px">裁断を記録すると自動で追加されます</span></div></td></tr>`;
+    return;
+  }
+  tb.innerHTML=rows.map(p=>{
+    const l=loc(p.location_id);
+    return `<tr>
+      <td><code style="font-size:12px">${p.code}</code></td>
+      <td style="color:#555">${p.name}</td>
+      <td class="r"><span class="qty">${p.qty}</span><span class="unit">枚</span></td>
+      <td>${l.name}</td>
+      <td><span class="badge ${l.badge}">${l.process}</span></td>
+      <td style="white-space:nowrap">
+        <button class="btn sm" onclick="openMoveWith('product','${p.id}')">移動</button>
+        <button class="btn sm danger" onclick="deleteItem('product','${p.id}')" style="margin-left:4px">削除</button>
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+function renderLog(){
+  const tf=document.getElementById('log-type').value;
+  const sf=document.getElementById('log-staff').value;
+  const rows=logs.filter(l=>{
+    if(tf&&l.type!==tf)return false;
+    if(sf&&l.staff!==sf)return false;
+    return true;
+  });
+  const tb=document.getElementById('log-tbody');
+  if(!rows.length){tb.innerHTML=`<tr><td colspan="5"><div class="empty">操作ログがありません</div></td></tr>`;return;}
+  const typeLabel={move_fabric:'生地の移動',move_product:'商品の移動',cut:'裁断'};
+  const typeColor={move_fabric:'log-type-move',move_product:'log-type-move',cut:'log-type-cut'};
+  tb.innerHTML=rows.map(l=>{
+    const dt=new Date(l.logged_at).toLocaleString('ja-JP',{month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'});
+    return `<tr>
+      <td style="color:#aaa;font-size:12px;white-space:nowrap">${dt}</td>
+      <td><span class="${typeColor[l.type]||''}" style="font-weight:600;font-size:12px">${typeLabel[l.type]||l.type}</span></td>
+      <td style="color:#555">${l.summary}</td>
+      <td style="color:#888">${l.staff||'—'}</td>
+      <td style="color:#aaa;font-size:12px">${l.memo||'—'}</td>
+    </tr>`;
+  }).join('');
+}
+
+// ---- 移動モーダル ----
+function openMoveModal(){
+  const allItems=[
+    ...fabrics.map(f=>({key:`fabric_${f.id}`,label:`[生地] ${f.fabric_no} ${f.color}（${f.qty}反 @ ${loc(f.location_id).name}）`})),
+    ...products.map(p=>({key:`product_${p.id}`,label:`[商品] ${p.code} — ${p.name}（${p.qty}枚 @ ${loc(p.location_id).name}）`})),
+  ];
+  const sel=document.getElementById('m-item');
+  sel.innerHTML='<option value="">選択してください</option>'+allItems.map(i=>`<option value="${i.key}">${i.label}</option>`).join('');
+  ['m-from','m-to'].forEach(id=>document.getElementById(id).innerHTML='<option value="">選択</option>');
+  document.getElementById('m-qty').value='';
+  document.getElementById('m-memo').value='';
+  document.getElementById('m-hint').textContent='';
+  document.getElementById('move-alert').innerHTML='';
+  document.getElementById('move-overlay').classList.add('open');
+}
+function openMoveWith(type,id){
+  openMoveModal();
+  document.getElementById('m-item').value=`${type}_${id}`;
+  onMoveItemChange();
+}
+
+function onMoveItemChange(){
+  const val=document.getElementById('m-item').value;
+  if(!val)return;
+  const[type,id]=val.split('_');
+  const item=type==='fabric'?fabrics.find(f=>f.id===id):products.find(p=>p.id===id);
+  if(!item)return;
+  const unit=type==='fabric'?'反':'枚';
+  document.getElementById('m-qty-label').textContent=`数量 *（${unit}）`;
+  document.getElementById('m-hint').textContent=`現在: ${item.qty}${unit} @ ${loc(item.location_id).name}`;
+  const locOpts=LOCATIONS.map(l=>`<option value="${l.id}" ${l.id===item.location_id?'selected':''}>${l.name}（${l.process}）</option>`).join('');
+  document.getElementById('m-from').innerHTML='<option value="">選択</option>'+locOpts;
+  document.getElementById('m-to').innerHTML='<option value="">選択</option>'+LOCATIONS.map(l=>`<option value="${l.id}">${l.name}（${l.process}）</option>`).join('');
+}
+
+async function saveMove(){
+  const val=document.getElementById('m-item').value;
+  const from=document.getElementById('m-from').value;
+  const to=document.getElementById('m-to').value;
+  const qty=parseInt(document.getElementById('m-qty').value)||0;
+  const staff=document.getElementById('m-staff').value;
+  const memo=document.getElementById('m-memo').value.trim();
+  const alertEl=document.getElementById('move-alert');
+  if(!val||!from||!to||!qty){alertEl.innerHTML='<div class="alert alert-err">必須項目を入力してください</div>';return;}
+  if(from===to){alertEl.innerHTML='<div class="alert alert-err">移動元と移動先が同じです</div>';return;}
+  const[type,id]=val.split('_');
+  const arr=type==='fabric'?fabrics:products;
+  const item=arr.find(x=>x.id===id);
+  const unit=type==='fabric'?'反':'枚';
+  if(item.qty<qty){alertEl.innerHTML=`<div class="alert alert-err">在庫が足りません（現在: ${item.qty}${unit}）</div>`;return;}
+  const table=type==='fabric'?'process_fabrics':'process_products';
+  const summary=`${type==='fabric'?item.fabric_no+' '+item.color:item.code} ${qty}${unit} → ${loc(to).name}`;
+  const[r1,r2]=await Promise.all([
+    sb.from(table).update({qty:item.qty-qty,location_id:to,updated_at:new Date().toISOString()}).eq('id',id),
+    sb.from('process_logs').insert({id:'log'+Date.now(),type:`move_${type}`,summary,staff,memo,logged_at:new Date().toISOString()}),
+  ]);
+  if(r1.error){alertEl.innerHTML='<div class="alert alert-err">保存に失敗しました</div>';return;}
+  await Promise.all([loadFabrics(),loadProducts(),loadLogs()]);
+  document.getElementById('move-overlay').classList.remove('open');
+  showAlert(`移動を記録しました：${summary}`,'ok');
+  renderAll();
+}
+
+// ---- 裁断モーダル ----
+function openCutModal(){
+  const sel=document.getElementById('c-fabric');
+  sel.innerHTML='<option value="">選択してください</option>'+
+    fabrics.map(f=>`<option value="${f.id}">${f.fabric_no} ${f.color}（${f.qty}反 @ ${loc(f.location_id).name}）</option>`).join('');
+  document.getElementById('c-tan').value='';
+  document.getElementById('c-memo').value='';
+  document.getElementById('c-hint').textContent='';
+  document.getElementById('cut-alert').innerHTML='';
+  document.getElementById('cut-products').innerHTML='';
+  addProdRow();
+  document.getElementById('cut-overlay').classList.add('open');
+}
+function onCutFabricChange(){
+  const f=fabrics.find(x=>x.id===document.getElementById('c-fabric').value);
+  document.getElementById('c-hint').textContent=f?`現在の在庫: ${f.qty}反 @ ${loc(f.location_id).name}`:'';
+}
+function makeProdRow(){
+  const div=document.createElement('div');
+  div.className='product-row';
+  div.innerHTML=`
+    <div class="form-group" style="margin:0"><input type="text" class="c-code" placeholder="例: mocchi-CG"></div>
+    <div class="form-group" style="margin:0"><input type="text" class="c-name" placeholder="例: mocchi チャコールグレー"></div>
+    <div class="form-group" style="margin:0"><input type="number" class="c-qty" min="1" placeholder="0"></div>
+    <button class="btn ghost" onclick="this.closest('.product-row').remove()">×</button>`;
+  return div;
+}
+function addProdRow(){document.getElementById('cut-products').appendChild(makeProdRow());}
+
+async function saveCut(){
+  const fabId=document.getElementById('c-fabric').value;
+  const tan=parseInt(document.getElementById('c-tan').value)||0;
+  const locId=document.getElementById('c-loc').value;
+  const staff=document.getElementById('c-staff').value;
+  const memo=document.getElementById('c-memo').value.trim();
+  const alertEl=document.getElementById('cut-alert');
+  if(!fabId||!tan||!locId){alertEl.innerHTML='<div class="alert alert-err">生地・反数・裁断場所は必須です</div>';return;}
+  const fab=fabrics.find(f=>f.id===fabId);
+  if(fab.qty<tan){alertEl.innerHTML=`<div class="alert alert-err">反数が足りません（現在: ${fab.qty}反）</div>`;return;}
+  const rows=[...document.querySelectorAll('#cut-products .product-row')];
+  const newProds=[];
+  for(const row of rows){
+    const code=row.querySelector('.c-code').value.trim();
+    const name=row.querySelector('.c-name').value.trim();
+    const qty=parseInt(row.querySelector('.c-qty').value)||0;
+    if(!code||!qty){alertEl.innerHTML='<div class="alert alert-err">品番と裁断枚数を入力してください</div>';return;}
+    newProds.push({id:'prod'+Date.now()+Math.random().toString(36).slice(2,5),code,name:name||code,qty,location_id:locId,updated_at:new Date().toISOString()});
+  }
+  if(!newProds.length){alertEl.innerHTML='<div class="alert alert-err">商品を1件以上追加してください</div>';return;}
+  const prodNames=newProds.map(p=>`${p.code} ${p.qty}枚`).join('、');
+  const summary=`${fab.fabric_no} ${fab.color} ${tan}反 → ${prodNames}`;
+  const[r1,r2,r3]=await Promise.all([
+    sb.from('process_fabrics').update({qty:fab.qty-tan,updated_at:new Date().toISOString()}).eq('id',fabId),
+    sb.from('process_products').insert(newProds),
+    sb.from('process_logs').insert({id:'log'+Date.now(),type:'cut',summary,staff,memo,logged_at:new Date().toISOString()}),
+  ]);
+  if(r1.error||r2.error){alertEl.innerHTML='<div class="alert alert-err">保存に失敗しました</div>';return;}
+  await Promise.all([loadFabrics(),loadProducts(),loadLogs()]);
+  document.getElementById('cut-overlay').classList.remove('open');
+  showAlert(`裁断を記録しました：${summary}`,'ok');
+  renderAll();
+}
+
+// ---- 登録 ----
+async function addFabric(){
+  const no=document.getElementById('add-fabric-no').value.trim().toUpperCase();
+  const color=document.getElementById('add-fabric-color').value.trim();
+  const qty=parseInt(document.getElementById('add-fabric-qty').value)||0;
+  const locId=document.getElementById('add-fabric-loc').value;
+  const memo=document.getElementById('add-fabric-memo').value.trim();
+  if(!no||!qty||!locId){showAlert('生地番号・数量・現在地は必須です','err');return;}
+  const{error}=await sb.from('process_fabrics').insert({id:'fab'+Date.now(),fabric_no:no,color,qty,location_id:locId,memo,updated_at:new Date().toISOString()});
+  if(error){showAlert('登録に失敗しました','err');return;}
+  ['add-fabric-no','add-fabric-color','add-fabric-qty','add-fabric-memo'].forEach(id=>document.getElementById(id).value='');
+  await loadFabrics();renderAll();
+  showAlert(`生地を登録しました：${no} ${color} ${qty}反`,'ok');
+}
+async function addProduct(){
+  const code=document.getElementById('add-prod-code').value.trim();
+  const name=document.getElementById('add-prod-name').value.trim();
+  const qty=parseInt(document.getElementById('add-prod-qty').value)||0;
+  const locId=document.getElementById('add-prod-loc').value;
+  if(!code||!qty||!locId){showAlert('品番・数量・現在地は必須です','err');return;}
+  const{error}=await sb.from('process_products').insert({id:'prod'+Date.now(),code,name:name||code,qty,location_id:locId,updated_at:new Date().toISOString()});
+  if(error){showAlert('登録に失敗しました','err');return;}
+  ['add-prod-code','add-prod-name','add-prod-qty'].forEach(id=>document.getElementById(id).value='');
+  await loadProducts();renderAll();
+  showAlert(`商品を登録しました：${code} ${qty}枚`,'ok');
+}
+
+async function deleteItem(type,id){
+  if(!confirm('削除しますか？'))return;
+  const table=type==='fabric'?'process_fabrics':'process_products';
+  const{error}=await sb.from(table).delete().eq('id',id);
+  if(error){showAlert('削除に失敗しました','err');return;}
+  if(type==='fabric')await loadFabrics(); else await loadProducts();
+  renderAll();
+  showAlert('削除しました','ok');
+}
+
+// ---- サジェスト ----
+function suggest(field, q){
+  const listEl=document.getElementById(`suggest-${field}`);
+  if(!q){listEl.style.display='none';return;}
+  const ql=q.toLowerCase();
+  let items=[];
+  if(field==='fabric-no'){
+    // 生地番号サジェスト（マスタのfabric_noから）
+    const fabNos=[...new Set(master.filter(m=>m.fabric_no&&m.item_type==='fabric').map(m=>m.fabric_no))];
+    items=fabNos.filter(f=>f.toLowerCase().includes(ql)).slice(0,10).map(f=>{
+      const prods=master.filter(m=>m.fabric_no===f).map(m=>m.product_code).slice(0,3).join('、');
+      return `<div class="suggest-item" onmousedown="pickFabricNo('${f}')">
+        <span class="suggest-code">${f}</span>
+        <span class="suggest-fabric">${prods}</span>
+      </div>`;
+    });
+  } else if(field==='prod-code'){
+    // 商品品番サジェスト
+    items=master.filter(m=>(m.product_code+m.product_name).toLowerCase().includes(ql)).slice(0,10).map(m=>{
+      const fab=m.fabric_no?` / ${m.fabric_no}`:'';
+      return `<div class="suggest-item" onmousedown="pickProdCode('${m.product_code}','${m.product_name.replace(/'/g,"\\'")}')">
+        <span class="suggest-code">${m.product_code}</span>${m.product_name}<span class="suggest-fabric">${fab}</span>
+      </div>`;
+    });
+  }
+  if(!items.length){listEl.style.display='none';return;}
+  listEl.innerHTML=items.join('');
+  listEl.style.display='block';
+}
+
+function hideSuggest(field){
+  setTimeout(()=>{
+    const el=document.getElementById(`suggest-${field}`);
+    if(el)el.style.display='none';
+  },200);
+}
+
+function pickFabricNo(val){
+  document.getElementById('add-fabric-no').value=val;
+  document.getElementById('suggest-fabric-no').style.display='none';
+}
+
+function pickProdCode(code,name){
+  document.getElementById('add-prod-code').value=code;
+  document.getElementById('add-prod-name').value=name;
+  document.getElementById('suggest-prod-code').style.display='none';
+}
+
+function switchTab(id){
+  document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+  document.getElementById('tab-'+id).classList.add('active');
+  document.getElementById('tab-btn-'+id).classList.add('active');
+}
+function closeOverlay(e,id){if(e.target===document.getElementById(id))document.getElementById(id).classList.remove('open');}
+
+init();
+</script>
+</body>
+</html>
