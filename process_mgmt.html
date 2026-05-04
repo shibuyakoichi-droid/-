@@ -430,7 +430,7 @@ function populateSelects(){
     const el=document.getElementById(id);
     if(el)el.innerHTML=locOpts;
   });
-  const cutLocOpts=locations.filter(l=>l.process==='cut').map(l=>`<option value="${l.id}">${l.name}</option>`).join('');
+  const cutLocOpts=locations.filter(l=>['cut','sew'].includes(l.process)).map(l=>`<option value="${l.id}">${l.name}（${PROC_LABEL[l.process]||l.process}）</option>`).join('');
   document.getElementById('c-loc').innerHTML='<option value="">選択してください</option>'+cutLocOpts;
   const filterOpts='<option value="">場所: すべて</option>'+locOpts;
   document.getElementById('map-loc').innerHTML=filterOpts;
