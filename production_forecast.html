@@ -468,6 +468,8 @@ async function processSkuStockCSV(file){
     D.colorStock=colorStock;
     D.skuStockLoaded=true;
     D.skuStockDate=new Date().toLocaleString('ja-JP');
+    // localStorageに保存して次回起動時に復元できるようにする
+    try{localStorage.setItem('sowan_sku_stock',JSON.stringify({date:D.skuStockDate,data:colorStock}));}catch(e){}
     const colorCount=Object.keys(colorStock).length;
     status.innerHTML=`<div class="alert-box alert-ok">✓ ${colorCount}件の品番×属性データを読み込みました（${D.skuStockDate}）</div>`;
     renderAlert();
@@ -1517,9 +1519,20 @@ function renderFabricReq(){
 }
 
 // ── 初期化 ─────────────────────────────────────────
+function restoreSkuStock(){
+  try{
+    const saved=JSON.parse(localStorage.getItem('sowan_sku_stock')||'null');
+    if(saved&&saved.data&&Object.keys(saved.data).length>0){
+      D.colorStock=saved.data;
+      D.skuStockLoaded=true;
+      D.skuStockDate=saved.date+'（保存済み）';
+    }
+  }catch(e){}
+}
 (async()=>{
   try{
     initImportYearMonth();
+    restoreSkuStock();
     await loadAll();
     renderAlert();
   }catch(e){
