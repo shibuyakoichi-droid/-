@@ -81,9 +81,8 @@ input:focus,select:focus{outline:none;border-color:#999;box-shadow:0 0 0 3px rgb
 <div class="container">
   <div id="alert-area"></div>
   <div class="tabs">
-    <button class="tab active" onclick="switchTab('alert')">アラート</button>
+    <button class="tab active" onclick="switchTab('alert')">発注判断</button>
     <button class="tab" onclick="switchTab('csv')">CSV取込</button>
-    <button class="tab" onclick="switchTab('forecast')">月別予測</button>
     <button class="tab" onclick="switchTab('progress')">生産中</button>
     <button class="tab" onclick="switchTab('sets')">セット構成</button>
     <button class="tab" onclick="switchTab('sales')">色別販売</button>
@@ -91,16 +90,22 @@ input:focus,select:focus{outline:none;border-color:#999;box-shadow:0 0 0 3px rgb
     <button class="tab" onclick="switchTab('fabric')">生地所要量</button>
   </div>
 
-  <!-- アラート -->
+  <!-- 発注判断 -->
   <div class="panel active" id="tab-alert">
     <div class="filter-bar">
       <span class="chip chip-all active" onclick="setAlertFilter('all',this)">全て</span>
-      <span class="chip chip-red" onclick="setAlertFilter('red',this)">● 緊急発注</span>
-      <span class="chip chip-yellow" onclick="setAlertFilter('yellow',this)">● 要注意</span>
-      <span class="chip chip-green" onclick="setAlertFilter('green',this)">● 充足</span>
-      <span class="chip chip-none" onclick="setAlertFilter('none',this)">予測未設定</span>
-      <input id="alert-search" placeholder="品番・商品名で絞り込み" style="width:200px;margin-left:8px" oninput="renderAlert()">
+      <span class="chip chip-red" onclick="setAlertFilter('red',this)">● 緊急（2ヶ月未満）</span>
+      <span class="chip chip-yellow" onclick="setAlertFilter('yellow',this)">● 注意（4ヶ月未満）</span>
+      <span class="chip chip-green" onclick="setAlertFilter('green',this)">● 充足（4ヶ月以上）</span>
+      <input id="alert-search" placeholder="品番・商品名・色で絞り込み" style="width:220px;margin-left:8px" oninput="renderAlert()">
     </div>
+    <div style="display:flex;gap:6px;align-items:center;margin-bottom:14px">
+      <button class="btn" id="vbtn-summary" onclick="setAlertView('summary')" style="border-radius:20px;font-size:12px;font-weight:600;background:#1a1a1a;color:#fff;border-color:#1a1a1a">品番まとめ</button>
+      <button class="btn" id="vbtn-detail" onclick="setAlertView('detail')" style="border-radius:20px;font-size:12px;font-weight:600">色別詳細</button>
+      <span style="font-size:12px;color:#aaa" id="alert-view-hint">▶ 品番行をクリックで色別展開</span>
+      <button class="btn sm danger" onclick="hideAllVisible()" style="margin-left:auto">表示中を一括非表示</button>
+    </div>
+    <div id="sku-stock-notice" style="margin-bottom:8px"></div>
     <div id="alert-list"></div>
   </div>
 
@@ -130,6 +135,20 @@ input:focus,select:focus{outline:none;border-color:#999;box-shadow:0 0 0 3px rgb
         <div class="upload-sub">item_order_*.csv</div>
       </div>
       <div id="csv-preview" style="margin-top:16px"></div>
+    </div>
+    <div class="card">
+      <div class="section-label">SKU在庫CSV（毎日更新）</div>
+      <p style="font-size:12px;color:#888;margin-bottom:16px">
+        クロスモールの「在庫数一覧CSV」（stock_*.csv）を読み込みます。<br>
+        発注判断タブの色別在庫に反映されます。<b>毎日取込推奨。</b>Shift-JIS自動対応。
+      </p>
+      <div class="upload-area" id="sku-upload-area" onclick="document.getElementById('sku-csv-file').click()" ondragover="onSkuDragOver(event)" ondragleave="onSkuDragLeave(event)" ondrop="onSkuDrop(event)">
+        <input type="file" id="sku-csv-file" accept=".csv" onchange="onSkuFileSelect(event)">
+        <div class="upload-icon">📦</div>
+        <div class="upload-text">クリックまたはドラッグ＆ドロップ</div>
+        <div class="upload-sub">stock_*.csv</div>
+      </div>
+      <div id="sku-csv-status" style="margin-top:12px;font-size:13px"></div>
     </div>
     <div class="card">
       <div class="section-label">取込済み月一覧</div>
@@ -180,7 +199,28 @@ input:focus,select:focus{outline:none;border-color:#999;box-shadow:0 0 0 3px rgb
       </div>
       <div style="text-align:right"><button class="btn primary" onclick="addSetComposition()">追加する</button></div>
     </div>
+    <div class="filter-bar">
+      <input id="sets-search" placeholder="セット品番・個別品番で絞り込み" style="width:280px" oninput="renderSets()">
+      <span id="sets-count" style="font-size:12px;color:#aaa"></span>
+      <button class="btn sm danger" onclick="deleteAllVisibleSets()" style="margin-left:auto">絞り込み結果を一括削除</button>
+    </div>
     <div id="sets-list"></div>
+
+    <!-- 販売→在庫マッピング -->
+    <div class="card" style="margin-top:16px">
+      <div class="section-label" style="margin-bottom:8px">販売→在庫マッピング（発注判断用）</div>
+      <p style="font-size:12px;color:#888;margin-bottom:12px">
+        セット品番の販売がどの個別品番の在庫を消費するか設定します。<br>
+        設定すると発注判断の月販ペースにセット販売分が自動で加算されます。
+      </p>
+      <div style="display:flex;gap:8px;align-items:center;margin-bottom:12px;flex-wrap:wrap">
+        <input id="dm-set" placeholder="セット品番（例：baby-leg-k）" style="width:200px">
+        <span style="color:#888;font-size:13px">→</span>
+        <input id="dm-ind" placeholder="個別品番（例：baby-leg-k-1）" style="width:200px">
+        <button class="btn primary" onclick="addDemandMap()">追加</button>
+      </div>
+      <div id="demand-map-list"></div>
+    </div>
   </div>
 
 
@@ -221,15 +261,9 @@ input:focus,select:focus{outline:none;border-color:#999;box-shadow:0 0 0 3px rgb
     <!-- 所要量計算 -->
     <div id="fabric-view-req">
       <div class="card" style="margin-bottom:16px">
-        <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
-          <div class="section-label" style="margin-bottom:0">対象月</div>
-          <select id="fabric-month" onchange="renderFabricReq()" style="width:140px"></select>
-          <select id="fabric-months-range" onchange="renderFabricReq()" style="width:120px">
-            <option value="1">1ヶ月</option>
-            <option value="2">2ヶ月</option>
-            <option value="3" selected>3ヶ月</option>
-          </select>
-          <span style="font-size:12px;color:#888">の予測合計で計算</span>
+        <div style="font-size:13px;color:#555">
+          発注判断タブの<b>推奨発注量</b>をもとに計算します。<br>
+          <span style="font-size:12px;color:#aaa">SKU在庫CSVを読み込んでいない場合は表示されません。</span>
         </div>
       </div>
       <div id="fabric-req-table"></div>
@@ -288,9 +322,14 @@ const SUPABASE_URL='https://yukcdqnnevomhdcpsvms.supabase.co';
 const SUPABASE_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inl1a2NkcW5uZXZvbWhkY3Bzdm1zIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY0Mjc2MTUsImV4cCI6MjA5MjAwMzYxNX0.XBSc2kQNwR_bleSwrfYZD8l0fbKTbL1Z3S7ewEtSkDc';
 const sb=supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
 
-let D={products:[],allProducts:[],setCompositions:[],currentStock:[],forecasts:[],progress:[],monthlySales:[],fabricUsage:[],fabricLocations:[],items:[]};
+let D={products:[],allProducts:[],setCompositions:[],currentStock:[],forecasts:[],progress:[],monthlySales:[],fabricUsage:[],fabricLocations:[],items:[],colorStock:{},skuStockLoaded:false,skuStockDate:null};
 let alertFilter='all';
 let fabricView='req';
+let alertSortAsc=false;
+let alertView='summary';
+function getHiddenCodes(){try{return new Set(JSON.parse(localStorage.getItem('sowan_hidden')||'[]'));}catch(e){return new Set();}}
+function hideCode(code){const h=getHiddenCodes();h.add(code);localStorage.setItem('sowan_hidden',JSON.stringify([...h]));renderAlert();}
+function unhideCode(code){const h=getHiddenCodes();h.delete(code);localStorage.setItem('sowan_hidden',JSON.stringify([...h]));renderAlert();}
 
 // ── ユーティリティ ──────────────────────────────────
 function ym(offset=0){
@@ -362,18 +401,177 @@ function updateLastImportInfo(){
 // ── タブ切替 ───────────────────────────────────────
 function switchTab(t){
   document.querySelectorAll('.tab').forEach((el,i)=>{
-    el.classList.toggle('active',['alert','csv','forecast','progress','sets','sales','hidden','fabric'][i]===t);
+    el.classList.toggle('active',['alert','csv','progress','sets','sales','hidden','fabric'][i]===t);
   });
   document.querySelectorAll('.panel').forEach(el=>el.classList.remove('active'));
   document.getElementById('tab-'+t).classList.add('active');
   if(t==='alert')renderAlert();
   if(t==='csv')renderImportHistory();
-  if(t==='forecast')renderForecast();
   if(t==='progress')renderProgress();
-  if(t==='sets')renderSets();
+  if(t==='sets'){renderSets();renderDemandMap();}
   if(t==='sales')initSalesTab();
   if(t==='hidden')renderHidden();
   if(t==='fabric')initFabricTab();
+}
+
+// ── SKU在庫CSV処理 ─────────────────────────────────
+function onSkuDragOver(e){e.preventDefault();document.getElementById('sku-upload-area').classList.add('dragover');}
+function onSkuDragLeave(){document.getElementById('sku-upload-area').classList.remove('dragover');}
+function onSkuDrop(e){e.preventDefault();onSkuDragLeave();const f=e.dataTransfer.files[0];if(f)processSkuStockCSV(f);}
+function onSkuFileSelect(e){const f=e.target.files[0];if(f)processSkuStockCSV(f);}
+
+async function processSkuStockCSV(file){
+  const status=document.getElementById('sku-csv-status');
+  status.innerHTML=`<span class="spinner"></span>解析中...`;
+  try{
+    const buf=await file.arrayBuffer();
+    const text=new TextDecoder('shift-jis').decode(buf);
+    const rows=parseCSV(text);
+    if(rows.length<2){status.innerHTML='<div class="alert-box alert-err">CSVの解析に失敗しました</div>';return;}
+    const header=rows[0];
+    const codeIdx=header.indexOf('商品コード');
+    const qtyIdx=header.indexOf('在庫数量');
+    const attrG1Idx=header.indexOf('属性グループ１名');
+    const attr1Idx=header.indexOf('属性１名');
+    const attrG2Idx=header.indexOf('属性グループ２名');
+    const attr2Idx=header.indexOf('属性２名');
+    if(codeIdx===-1||qtyIdx===-1){status.innerHTML='<div class="alert-box alert-err">対応していないCSV形式です（商品コード・在庫数量列が必要）</div>';return;}
+
+    const colorStock={};
+    for(let i=1;i<rows.length;i++){
+      const row=rows[i];
+      if(!row[codeIdx])continue;
+      const code=row[codeIdx].trim();
+      const qty=parseInt(row[qtyIdx])||0;
+      if(qty<=0)continue;
+
+      const g1=(attrG1Idx>=0?(row[attrG1Idx]||''):'').trim();
+      const a1=(attr1Idx>=0?(row[attr1Idx]||''):'').trim();
+      const g2=(attrG2Idx>=0?(row[attrG2Idx]||''):'').trim();
+      const a2=(attr2Idx>=0?(row[attr2Idx]||''):'').trim();
+
+      // 属性1・属性2を位置で取得（monthly_salesと同じ並び順で照合するため）
+      // 表示用：どちらが色でどちらがサイズかをグループ名から判定
+      const isColor1=g1.includes('色')||g1.includes('カラー');
+      const isColor2=g2.includes('色')||g2.includes('カラー');
+      const displayColor=isColor1?a1:isColor2?a2:'';
+      const displaySize=isColor1?a2:isColor2?a1:a1; // 色でない方がサイズ
+
+      // キーは位置ベース（a1|a2）でmonthly_salesと対応
+      const key=`${code}|${a1}|${a2}`;
+      if(!colorStock[key]){
+        colorStock[key]={qty:0,displayColor,displaySize,g1,g2};
+      }
+      colorStock[key].qty+=qty;
+    }
+
+    D.colorStock=colorStock;
+    D.skuStockLoaded=true;
+    D.skuStockDate=new Date().toLocaleString('ja-JP');
+    const colorCount=Object.keys(colorStock).length;
+    status.innerHTML=`<div class="alert-box alert-ok">✓ ${colorCount}件の品番×属性データを読み込みました（${D.skuStockDate}）</div>`;
+    renderAlert();
+  }catch(e){status.innerHTML=`<div class="alert-box alert-err">エラー: ${e.message}</div>`;}
+}
+
+// ── 販売→在庫マッピング ────────────────────────────
+// デフォルトマッピング（未登録の場合に自動セット）
+const DEFAULT_DEMAND_MAP={
+  'baby-leg-k':'baby-leg-k-1',
+  'baby-leg-lib-u-new':'baby-leg-lib-u-1',
+  'baby-leg-linen-new':'baby-leg-linen-1',
+  'baby-22lib':'baby-22lib'
+};
+function getDemandMap(){
+  try{
+    const saved=JSON.parse(localStorage.getItem('sowan_demand_map')||'{}');
+    // デフォルト値をマージ（手動削除したものは上書きしない）
+    const deletedKey='sowan_demand_map_deleted';
+    const deleted=JSON.parse(localStorage.getItem(deletedKey)||'[]');
+    const merged={...DEFAULT_DEMAND_MAP,...saved};
+    deleted.forEach(k=>delete merged[k]);
+    return merged;
+  }catch(e){return{...DEFAULT_DEMAND_MAP};}
+}
+function saveDemandMap(map){localStorage.setItem('sowan_demand_map',JSON.stringify(map));}
+
+// 色名正規化：「A- アイボリー」「B　イチジク」などのプレフィックスを除去
+function normalizeColor(c){
+  if(!c)return '';
+  // 1〜4文字 + ハイフン（- または －）+ スペース のパターンを先頭から除去
+  return c.trim().replace(/^.{1,4}[-−－]\s*/,'').trim();
+}
+function addDemandMap(){
+  const setCode=document.getElementById('dm-set').value.trim();
+  const indCode=document.getElementById('dm-ind').value.trim();
+  if(!setCode||!indCode){showAlert('両方入力してください','err');return;}
+  const map=getDemandMap();
+  map[setCode]=indCode;
+  saveDemandMap(map);
+  document.getElementById('dm-set').value='';
+  document.getElementById('dm-ind').value='';
+  renderDemandMap();
+  renderAlert();
+  showAlert(`「${setCode} → ${indCode}」を設定しました`);
+}
+function deleteDemandMap(setCode){
+  const map=getDemandMap();
+  delete map[setCode];
+  saveDemandMap(map);
+  // デフォルトマッピングを削除した場合は削除リストに記録
+  if(DEFAULT_DEMAND_MAP[setCode]){
+    const deletedKey='sowan_demand_map_deleted';
+    const deleted=JSON.parse(localStorage.getItem(deletedKey)||'[]');
+    if(!deleted.includes(setCode))deleted.push(setCode);
+    localStorage.setItem(deletedKey,JSON.stringify(deleted));
+  }
+  renderDemandMap();
+  renderAlert();
+}
+function renderDemandMap(){
+  const el=document.getElementById('demand-map-list');
+  if(!el)return;
+  const map=getDemandMap();
+  const entries=Object.entries(map);
+  if(!entries.length){el.innerHTML='<div class="empty-state" style="padding:16px">未設定</div>';return;}
+  el.innerHTML='<div class="table-wrap"><table class="list"><thead><tr><th>セット品番</th><th>→ 個別品番</th><th></th></tr></thead><tbody>'
+    +entries.map(([s,i])=>'<tr><td style="font-family:monospace;font-size:12px">'+s+'</td><td style="font-family:monospace;font-size:12px;color:#1a5fa0">'+i+'</td><td><button class="btn sm danger" onclick="deleteDemandMap(\''+s.replace(/'/g,"\\'")+'\')" >削除</button></td></tr>').join('')
+    +'</tbody></table></div>';
+}
+
+function calcSetDemand(stockCode,colorTrimmed,months){
+  const map=getDemandMap();
+  let total=0;
+  Object.entries(map).forEach(([setCode,indCode])=>{
+    if(indCode!==stockCode)return;
+    D.monthlySales.filter(s=>s.code===setCode&&months.includes(s.year_month)).forEach(s=>{
+      const comboColors=(s.color||'').split('、').map(c=>normalizeColor(c));
+      if(comboColors.includes(colorTrimmed))total+=(Number(s.sales_qty)||0);
+    });
+  });
+  return total;
+}
+
+function matchesSalesRecord(s,code,t1,t2,months){
+  if(s.code!==code||!months.includes(s.year_month))return false;
+  if((s.color||'').trim()!==t1)return false;
+  if(t2)return(s.size_attr||'').trim()===t2; // サイズあり：完全一致
+  return true; // サイズなし：全サイズ集計
+}
+function getSalesPace(code,a1,a2){
+  const months=[...new Set(D.monthlySales.map(s=>s.year_month))].sort().reverse().slice(0,4);
+  if(!months.length)return 0;
+  const t1=(a1||'').trim(),t2=(a2||'').trim();
+  const direct=D.monthlySales.filter(s=>matchesSalesRecord(s,code,t1,t2,months)).reduce((sum,s)=>sum+(Number(s.sales_qty)||0),0);
+  const fromSets=calcSetDemand(code,t1,months);
+  return (direct+fromSets)/months.length;
+}
+function getSales4mTotal(code,a1,a2){
+  const months=[...new Set(D.monthlySales.map(s=>s.year_month))].sort().reverse().slice(0,4);
+  const t1=(a1||'').trim(),t2=(a2||'').trim();
+  const direct=D.monthlySales.filter(s=>matchesSalesRecord(s,code,t1,t2,months)).reduce((sum,s)=>sum+(Number(s.sales_qty)||0),0);
+  const fromSets=calcSetDemand(code,t1,months);
+  return direct+fromSets;
 }
 
 // ── アラート計算 ───────────────────────────────────
@@ -406,20 +604,10 @@ function calcStatus(stock,inProd,forecast3m){
   return 'green';
 }
 function statusLabel(s){
-  if(s==='red')return '<span class="status-dot dot-red"></span>緊急発注';
-  if(s==='yellow')return '<span class="status-dot dot-yellow"></span>要注意';
+  if(s==='red')return '<span class="status-dot dot-red"></span>緊急';
+  if(s==='yellow')return '<span class="status-dot dot-yellow"></span>注意';
   if(s==='green')return '<span class="status-dot dot-green"></span>充足';
-  return '<span class="status-dot dot-none"></span>予測未設定';
-}
-function getAlertProducts(){
-  const codes=new Set();
-  D.currentStock.forEach(s=>codes.add(s.code));
-  D.forecasts.forEach(f=>codes.add(f.code));
-  D.progress.forEach(p=>codes.add(p.code));
-  D.products.forEach(p=>codes.add(p.code));
-  const setCodes=new Set(D.setCompositions.map(s=>s.set_code));
-  const hiddenCodes=new Set(D.allProducts.filter(p=>p.active===false).map(p=>p.code));
-  return[...codes].filter(c=>!setCodes.has(c)&&!hiddenCodes.has(c)).sort();
+  return '<span class="status-dot dot-none"></span>—';
 }
 function getProductName(code){
   const p=D.products.find(p=>p.code===code);
@@ -433,54 +621,176 @@ function setAlertFilter(f,el){
   el.classList.add('active');
   renderAlert();
 }
+function setAlertView(v){
+  alertView=v;
+  const isSummary=v==='summary';
+  document.getElementById('vbtn-summary').style.cssText='border-radius:20px;font-size:12px;font-weight:600;'+(isSummary?'background:#1a1a1a;color:#fff;border-color:#1a1a1a':'');
+  document.getElementById('vbtn-detail').style.cssText='border-radius:20px;font-size:12px;font-weight:600;'+(!isSummary?'background:#1a1a1a;color:#fff;border-color:#1a1a1a':'');
+  document.getElementById('alert-view-hint').textContent=isSummary?'▶ 品番行をクリックで色別展開':'';
+  renderAlert();
+}
 function renderAlert(){
   const el=document.getElementById('alert-list');
+  const notice=document.getElementById('sku-stock-notice');
   const search=(document.getElementById('alert-search')?.value||'').toLowerCase();
-  const curMonth=ym(0);
-  const codes=getAlertProducts();
-  let rows=codes.map(code=>{
-    const stock=getLatestStock(code);
-    const inProd=getInProduction(code);
-    const fc=get3MonthForecast(code,curMonth);
-    const status=calcStatus(stock,inProd,fc.total);
+  const hiddenCodes=getHiddenCodes();
+
+  if(!D.skuStockLoaded){
+    notice.innerHTML=`<div class="alert-box alert-info">📦 CSV取込タブから「SKU在庫CSV」を読み込むと、色別の発注判断が表示されます。</div>`;
+    el.innerHTML='<div class="empty-state">SKU在庫CSVを読み込んでください</div>';
+    return;
+  }
+  const hiddenSize=hiddenCodes.size;
+  notice.innerHTML=`<div style="font-size:12px;color:#aaa;margin-bottom:4px">SKU在庫: ${D.skuStockDate} 取込${hiddenSize>0?` ／ 非表示: ${hiddenSize}件 <a href="#" onclick="clearHidden();return false;" style="color:#aaa">すべて表示に戻す</a>`:''}</div>`;
+
+  let rows=Object.entries(D.colorStock).map(([key,val])=>{
+    try{
+    const[code,a1,a2]=key.split('|');
+    const stock=typeof val==='object'?val.qty:(Number(val)||0);
+    const displayColor=(typeof val==='object'?val.displayColor:'')||a1||'';
+    const displaySize=(typeof val==='object'?val.displaySize:'')||a2||'';
+    if(hiddenCodes.has(code))return null;
+    if(stock<0)return null;
+    const pace=getSalesPace(code,a1,a2);
+    if(pace===0)return null;
+    const months=stock/pace;
+    const status=months<2?'red':months<4?'yellow':'green';
+    const recommend=Math.max(0,Math.round(pace*4-stock));
+    const sales4m=getSales4mTotal(code,a1,a2);
     const name=getProductName(code);
-    return{code,name,stock,inProd,fc,status};
-  });
+    const colorLabel=[displayColor,displaySize].filter(Boolean).join(' / ');
+    return{code,color:colorLabel,displayColor,displaySize,name,stock,pace,months,status,recommend,sales4m};
+    }catch(e){console.error('renderAlert row error:',e);return null;}
+  }).filter(Boolean);
+
   if(alertFilter!=='all')rows=rows.filter(r=>r.status===alertFilter);
-  if(search)rows=rows.filter(r=>r.code.toLowerCase().includes(search)||(r.name||'').toLowerCase().includes(search));
-  const order={red:0,yellow:1,green:2,none:3};
-  rows.sort((a,b)=>order[a.status]-order[b.status]||(a.code<b.code?-1:1));
+  if(search)rows=rows.filter(r=>
+    r.code.toLowerCase().includes(search)||
+    (r.name||'').toLowerCase().includes(search)||
+    (r.color||'').toLowerCase().includes(search)
+  );
+  rows.sort((a,b)=>alertSortAsc?(a.sales4m-b.sales4m):(b.sales4m-a.sales4m));
   if(!rows.length){el.innerHTML='<div class="empty-state">対象データがありません</div>';return;}
-  const m0=ym(0),m1=ym(1),m2=ym(2);
-  el.innerHTML=`<div class="table-wrap"><table class="list">
-    <thead><tr>
-      <th>状態</th><th>品番</th><th>商品名</th>
-      <th style="text-align:right">実在庫</th><th style="text-align:right">生産中</th>
-      <th style="text-align:right">${fmtYM(m0)}予測</th>
-      <th style="text-align:right">${fmtYM(m1)}予測</th>
-      <th style="text-align:right">${fmtYM(m2)}予測</th>
-      <th style="text-align:right">3ヶ月計</th><th>充足率</th>
-    </tr></thead>
-    <tbody>${rows.map(r=>{
-      const avail=r.stock+r.inProd;
-      const pct=r.fc.total>0?Math.min(Math.round(avail/r.fc.total*100),100):100;
-      const barClass=r.status==='red'?'bar-red':r.status==='yellow'?'bar-yellow':'bar-green';
-      return `<tr>
-        <td>${statusLabel(r.status)}</td>
-        <td style="font-family:monospace;font-size:12px">${r.code}</td>
-        <td style="font-size:12px;color:#555;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${r.name||'—'}</td>
-        <td style="text-align:right;font-weight:500">${r.stock.toLocaleString()}</td>
-        <td style="text-align:right;color:#888">${r.inProd.toLocaleString()}</td>
-        <td style="text-align:right;color:#888">${r.fc.m0.toLocaleString()}</td>
-        <td style="text-align:right;color:#888">${r.fc.m1.toLocaleString()}</td>
-        <td style="text-align:right;color:#888">${r.fc.m2.toLocaleString()}</td>
-        <td style="text-align:right;font-weight:500">${r.fc.total.toLocaleString()}</td>
-        <td><div style="display:flex;align-items:center;gap:6px">
-          <div class="progress-bar-wrap"><div class="progress-bar ${barClass}" style="width:${pct}%"></div></div>
-          <span style="font-size:11px;color:#888;min-width:32px">${r.fc.total>0?pct+'%':'—'}</span>
-        </div></td>
-      </tr>`;
-    }).join('')}</tbody></table></div>`;
+
+  const sortIcon=alertSortAsc?'↑':'↓';
+  const sortTh=`<th style="text-align:right;cursor:pointer;user-select:none" onclick="alertSortAsc=!alertSortAsc;renderAlert()">直近4ヶ月計 ${sortIcon}</th>`;
+
+  if(alertView==='summary'){
+    // 品番ごとに集計
+    const byCode={};
+    rows.forEach(r=>{
+      if(!byCode[r.code])byCode[r.code]={code:r.code,name:r.name,colors:[],stockTotal:0,paceTotal:0,sales4mTotal:0,recommendTotal:0,worstMonths:999,worstColor:''};
+      const p=byCode[r.code];
+      p.colors.push(r);
+      p.stockTotal+=r.stock;
+      p.paceTotal+=r.pace;
+      p.sales4mTotal+=r.sales4m;
+      p.recommendTotal+=r.recommend;
+      if(r.months<p.worstMonths){p.worstMonths=r.months;p.worstColor=r.color;}
+    });
+    const products=Object.values(byCode).map(p=>({...p,status:p.worstMonths<2?'red':p.worstMonths<4?'yellow':'green'}));
+    products.sort((a,b)=>alertSortAsc?(a.sales4mTotal-b.sales4mTotal):(b.sales4mTotal-a.sales4mTotal));
+    const statusOrder={red:0,yellow:1,green:2};
+    products.sort((a,b)=>statusOrder[a.status]-statusOrder[b.status]);
+
+    el.innerHTML=`<div class="table-wrap"><table class="list">
+      <thead><tr>
+        <th>状態</th><th>品番</th><th>商品名</th><th style="text-align:right">色数</th>
+        <th style="text-align:right">在庫合計</th><th style="text-align:right">月販ペース</th>
+        ${sortTh}<th style="text-align:right">最短残月数</th>
+        <th style="text-align:right">推奨発注量</th><th></th>
+      </tr></thead>
+      <tbody>${products.map(p=>{
+        const mStr=p.worstMonths>=99?'—':p.worstMonths.toFixed(1)+'ヶ月';
+        const mColor=p.status==='red'?'#c0392b':p.status==='yellow'?'#c07a00':'#27ae60';
+        const badgeColor=p.status==='red'?'background:#fcebeb;color:#a32d2d':p.status==='yellow'?'background:#fef9ee;color:#8a5a00':'';
+        const badge=p.status!=='green'&&p.worstColor?`<span style="display:inline-block;font-size:10px;padding:1px 6px;border-radius:4px;margin-left:6px;font-weight:600;${badgeColor}">${p.worstColor}</span>`:'';
+        const recStr=p.recommendTotal>0?p.recommendTotal.toLocaleString()+'足':'—';
+        const uid='p_'+p.code.replace(/[^a-z0-9]/gi,'_');
+        const detailRows=p.colors.map(r=>{
+          const cm=r.months>=99?'—':r.months.toFixed(1)+'ヶ月';
+          const cc=r.status==='red'?'#c0392b':r.status==='yellow'?'#c07a00':'#27ae60';
+          return `<tr style="background:#f8f7f4">
+            <td style="padding:7px 14px 7px 40px;font-size:12px;color:#555">${r.color||'—'}</td>
+            <td style="text-align:right;font-size:12px">${r.stock.toLocaleString()}</td>
+            <td style="text-align:right;font-size:12px;color:#888">${r.sales4m.toLocaleString()}</td>
+            <td style="text-align:right;font-size:12px"><span style="font-weight:600;color:${cc}">${cm}</span></td>
+            <td style="text-align:right;font-size:12px;font-weight:600">${r.recommend>0?r.recommend.toLocaleString()+'足':'—'}</td>
+            <td colspan="5"></td>
+          </tr>`;
+        }).join('');
+        return `<tr style="cursor:pointer" onclick="toggleProductDetail('${uid}')">
+          <td>${statusLabel(p.status)}</td>
+          <td style="font-family:monospace;font-size:12px">${p.code}</td>
+          <td style="font-size:12px;color:#555;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${p.name||'—'}</td>
+          <td style="text-align:right;color:#888">${p.colors.length}色</td>
+          <td style="text-align:right;font-weight:600">${p.stockTotal.toLocaleString()}</td>
+          <td style="text-align:right;color:#888">${Math.round(p.paceTotal).toLocaleString()}足/月</td>
+          <td style="text-align:right;color:#888">${p.sales4mTotal.toLocaleString()}</td>
+          <td style="text-align:right"><span style="font-weight:600;color:${mColor}">${mStr}</span>${badge}</td>
+          <td style="text-align:right;font-weight:600">${recStr}</td>
+          <td><button class="btn sm danger" onclick="event.stopPropagation();hideCode('${p.code.replace(/'/g,"\\'")}')">非表示</button></td>
+        </tr>
+        <tr id="${uid}" style="display:none"><td colspan="10" style="padding:0">
+          <table style="width:100%"><thead><tr style="background:#f0ede8">
+            <th style="padding:5px 14px 5px 40px;font-size:10px">色</th>
+            <th style="text-align:right;font-size:10px">在庫</th>
+            <th style="text-align:right;font-size:10px">4ヶ月計</th>
+            <th style="text-align:right;font-size:10px">残月数</th>
+            <th style="text-align:right;font-size:10px">推奨発注量</th>
+            <th colspan="5"></th>
+          </tr></thead><tbody>${detailRows}</tbody></table>
+        </td></tr>`;
+      }).join('')}</tbody></table></div>`;
+  }else{
+    // 色別詳細
+    el.innerHTML=`<div class="table-wrap"><table class="list">
+      <thead><tr>
+        <th>状態</th><th>品番</th><th>商品名</th><th>色</th>
+        <th style="text-align:right">在庫</th><th style="text-align:right">月販ペース</th>
+        ${sortTh}<th style="text-align:right">残月数</th>
+        <th style="text-align:right">推奨発注量</th><th></th>
+      </tr></thead>
+      <tbody>${rows.map(r=>{
+        const monthsStr=r.months>=99?'—':r.months.toFixed(1)+'ヶ月';
+        const recStr=r.recommend>0?r.recommend.toLocaleString()+'足':'—';
+        return `<tr>
+          <td>${statusLabel(r.status)}</td>
+          <td style="font-family:monospace;font-size:12px">${r.code}</td>
+          <td style="font-size:12px;color:#555;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${r.name||'—'}</td>
+          <td style="font-size:12px">${r.color||'—'}</td>
+          <td style="text-align:right;font-weight:600">${r.stock.toLocaleString()}</td>
+          <td style="text-align:right;color:#888">${Math.round(r.pace).toLocaleString()}足/月</td>
+          <td style="text-align:right;color:#888">${r.sales4m.toLocaleString()}</td>
+          <td style="text-align:right"><span style="font-weight:600;color:${r.status==='red'?'#c0392b':r.status==='yellow'?'#c07a00':'#27ae60'}">${monthsStr}</span></td>
+          <td style="text-align:right;font-weight:600">${recStr}</td>
+          <td><button class="btn sm danger" onclick="hideCode('${r.code.replace(/'/g,"\\'")}')">非表示</button></td>
+        </tr>`;
+      }).join('')}</tbody></table></div>`;
+  }
+}
+function toggleProductDetail(uid){const el=document.getElementById(uid);if(el)el.style.display=el.style.display==='none'?'table-row':'none';}
+function clearHidden(){localStorage.removeItem('sowan_hidden');renderAlert();}
+function hideAllVisible(){
+  if(!D.skuStockLoaded)return;
+  const search=(document.getElementById('alert-search')?.value||'').toLowerCase();
+  const hiddenCodes=getHiddenCodes();
+  const rows=Object.entries(D.colorStock).map(([key,val])=>{
+    const[code]=key.split('|');
+    if(hiddenCodes.has(code))return null;
+    const pace=getSalesPace(code,(val.displayColor||key.split('|')[1]||'').trim(),(key.split('|')[2]||'').trim());
+    if(pace===0)return null;
+    const name=getProductName(code);
+    if(search&&!code.toLowerCase().includes(search)&&!(name||'').toLowerCase().includes(search)&&!(val.displayColor||'').toLowerCase().includes(search))return null;
+    return code;
+  }).filter(Boolean);
+  const uniqueCodes=[...new Set(rows)];
+  if(!uniqueCodes.length){showAlert('非表示にする品番がありません','err');return;}
+  if(!confirm(uniqueCodes.length+'品番を一括非表示にしますか？'))return;
+  uniqueCodes.forEach(c=>hiddenCodes.add(c));
+  localStorage.setItem('sowan_hidden',JSON.stringify([...hiddenCodes]));
+  renderAlert();
+  showAlert(uniqueCodes.length+'品番を非表示にしました');
 }
 
 // ── CSV取込 ────────────────────────────────────────
@@ -818,6 +1128,24 @@ async function addSetComposition(){
   document.getElementById('s-mult').value='1';
   renderSets();showAlert(`「${setCode}」を追加しました`);
 }
+async function deleteAllVisibleSets(){
+  const search=(document.getElementById('sets-search')?.value||'').toLowerCase();
+  let items=D.setCompositions;
+  if(search)items=items.filter(s=>s.set_code.toLowerCase().includes(search)||(s.set_name||'').toLowerCase().includes(search)||s.base_code.toLowerCase().includes(search));
+  if(!items.length){showAlert('削除対象がありません','err');return;}
+  if(!confirm(items.length+'件のセット構成を削除しますか？\nこの操作は元に戻せません。'))return;
+  const ids=items.map(s=>s.id);
+  const el=document.getElementById('set-import-status');
+  if(el)el.innerHTML='<span class="spinner"></span>削除中...';
+  for(let i=0;i<ids.length;i+=100){
+    const{error}=await sb.from('set_compositions').delete().in('id',ids.slice(i,i+100));
+    if(error){showAlert('削除に失敗しました: '+error.message,'err');return;}
+  }
+  D.setCompositions=D.setCompositions.filter(s=>!ids.includes(s.id));
+  if(el)el.innerHTML='';
+  renderSets();
+  showAlert(ids.length+'件を削除しました');
+}
 async function deleteSetComposition(id){
   if(!confirm('削除しますか？'))return;
   const{error}=await sb.from('set_compositions').delete().eq('id',id);
@@ -827,16 +1155,53 @@ async function deleteSetComposition(id){
 }
 function renderSets(){
   const el=document.getElementById('sets-list');
+  const search=(document.getElementById('sets-search')?.value||'').toLowerCase();
   if(!D.setCompositions.length){el.innerHTML='<div class="empty-state">セット構成が登録されていません</div>';return;}
-  el.innerHTML=`<div class="table-wrap"><table class="list">
-    <thead><tr><th>セット品番</th><th>セット商品名</th><th>→ 個別品番</th><th style="text-align:center">構成数</th><th></th></tr></thead>
-    <tbody>${D.setCompositions.map(s=>`<tr>
-      <td style="font-family:monospace;font-size:12px">${s.set_code}</td>
-      <td style="font-size:12px;color:#555">${s.set_name||'—'}</td>
-      <td style="font-family:monospace;font-size:12px;color:#1a5fa0">${s.base_code}</td>
-      <td style="text-align:center;font-weight:600">${s.multiplier}個</td>
-      <td><button class="btn sm danger" onclick="deleteSetComposition(${s.id})">削除</button></td>
-    </tr>`).join('')}</tbody></table></div>`;
+  let items=D.setCompositions;
+  if(search)items=items.filter(s=>
+    s.set_code.toLowerCase().includes(search)||
+    (s.set_name||'').toLowerCase().includes(search)||
+    s.base_code.toLowerCase().includes(search)
+  );
+  const countEl=document.getElementById('sets-count');
+  if(countEl)countEl.textContent=search?`${items.length}件 / 全${D.setCompositions.length}件`:`全${D.setCompositions.length}件`;
+  if(!items.length){el.innerHTML='<div class="empty-state">該当するセット構成がありません</div>';return;}
+  const itemInfoMap={};
+  D.items.forEach(it=>{
+    let color='',size='';
+    if(it.memo){try{const m=JSON.parse(it.memo);color=m['色']||'';size=m['サイズ']||'';}catch(e){}}
+    itemInfoMap[it.item_code]={name:it.item_name||'',color,size};
+  });
+  // セット品番ごとにグループ化
+  const groups={};
+  items.forEach(s=>{
+    if(!groups[s.set_code])groups[s.set_code]={set_code:s.set_code,set_name:s.set_name,comps:[]};
+    groups[s.set_code].comps.push(s);
+  });
+  const rows=Object.values(groups).map(g=>{
+    const compCount=g.comps.length;
+    const header='<tr style="background:#faf9f7">'
+      +'<td style="font-family:monospace;font-size:11px;font-weight:600">'+g.set_code+'</td>'
+      +'<td style="font-size:12px;color:#333;font-weight:600" colspan="2">'+(g.set_name||'—')+'</td>'
+      +'<td style="font-size:12px;color:#888;font-weight:600" colspan="3">構成 '+compCount+'足セット</td>'
+      +'</tr>';
+    const compRows=g.comps.map(s=>{
+      const info=itemInfoMap[s.base_code]||{name:'—',color:'',size:''};
+      const colorTag=info.color?'<span style="display:inline-block;background:#f0ede8;color:#555;font-size:11px;padding:1px 6px;border-radius:4px;margin-left:6px">'+info.color+'</span>':'';
+      const sizeTag=info.size?'<span style="display:inline-block;background:#eef4fa;color:#1a5fa0;font-size:11px;padding:1px 6px;border-radius:4px;margin-left:4px">'+info.size+'</span>':'';
+      return '<tr>'
+        +'<td style="padding-left:24px;font-family:monospace;font-size:11px;color:#aaa">└</td>'
+        +'<td style="font-family:monospace;font-size:11px;color:#1a5fa0">'+s.base_code+'</td>'
+        +'<td style="font-size:12px;color:#555" colspan="2">'+info.name+colorTag+sizeTag+'</td>'
+        +'<td style="text-align:center;font-size:12px">×'+s.multiplier+'足</td>'
+        +'<td><button class="btn sm danger" onclick="deleteSetComposition('+s.id+')">削除</button></td>'
+        +'</tr>';
+    }).join('');
+    return header+compRows;
+  }).join('');
+  el.innerHTML='<div class="table-wrap"><table class="list">'
+    +'<thead><tr><th>セット品番</th><th colspan="2">セット商品名</th><th colspan="3">構成</th></tr></thead>'
+    +'<tbody>'+rows+'</tbody></table></div>';
 }
 
 async function importSetCSV(){
@@ -899,6 +1264,14 @@ function renderSales(){
   if(monthFilter)items=items.filter(s=>s.year_month===monthFilter);
   if(codeFilter)items=items.filter(s=>s.code===codeFilter);
   if(search)items=items.filter(s=>s.code.toLowerCase().includes(search)||(s.name||'').toLowerCase().includes(search)||(s.color||'').toLowerCase().includes(search));
+  // 品番+色+サイズ単位でSUM集計（月別重複・DB内重複を解消）
+  const agg={};
+  items.forEach(s=>{
+    const key=`${s.code}|${(s.color||'').trim()}|${(s.size_attr||'').trim()}`;
+    if(!agg[key])agg[key]={...s,sales_qty:Number(s.sales_qty)||0};
+    else agg[key].sales_qty+=(Number(s.sales_qty)||0);
+  });
+  items=Object.values(agg);
   items=[...items].sort((a,b)=>(Number(b.sales_qty)||0)-(Number(a.sales_qty)||0));
   if(!items.length){el.innerHTML='<div class="empty-state">データがありません</div>';return;}
   const maxQty=Number(items[0]?.sales_qty)||1;
@@ -972,11 +1345,6 @@ function setFabricView(v){
 }
 
 function initFabricTab(){
-  // 月セレクタ
-  const msel=document.getElementById('fabric-month');
-  const months=[...new Set(D.forecasts.map(f=>f.year_month))].sort().reverse();
-  const cur=msel.value||ym(0);
-  msel.innerHTML=months.map(m=>`<option value="${m}"${m===cur?' selected':''}>${fmtYM(m)}</option>`).join('');
 
   // 品番セレクト
   const codes=[...new Set(D.products.map(p=>p.code))].sort();
@@ -1064,43 +1432,45 @@ function renderFabricReq(){
     el.innerHTML='<div class="empty-state">生地マスタが登録されていません。先に「生地マスタ」タブで登録してください。</div>';
     return;
   }
-  const baseMonth=document.getElementById('fabric-month')?.value||ym(0);
-  const range=parseInt(document.getElementById('fabric-months-range')?.value||'3');
+  if(!D.skuStockLoaded){
+    el.innerHTML='<div class="alert-box alert-info">📦 CSV取込タブからSKU在庫CSVを読み込むと、推奨発注量から生地所要量を計算します。</div>';
+    return;
+  }
 
-  // 対象月リスト
-  const months=Array.from({length:range},(_,i)=>addMonth(baseMonth,i));
-
-  // 品番ごとの予測合計
-  const fcMap={};
-  months.forEach(m=>{
-    D.forecasts.filter(f=>f.year_month===m).forEach(f=>{
-      fcMap[f.code]=(fcMap[f.code]||0)+(Number(f.forecast_qty)||0);
-    });
-  });
-
-  // セット展開：セット品番の予測 → 個別品番に乗算して加算
-  D.setCompositions.forEach(sc=>{
-    const setQty=fcMap[sc.set_code]||0;
-    if(setQty>0){
-      fcMap[sc.base_code]=(fcMap[sc.base_code]||0)+setQty*(sc.multiplier||1);
-    }
+  // 発注判断の推奨発注量を品番×色で集計
+  const hiddenCodes=getHiddenCodes();
+  const recommendByCodeColor={}; // {品番: {色: recommend_qty}}
+  Object.entries(D.colorStock).forEach(([key,val])=>{
+    const[code,a1,a2]=key.split('|');
+    if(hiddenCodes.has(code))return;
+    const stock=typeof val==='object'?val.qty:(Number(val)||0);
+    if(stock<0)return;
+    const pace=getSalesPace(code,a1,a2);
+    if(pace===0)return;
+    const recommend=Math.max(0,Math.round(pace*4-stock));
+    if(recommend===0)return;
+    const displayColor=(typeof val==='object'?val.displayColor:'')||a1||'';
+    if(!recommendByCodeColor[code])recommendByCodeColor[code]={};
+    recommendByCodeColor[code][displayColor]=(recommendByCodeColor[code][displayColor]||0)+recommend;
   });
 
   // 生地ごとに必要量を集計
   const fabricMap={};
   D.fabricUsage.forEach(u=>{
-    const qty=fcMap[u.product_code]||0;
+    let qty=0;
+    if(u.color){
+      qty=(recommendByCodeColor[u.product_code]||{})[u.color]||0;
+    }else{
+      qty=Object.values(recommendByCodeColor[u.product_code]||{}).reduce((s,v)=>s+v,0);
+    }
     if(!qty)return;
     const key=u.fabric_no+'|'+(u.color||'');
     if(!fabricMap[key])fabricMap[key]={fabricNo:u.fabric_no,color:u.color||'',type:u.item_type,needed:0,products:[]};
     let need=0;
-    if(u.item_type==='fabric'&&u.items_per_tan){
-      need=qty/u.items_per_tan;
-    }else if(u.item_type==='yarn'&&u.grams_per_item){
-      need=qty*u.grams_per_item/1000; // kg
-    }
+    if(u.item_type==='fabric'&&u.items_per_tan)need=qty/u.items_per_tan;
+    else if(u.item_type==='yarn'&&u.grams_per_item)need=qty*u.grams_per_item/1000;
     fabricMap[key].needed+=need;
-    fabricMap[key].products.push({code:u.product_code,name:getProductName(u.product_code),qty,need:Math.ceil(need)});
+    fabricMap[key].products.push({code:u.product_code,name:getProductName(u.product_code),qty,need:Math.ceil(need*10)/10});
   });
 
   // 在庫とのマッチング
@@ -1109,20 +1479,20 @@ function renderFabricReq(){
 
   const rows=Object.values(fabricMap).sort((a,b)=>a.fabricNo.localeCompare(b.fabricNo,'ja'));
   if(!rows.length){
-    el.innerHTML='<div class="empty-state">予測データのある品番に生地マスタが紐づいていません</div>';
+    el.innerHTML='<div class="empty-state">発注が必要な品番に紐づく生地マスタがありません</div>';
     return;
   }
 
-  const monthLabel=months.map(m=>fmtYM(m)).join('・');
+  const totalProducts=new Set(Object.keys(recommendByCodeColor)).size;
   el.innerHTML=`
-    <div style="font-size:12px;color:#888;margin-bottom:12px">対象期間：${monthLabel}</div>
+    <div style="font-size:12px;color:#888;margin-bottom:12px">発注対象品番 ${totalProducts}品番 の推奨発注量から計算（SKU在庫: ${D.skuStockDate}）</div>
     <div class="table-wrap"><table class="list">
     <thead><tr>
       <th>生地番号</th><th>カラー</th><th>種別</th>
       <th style="text-align:right">在庫</th>
       <th style="text-align:right">必要量</th>
       <th style="text-align:right">過不足</th>
-      <th>対象商品</th>
+      <th>対象品番（発注数→必要量）</th>
     </tr></thead>
     <tbody>${rows.map(r=>{
       const unit=r.type==='yarn'?'kg':'反';
@@ -1131,15 +1501,15 @@ function renderFabricReq(){
       const needed=Math.ceil(r.needed*10)/10;
       const gap=Math.round((stock-needed)*10)/10;
       const gapColor=gap<0?'#c0392b':gap===0?'#888':'#27ae60';
-      const gapLabel=gap>=0?`+${gap}`:String(gap);
-      const prodList=r.products.map(p=>`<span style="font-size:11px;background:#f0ede8;padding:2px 6px;border-radius:4px;display:inline-block;margin:1px">${p.code}(${p.qty}→${p.need}${unit})</span>`).join(' ');
+      const gapLabel=(gap>=0?'+':'')+gap;
+      const prodList=r.products.map(p=>`<span style="font-size:11px;background:#f0ede8;padding:2px 6px;border-radius:4px;display:inline-block;margin:1px">${p.code}（${p.qty.toLocaleString()}足→${p.need}${unit}）</span>`).join(' ');
       return `<tr style="${gap<0?'background:#fff8f8':''}">
         <td style="font-weight:600;font-family:monospace">${r.fabricNo}</td>
-        <td style="font-size:12px">${r.color||'<span style="color:#bbb">全色</span>'}</td>
+        <td style="font-size:12px">${r.color||'<span style="color:#bbb">全色共通</span>'}</td>
         <td><span style="font-size:11px;padding:2px 8px;border-radius:4px;background:${r.type==='yarn'?'#f3eafd;color:#6b2fa0':'#e6f1fb;color:#1a5fa0'}">${r.type==='yarn'?'糸':'生地'}</span></td>
-        <td style="text-align:right;font-weight:500">${stock} ${unit}</td>
-        <td style="text-align:right;font-weight:600">${needed} ${unit}</td>
-        <td style="text-align:right;font-weight:700;color:${gapColor}">${gapLabel} ${unit}</td>
+        <td style="text-align:right;font-weight:500">${stock}${unit}</td>
+        <td style="text-align:right;font-weight:600">${needed}${unit}</td>
+        <td style="text-align:right;font-weight:700;color:${gapColor}">${gapLabel}${unit}</td>
         <td style="font-size:11px">${prodList}</td>
       </tr>`;
     }).join('')}</tbody>
@@ -1148,10 +1518,15 @@ function renderFabricReq(){
 
 // ── 初期化 ─────────────────────────────────────────
 (async()=>{
-  initImportYearMonth();
-  initForecastMonths();
-  await loadAll();
-  renderAlert();
+  try{
+    initImportYearMonth();
+    await loadAll();
+    renderAlert();
+  }catch(e){
+    console.error('初期化エラー:',e);
+    document.getElementById('alert-area').innerHTML=
+      `<div class="alert-box alert-err">⚠️ 初期化エラーが発生しました。ページを再読み込みしてください。<br><small>${e.message}</small></div>`;
+  }
 })();
 </script>
 </body>
