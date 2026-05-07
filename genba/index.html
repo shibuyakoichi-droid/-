@@ -61,7 +61,7 @@
 
   /* Mode tabs — 3 modes */
   .mode-tabs {
-    display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px;
+    display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px;
     background: #ebe5da; padding: 4px; border-radius: 10px; margin-bottom: 20px;
   }
   .mtab {
@@ -206,6 +206,9 @@
   /* 出荷残更新: 移動元・移動先を非表示 */
   .mode-出荷残更新 .field-source { display: none; }
   .mode-出荷残更新 .field-dest   { display: none; }
+  /* 生産目標更新: 移動元・移動先を非表示 */
+  .mode-生産目標更新 .field-source { display: none; }
+  .mode-生産目標更新 .field-dest   { display: none; }
 
   /* 外部入荷の入荷先固定表示（外部入荷モードのみ表示） */
   .field-dest-fixed { display: none; }
@@ -242,6 +245,9 @@
       </button>
       <button class="mtab" data-mode="出荷残更新" onclick="switchMode('出荷残更新')">
         <span class="icon">📋</span>出荷残更新
+      </button>
+      <button class="mtab" data-mode="生産目標更新" onclick="switchMode('生産目標更新')">
+        <span class="icon">🎯</span>生産目標更新
       </button>
     </div>
 
@@ -342,7 +348,11 @@ const DEFAULT_DATA = {
     { product: 'tubutubu-babyleg', code: 'TBL-KNT', name: 'キナリツブ' },
     { product: 'tubutubu-babyleg', code: 'TBL-SRT', name: 'シロツブ' },
     { product: 'tubutubu-babyleg', code: 'TBL-CNP', name: 'カラーネップ' },
-    { product: 'tubutubu-babyleg', code: 'TBL-MOM', name: '杢オートミール' }
+    { product: 'tubutubu-babyleg', code: 'TBL-MOM', name: '杢オートミール' },
+    { product: 'tubutubu-babyleg', code: 'TBL-CG',  name: 'チャコールグレー' },
+    { product: 'tubutubu-babyleg', code: 'TBL-GR',  name: 'グレー' },
+    { product: 'tubutubu-babyleg', code: 'TBL-DP',  name: 'ダスティピンク' },
+    { product: 'tubutubu-babyleg', code: 'TBL-OL',  name: 'オリーブ' }
   ],
   stages: [
     { code: 'S01', name: '神木さん',     order: 1, unit: 'kg', extInput: true,  next: ['エルアイシー'] },
@@ -449,6 +459,7 @@ function updateContext() {
   const pt   = snap.processTotal != null ? snap.processTotal : 0;
   const bl   = snap.backlog      != null ? snap.backlog      : 0;
   const diff = snap.diff         != null ? snap.diff         : bl - pt;
+  const target = snap.target != null ? snap.target : 0;
   lines.push(`工程合計: ${pt}個 ｜ 出荷残: ${bl}個`);
   const diffLabel = diff > 0
     ? `🔴 不足 +${diff}個`
@@ -456,6 +467,10 @@ function updateContext() {
       ? `✅ 余裕 ${diff}個`
       : '✅ ピッタリ';
   lines.push(`差分: ${diffLabel}`);
+  if (target > 0) {
+    const prog = Math.round(pt / target * 100);
+    lines.push(`目標: ${target}個 ｜ 進捗: ${prog}%`);
+  }
 
   const box = document.getElementById('contextBox');
   box.className = diff > 0 ? 'context-box warn' : 'context-box';
@@ -533,7 +548,9 @@ function switchMode(mode) {
   // 数量ラベルを切り替え
   document.getElementById('qtyLabel').innerHTML = mode === '出荷残更新'
     ? '現在の出荷残（個） <span class="req">必須</span>'
-    : '数量 <span class="req">必須</span>';
+    : mode === '生産目標更新'
+      ? '生産目標数（個） <span class="req">必須</span>'
+      : '数量 <span class="req">必須</span>';
 
   selectedSource = null;
   selectedDest   = null;
@@ -560,6 +577,9 @@ function updateFlow() {
     text = `${selectedSource || '?'} → ${selectedDest || '?'}`;
   } else if (currentMode === '出荷残更新') {
     text    = `出荷残を ${qty} 個 にセット`;
+    subtext = '';
+  } else if (currentMode === '生産目標更新') {
+    text    = `生産目標を ${qty} 個 にセット`;
     subtext = '';
   }
 
@@ -596,8 +616,8 @@ async function submitForm() {
     product:   product,
     skuCode:   skuCode,
     skuName:   sku.name,
-    source:    (currentMode === '外部入荷' || currentMode === '出荷残更新') ? '—' : selectedSource,
-    dest:      currentMode === '出荷残更新' ? '—' : selectedDest,
+    source:    (currentMode === '外部入荷' || currentMode === '出荷残更新' || currentMode === '生産目標更新') ? '—' : selectedSource,
+    dest:      (currentMode === '出荷残更新' || currentMode === '生産目標更新') ? '—' : selectedDest,
     qty:       qty,
     unit:      unit,
     memo:      memo

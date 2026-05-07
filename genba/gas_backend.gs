@@ -129,10 +129,13 @@ function buildSnapshot(ss) {
     const processTotal = kamikiPcs + stagePcs;
     const backlog    = s['backlog'] || 0;
 
+    const target   = s['target']  || 0;
     s.kamikiPcs    = kamikiPcs;
     s.processTotal = processTotal;
     s.backlog      = backlog;
-    s.diff         = backlog - processTotal; // 出荷残 - 工程合計（プラスが不足）
+    s.target       = target;
+    s.diff         = backlog - processTotal;
+    s.progress     = target > 0 ? Math.round(processTotal / target * 100) : null;
   });
 
   return snapshot;
@@ -152,6 +155,8 @@ function recordEntry(payload) {
 
     if (payload.mode === '出荷残更新') {
       setBacklog(ss, payload.skuCode, Number(payload.qty));
+    } else if (payload.mode === '生産目標更新') {
+      setTarget(ss, payload.skuCode, Number(payload.qty));
     } else {
       updateSnapshot(ss, payload);
     }
@@ -242,6 +247,19 @@ function updateSnapshot(ss, p) {
   }
 }
 
+// 生産目標更新: Snapshotの 'target' 行を上書き
+function setTarget(ss, skuCode, qty) {
+  const sheet = ss.getSheetByName('Snapshot');
+  const data  = sheet.getDataRange().getValues();
+  for (let i = 1; i < data.length; i++) {
+    if (data[i][0] === skuCode && data[i][1] === 'target') {
+      sheet.getRange(i + 1, 3).setValue(qty);
+      return;
+    }
+  }
+  sheet.appendRow([skuCode, 'target', qty]);
+}
+
 // 出荷残更新: Snapshotの 'backlog' 行を上書き
 function setBacklog(ss, skuCode, qty) {
   const sheet = ss.getSheetByName('Snapshot');
@@ -296,7 +314,11 @@ function setupSheets() {
       ['tubutubu-babyleg', 'TBL-KNT', 'キナリツブ'],
       ['tubutubu-babyleg', 'TBL-SRT', 'シロツブ'],
       ['tubutubu-babyleg', 'TBL-CNP', 'カラーネップ'],
-      ['tubutubu-babyleg', 'TBL-MOM', '杢オートミール']
+      ['tubutubu-babyleg', 'TBL-MOM', '杢オートミール'],
+      ['tubutubu-babyleg', 'TBL-CG',  'チャコールグレー'],
+      ['tubutubu-babyleg', 'TBL-GR',  'グレー'],
+      ['tubutubu-babyleg', 'TBL-DP',  'ダスティピンク'],
+      ['tubutubu-babyleg', 'TBL-OL',  'オリーブ']
     ]
   );
 
@@ -328,4 +350,79 @@ function createSheet(ss, name, headers, rows) {
       .setBackground('#f3f0e8');
   }
   return sheet;
+}
+// ============================================================
+// resetSnapshot — 最新数字に一括書き換え（手動で1回だけ実行）
+// ============================================================
+
+function resetSnapshot() {
+  const ss    = SpreadsheetApp.openById(SS_ID);
+  const sheet = ss.getSheetByName('Snapshot');
+
+  // ヘッダー行を残して全データをクリア
+  const lastRow = sheet.getLastRow();
+  if (lastRow > 1) {
+    sheet.getRange(2, 1, lastRow - 1, 3).clearContent();
+  }
+
+  // 最新データ（2026-05-07 渋谷さん確認済み）
+  const data = [
+    // 内職
+    ['TBL-MOM', '内職',  920],
+    ['TBL-CNP', '内職', 1190],
+    ['TBL-KNT', '内職',  920],
+    ['TBL-SRT', '内職', 1120],
+    ['TBL-CG',  '内職', 1014],
+    ['TBL-OL',  '内職',  671],
+    ['TBL-GR',  '内職',  420],
+    // 実在庫
+    ['TBL-CG',  '実在庫',  973],
+    ['TBL-OL',  '実在庫',  710],
+    ['TBL-DP',  '実在庫',  587],
+    ['TBL-GR',  '実在庫',  290],
+    ['TBL-KN',  '実在庫',  100],
+    // 生産目標数
+    ['TBL-GR',  'target', 4000],
+    ['TBL-OL',  'target', 4000],
+    ['TBL-DP',  'target', 3200],
+    ['TBL-KN',  'target', 4800],
+    ['TBL-CG',  'target', 1600],
+    ['TBL-KNT', 'target', 3200],
+    ['TBL-MOM', 'target', 1600],
+    ['TBL-SRT', 'target', 1600],
+    ['TBL-CNP', 'target', 1600],
+  ];
+
+  sheet.getRange(2, 1, data.length, 3).setValues(data);
+  Logger.log('✅ Snapshot reset完了: ' + data.length + '行');
+}
+
+// ============================================================
+// addNewColors — 新色4色をSKUsシートに追加（1回だけ手動実行）
+// ============================================================
+
+function addNewColors() {
+  const ss    = SpreadsheetApp.openById(SS_ID);
+  const sheet = ss.getSheetByName('SKUs');
+  const data  = sheet.getDataRange().getValues();
+  const existingCodes = data.map(r => r[1]);
+
+  const newSkus = [
+    ['tubutubu-babyleg', 'TBL-CG', 'チャコールグレー'],
+    ['tubutubu-babyleg', 'TBL-GR', 'グレー'],
+    ['tubutubu-babyleg', 'TBL-DP', 'ダスティピンク'],
+    ['tubutubu-babyleg', 'TBL-OL', 'オリーブ']
+  ];
+
+  let added = 0;
+  newSkus.forEach(row => {
+    if (!existingCodes.includes(row[1])) {
+      sheet.appendRow(row);
+      added++;
+      Logger.log('追加: ' + row[1] + ' ' + row[2]);
+    } else {
+      Logger.log('スキップ（既存）: ' + row[1]);
+    }
+  });
+  Logger.log('✅ 完了: ' + added + '件追加');
 }
