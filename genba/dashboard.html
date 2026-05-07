@@ -130,7 +130,7 @@ html, body {
 /* ── SKUマトリクス ── */
 .matrix-wrap { background: var(--bg-card); border: 1px solid var(--line-color); border-radius: 12px; overflow: hidden; }
 .matrix-scroll { overflow-x: auto; }
-table.matrix { width: 100%; border-collapse: collapse; font-size: 12px; min-width: 620px; }
+table.matrix { width: 100%; border-collapse: collapse; font-size: 12px; min-width: 860px; }
 table.matrix th {
   background: var(--bg); padding: 8px 6px;
   text-align: center; font-size: 10px; color: var(--ink-soft);
@@ -224,6 +224,16 @@ tr[id] { scroll-margin-top: 140px; }
       <div class="race-val" id="valDiff">—</div>
       <div class="race-unit">＋不足 ／ −余裕</div>
     </div>
+    <div class="race-card" id="raceTarget">
+      <div class="race-lbl">目 標 合 計</div>
+      <div class="race-val" id="valTarget">—</div>
+      <div class="race-unit">個</div>
+    </div>
+    <div class="race-card" id="raceTargetDiff">
+      <div class="race-lbl">目 標 差 分</div>
+      <div class="race-val" id="valTargetDiff">—</div>
+      <div class="race-unit">＋不足 ／ −超過</div>
+    </div>
   </div>
 
   <div class="sec">SUPPLY CHAIN</div>
@@ -239,14 +249,17 @@ tr[id] { scroll-margin-top: 140px; }
           <tr>
             <th>SKU</th>
             <th>神木さん</th>
-            <th>エルアイシー</th>
+            <th>エ社<br>(未縫製)</th>
             <th>池本さん</th>
             <th>刑務所</th>
+            <th>エ社<br>(加工前)</th>
             <th>内職</th>
             <th>実在庫</th>
             <th>工程合計<br>(個換算)</th>
             <th>出荷残</th>
             <th>差分</th>
+            <th>目標数</th>
+            <th>目標差分</th>
           </tr>
         </thead>
         <tbody id="matrixBody"></tbody>
@@ -281,11 +294,11 @@ const MOCK = {
     { product: 'tubutubu-babyleg', code: 'TBL-MOM', name: '杢オートミール' }
   ],
   snapshot: {
-    'TBL-KN':  { '神木さん': 3.0, 'エルアイシー': 100, '池本さん': 30, '刑務所': 20, '内職': 10, '実在庫': 5,  backlog: 300, kamikiPcs: 100, processTotal: 265, diff: 35   },
-    'TBL-KNT': { '神木さん': 0,   'エルアイシー': 0,   '池本さん': 0,  '刑務所': 0,  '内職': 0,  '実在庫': 0,  backlog: 50,  kamikiPcs: 0,   processTotal: 0,   diff: 50   },
-    'TBL-SRT': { '神木さん': 4.5, 'エルアイシー': 50,  '池本さん': 0,  '刑務所': 0,  '内職': 0,  '実在庫': 0,  backlog: 80,  kamikiPcs: 150, processTotal: 200, diff: -120 },
-    'TBL-CNP': { '神木さん': 0,   'エルアイシー': 0,   '池本さん': 0,  '刑務所': 0,  '内職': 0,  '実在庫': 0,  backlog: 40,  kamikiPcs: 0,   processTotal: 0,   diff: 40   },
-    'TBL-MOM': { '神木さん': 1.5, 'エルアイシー': 0,   '池本さん': 0,  '刑務所': 0,  '内職': 0,  '実在庫': 0,  backlog: 20,  kamikiPcs: 50,  processTotal: 50,  diff: -30  }
+    'TBL-KN':  { '神木さん': 3.0, 'エルアイシー(未縫製)': 100, '池本さん': 30, '刑務所': 20, 'エルアイシー(加工前)': 0, '内職': 10, '実在庫': 5,  backlog: 300, target: 4800, kamikiPcs: 100, processTotal: 265, diff: 35   },
+    'TBL-KNT': { '神木さん': 0,   'エルアイシー(未縫製)': 0,   '池本さん': 0,  '刑務所': 0,  'エルアイシー(加工前)': 0, '内職': 0,  '実在庫': 0,  backlog: 50,  target: 3200, kamikiPcs: 0,   processTotal: 0,   diff: 50   },
+    'TBL-SRT': { '神木さん': 4.5, 'エルアイシー(未縫製)': 50,  '池本さん': 0,  '刑務所': 0,  'エルアイシー(加工前)': 0, '内職': 0,  '実在庫': 0,  backlog: 80,  target: 1600, kamikiPcs: 150, processTotal: 200, diff: -120 },
+    'TBL-CNP': { '神木さん': 0,   'エルアイシー(未縫製)': 0,   '池本さん': 0,  '刑務所': 0,  'エルアイシー(加工前)': 0, '内職': 0,  '実在庫': 0,  backlog: 40,  target: 1600, kamikiPcs: 0,   processTotal: 0,   diff: 40   },
+    'TBL-MOM': { '神木さん': 1.5, 'エルアイシー(未縫製)': 0,   '池本さん': 0,  '刑務所': 0,  'エルアイシー(加工前)': 0, '内職': 0,  '実在庫': 0,  backlog: 20,  target: 1600, kamikiPcs: 50,  processTotal: 50,  diff: -30  }
   }
 };
 
@@ -298,11 +311,12 @@ function getProcessTotal(snap) {
   if (snap.processTotal != null) return snap.processTotal;
   const kPcs = Math.round((snap['神木さん'] || 0) / KG_PER_PCS);
   return kPcs
-    + (snap['エルアイシー'] || 0)
-    + (snap['池本さん']     || 0)
-    + (snap['刑務所']       || 0)
-    + (snap['内職']         || 0)
-    + (snap['実在庫']       || 0);
+    + (snap['エルアイシー(未縫製)'] || 0)
+    + (snap['池本さん']             || 0)
+    + (snap['刑務所']               || 0)
+    + (snap['エルアイシー(加工前)'] || 0)
+    + (snap['内職']                 || 0)
+    + (snap['実在庫']               || 0);
 }
 
 function getDiff(snap) {
@@ -378,23 +392,28 @@ function jumpTo(id) {
 
 // ── PIPELINE RACE（出荷残 / 工程合計 / 差分） ─────────────────
 function renderRace(skus) {
-  let totalBacklog = 0, totalPipeline = 0;
+  let totalBacklog = 0, totalPipeline = 0, totalTarget = 0;
   skus.forEach(s => {
     const snap    = data.snapshot[s.code] || {};
     totalBacklog  += (snap.backlog || 0);
     totalPipeline += getProcessTotal(snap);
+    totalTarget   += (snap.target || 0);
   });
-  const diff = totalBacklog - totalPipeline; // 出荷残 - 工程合計（プラス = 不足）
-  document.getElementById('valBacklog').textContent  = totalBacklog.toLocaleString();
-  document.getElementById('valPipeline').textContent = totalPipeline.toLocaleString();
-  document.getElementById('valDiff').textContent     = (diff > 0 ? '+' : '') + diff.toLocaleString();
-  document.getElementById('raceDiff').className      = 'race-card ' + (diff > 0 ? 'ng' : 'ok');
+  const diff       = totalBacklog - totalPipeline;
+  const targetDiff = totalTarget - totalPipeline;
+  document.getElementById('valBacklog').textContent    = totalBacklog.toLocaleString();
+  document.getElementById('valPipeline').textContent   = totalPipeline.toLocaleString();
+  document.getElementById('valDiff').textContent       = (diff > 0 ? '+' : '') + diff.toLocaleString();
+  document.getElementById('raceDiff').className        = 'race-card ' + (diff > 0 ? 'ng' : 'ok');
+  document.getElementById('valTarget').textContent     = totalTarget > 0 ? totalTarget.toLocaleString() : '未設定';
+  document.getElementById('valTargetDiff').textContent = totalTarget > 0 ? (targetDiff > 0 ? '+' : '') + targetDiff.toLocaleString() : '—';
+  document.getElementById('raceTargetDiff').className  = 'race-card ' + (totalTarget > 0 ? (targetDiff > 0 ? 'ng' : 'ok') : '');
 }
 
 // ── SUPPLY CHAIN（拠点別合計フロー） ───────────────────────
 function renderChain(skus) {
   let totalKg = 0;
-  const totals = { 'エルアイシー': 0, '池本さん': 0, '刑務所': 0, '内職': 0, '実在庫': 0 };
+  const totals = { 'エルアイシー(未縫製)': 0, '池本さん': 0, '刑務所': 0, 'エルアイシー(加工前)': 0, '内職': 0, '実在庫': 0 };
   skus.forEach(s => {
     const snap = data.snapshot[s.code] || {};
     totalKg += (snap['神木さん'] || 0);
@@ -412,15 +431,17 @@ function renderChain(skus) {
   const ar = '<div class="chain-ar">→</div>';
 
   document.getElementById('chain').innerHTML =
-    node('神木さん',    totalKg.toFixed(1) + 'kg', totalKg > 0, '≈' + totalKo.toLocaleString() + '個')
+    node('神木さん',      totalKg.toFixed(1) + 'kg',             totalKg > 0,                        '≈' + totalKo.toLocaleString() + '個')
     + ar
-    + node('エルアイシー', totals['エルアイシー'], totals['エルアイシー'] > 0, '個')
+    + node('エ社(未縫製)', totals['エルアイシー(未縫製)'],        totals['エルアイシー(未縫製)'] > 0, '個')
     + ar
-    + node('加工',      kachi,                    kachi > 0,                 '池本+刑務所')
+    + node('加工',         kachi,                                 kachi > 0,                          '池本+刑務所')
     + ar
-    + node('内職',      totals['内職'],            totals['内職'] > 0,        '個')
+    + node('エ社(加工前)', totals['エルアイシー(加工前)'],        totals['エルアイシー(加工前)'] > 0, '個')
     + ar
-    + node('実在庫',    totals['実在庫'],           totals['実在庫'] > 0,      '個');
+    + node('内職',         totals['内職'],                        totals['内職'] > 0,                 '個')
+    + ar
+    + node('実在庫',       totals['実在庫'],                      totals['実在庫'] > 0,               '個');
 }
 
 // ── SKU MATRIX ────────────────────────────────────────────
@@ -435,17 +456,24 @@ function renderMatrix(skus) {
     const sign   = diff > 0 ? '+' : '';
     const diffCls = diff > 0 ? 'diff-ng' : diff < 0 ? 'diff-ok' : 'diff-zero';
 
+    const target     = snap.target || 0;
+    const targetDiff = target > 0 ? target - pt : null;
+    const tDiffCls   = targetDiff == null ? 'diff-zero' : targetDiff > 0 ? 'diff-ng' : targetDiff < 0 ? 'diff-ok' : 'diff-zero';
+
     return `<tr id="sku-${s.code}" class="${diff > 0 ? 'ng-row' : ''}">
       <td>${s.code}<span class="sku-name">${s.name}</span></td>
       <td>${kg.toFixed(1)}kg<span class="sub-kg">≈${kPcs}個</span></td>
-      <td>${snap['エルアイシー'] || 0}</td>
-      <td>${snap['池本さん']     || 0}</td>
-      <td>${snap['刑務所']       || 0}</td>
-      <td>${snap['内職']         || 0}</td>
-      <td>${snap['実在庫']       || 0}</td>
+      <td>${snap['エルアイシー(未縫製)'] || 0}</td>
+      <td>${snap['池本さん']             || 0}</td>
+      <td>${snap['刑務所']               || 0}</td>
+      <td>${snap['エルアイシー(加工前)'] || 0}</td>
+      <td>${snap['内職']                 || 0}</td>
+      <td>${snap['実在庫']               || 0}</td>
       <td class="col-total">${pt}</td>
       <td>${bl}</td>
       <td class="${diffCls}">${sign}${diff}</td>
+      <td>${target > 0 ? target.toLocaleString() : '—'}</td>
+      <td class="${tDiffCls}">${targetDiff != null ? (targetDiff > 0 ? '+' : '') + targetDiff : '—'}</td>
     </tr>`;
   }).join('');
 }

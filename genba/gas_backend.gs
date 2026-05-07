@@ -120,7 +120,7 @@ function buildSnapshot(ss) {
 
   // 工程合計・差分計算
   // 神木さんはkg→個換算して工程合計に含める（他はすべて個単位）
-  const processStages = ['エルアイシー', '池本さん', '刑務所', '内職', '実在庫'];
+  const processStages = ['エルアイシー(未縫製)', '池本さん', '刑務所', 'エルアイシー(加工前)', '内職', '実在庫'];
   Object.keys(snapshot).forEach(sku => {
     const s          = snapshot[sku];
     const kamikiKg   = s['神木さん'] || 0;
@@ -293,6 +293,28 @@ function addToSnapshot(sheet, skuCode, stage, delta) {
 // ============================================================
 // setupSheets — 初回セットアップ（手動で一度だけ実行）
 // ============================================================
+
+// updateStages — Stagesシートを新工程名に更新（手動で1回だけ実行）
+function updateStages() {
+  const ss = SpreadsheetApp.openById(SS_ID);
+  const sheet = ss.getSheetByName('Stages');
+  if (!sheet) { Logger.log('Stagesシートが見つかりません'); return; }
+  sheet.clearContents();
+  const headers = ['code', 'name', 'order', 'unit', 'extInput', 'next'];
+  const rows = [
+    ['S01', '神木さん',             1, 'kg', true,  'エルアイシー(未縫製)'],
+    ['S02', 'エルアイシー(未縫製)', 2, '個', false, '池本さん,刑務所,出荷'],
+    ['S03', '池本さん',             3, '個', false, 'エルアイシー(加工前),出荷'],
+    ['S04', '刑務所',               3, '個', false, 'エルアイシー(加工前),出荷'],
+    ['S05', 'エルアイシー(加工前)', 4, '個', false, '内職,出荷'],
+    ['S06', '内職',                 5, '個', false, '実在庫,出荷'],
+    ['S07', '実在庫',               6, '個', false, '出荷']
+  ];
+  sheet.appendRow(headers);
+  rows.forEach(r => sheet.appendRow(r));
+  sheet.getRange(1, 1, 1, headers.length).setFontWeight('bold').setBackground('#f3f0e8');
+  Logger.log('✅ Stages更新完了');
+}
 
 function setupSheets() {
   const ss = SpreadsheetApp.openById(SS_ID);

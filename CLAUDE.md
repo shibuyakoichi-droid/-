@@ -1,6 +1,8 @@
 # プロジェクト概要
 
-株式会社エル・アイ・シー / mofmofu の社内業務ツール群。
+**SOWAN**（ブランド名）の社内業務ツール群。株式会社エル・アイ・シー運営。
+「mofmofu」はSOWANの商品名であり、ブランド名ではない。
+
 すべてシングルHTML形式で、`top.html` がポータルとして各ツールをまとめている。
 
 ---
@@ -108,9 +110,9 @@ create policy "anon_all" on orders for all to anon using (true) with check (true
 
 ---
 
-## 納品書管理システム（未作成・予定）
+## 納品書管理システム（運用中）
 
-将来作成予定。以下のテーブル追加を想定：
+取引先から入ってきた納品内容を記録・蓄積していくシステム。以下のテーブル追加を想定：
 
 ```sql
 -- 予定スキーマ（作成時に確定すること）
@@ -132,16 +134,57 @@ create table deliveries (
 
 ## ファイル構成
 
+### ポータル
 | ファイル | 役割 |
 |---|---|
 | `top.html` | ポータル（各ツールへのリンク集） |
-| `order_management.html` | 発注管理システム（Supabase連携済） |
-| `production_sort.html` | 生産管理ソートツール（ローカル動作） |
-| `flow.html` | フロー図系ツール |
-| `item.html` | アイテム管理 |
-| `summary.html` | サマリ表示 |
+
+### 発注・生産管理（Supabase連携）
+| ファイル | 役割 |
+|---|---|
+| `order_management.html` | 発注管理システム。工場マスタ・発注書作成・集計・履歴の4タブ構成。生地管理も対応 |
+| `production_forecast.html` | 生産予測ツール。クロスモール販売実績＋在庫数＋セット組CSVを掛け合わせて生産必要数を予測。要改良 |
+
+### 分析ツール（楽天RMS系・詳細は後日確認）
+| ファイル | 役割 |
+|---|---|
+| `flow.html` | 楽天RMS分析系ツール（詳細後日確認） |
+| `item.html` | 楽天RMS分析系ツール（詳細後日確認） |
+| `summary.html` | 楽天RMS分析系ツール（詳細後日確認） |
+
+### その他ツール
+| ファイル | 役割 |
+|---|---|
 | `tiktok_daily_report.html` | TikTok日次レポート |
-| `sort_by_sales.py` | 売上順ソートスクリプト |
+| `mail_reply_tool.html` | SOWAN問い合わせ回答ツール（楽天CSVをアップロードして回答文作成） |
+| `sort_by_sales.py` | 売上順ソートスクリプト（Python） |
+
+### 工程管理LIFFアプリ（LINE内で動作）
+| ファイル | 役割 |
+|---|---|
+| `genba/index.html` | 工程進捗入力フォーム。LIFF ID: `2009935318-eq7U4Fuc`。外部入荷・工程移動・出荷残更新の3モード |
+| `genba/dashboard.html` | 工程ダッシュボード（各SKUの在庫・進捗一覧） |
+| `genba/gas_backend.gs` | GASバックエンド。Googleスプレッドシート（SS_ID: `1l9QyWxdYcyTTqR7ZMBs-VQS0rj8c2qUp9q399jmy-30`）と連携 |
+
+#### LIFFアプリのSKU一覧（tubutubu-babyleg / つぶつぶベビーレッグ）
+| コード | カラー名 |
+|--------|---------|
+| TBL-KN | キナリ |
+| TBL-KNT | キナリツブ |
+| TBL-SRT | シロツブ |
+| TBL-CNP | カラーネップ |
+| TBL-MOM | 杢オートミール |
+| TBL-CG | チャコールグレー |
+| TBL-GR | グレー |
+| TBL-DP | ダスティピンク |
+| TBL-OL | オリーブ |
+
+#### 工程フロー
+神木さん（糸・kg） → エルアイシー → 池本さん / 刑務所 → 内職 → 実在庫 → 出荷
+
+#### GAS更新手順
+1. ローカルの `genba/gas_backend.gs` を編集
+2. [script.google.com](https://script.google.com) でスクリプトに貼り付け・保存・デプロイ
 
 ---
 
@@ -151,3 +194,4 @@ create table deliveries (
 - UIデザインは既存ファイルのスタイル（`#f5f4f0` ベース、`border-radius:12px` カード）に合わせる
 - 新しいSupabase連携ファイルを作る場合は上記の接続情報・RLSポリシーパターンをそのまま使う
 - 非同期処理は `async/await` で統一
+- ブランド名は「SOWAN」に統一する（「mofmofu」は商品名なので混同しない）

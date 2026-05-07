@@ -355,12 +355,13 @@ const DEFAULT_DATA = {
     { product: 'tubutubu-babyleg', code: 'TBL-OL',  name: 'オリーブ' }
   ],
   stages: [
-    { code: 'S01', name: '神木さん',     order: 1, unit: 'kg', extInput: true,  next: ['エルアイシー'] },
-    { code: 'S02', name: 'エルアイシー', order: 2, unit: '個', extInput: false, next: ['池本さん','刑務所','出荷'] },
-    { code: 'S03', name: '池本さん',     order: 3, unit: '個', extInput: false, next: ['内職','出荷'] },
-    { code: 'S04', name: '刑務所',       order: 3, unit: '個', extInput: false, next: ['内職','出荷'] },
-    { code: 'S05', name: '内職',         order: 4, unit: '個', extInput: false, next: ['実在庫','出荷'] },
-    { code: 'S06', name: '実在庫',       order: 5, unit: '個', extInput: false, next: ['出荷'] }
+    { code: 'S01', name: '神木さん',             order: 1, unit: 'kg', extInput: true,  next: ['エルアイシー(未縫製)'] },
+    { code: 'S02', name: 'エルアイシー(未縫製)', order: 2, unit: '個', extInput: false, next: ['池本さん','刑務所','出荷'] },
+    { code: 'S03', name: '池本さん',             order: 3, unit: '個', extInput: false, next: ['エルアイシー(加工前)','出荷'] },
+    { code: 'S04', name: '刑務所',               order: 3, unit: '個', extInput: false, next: ['エルアイシー(加工前)','出荷'] },
+    { code: 'S05', name: 'エルアイシー(加工前)', order: 4, unit: '個', extInput: false, next: ['内職','出荷'] },
+    { code: 'S06', name: '内職',                 order: 5, unit: '個', extInput: false, next: ['実在庫','出荷'] },
+    { code: 'S07', name: '実在庫',               order: 6, unit: '個', extInput: false, next: ['出荷'] }
   ],
   snapshot: {}
 };
@@ -448,7 +449,8 @@ function updateContext() {
     const kPcs = snap.kamikiPcs != null ? snap.kamikiPcs : Math.round(snap['神木さん'] / KG_PER_PCS);
     parts.push(`神木:${snap['神木さん']}kg(≈${kPcs}個)`);
   }
-  if (snap['エルアイシー']) parts.push(`エ社:${snap['エルアイシー']}`);
+  if (snap['エルアイシー(未縫製)']) parts.push(`エ社(未):${snap['エルアイシー(未縫製)']}`);
+  if (snap['エルアイシー(加工前)']) parts.push(`エ社(加):${snap['エルアイシー(加工前)']}`);
   if (snap['池本さん'])     parts.push(`池本:${snap['池本さん']}`);
   if (snap['刑務所'])       parts.push(`刑務:${snap['刑務所']}`);
   if (snap['内職'])         parts.push(`内職:${snap['内職']}`);
@@ -481,8 +483,8 @@ function updateContext() {
 }
 
 function renderStagePills() {
-  const sourceNames = ['神木さん','エルアイシー','池本さん','刑務所','内職','実在庫'];
-  const destNames   = ['エルアイシー','池本さん','刑務所','内職','実在庫','出荷'];
+  const sourceNames = ['神木さん','エルアイシー(未縫製)','池本さん','刑務所','エルアイシー(加工前)','内職','実在庫'];
+  const destNames   = ['エルアイシー(未縫製)','池本さん','刑務所','エルアイシー(加工前)','内職','実在庫','出荷'];
 
   document.getElementById('sourcePills').innerHTML =
     sourceNames.map(n => `<div class="pill" data-stage="${n}">${n}</div>`).join('');
