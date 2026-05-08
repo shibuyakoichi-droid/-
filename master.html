@@ -173,9 +173,14 @@ tbody tr:hover td{background:#faf9f7}
     <div class="add-form">
       <div class="add-form-title">＋ 生地品番を追加</div>
       <div class="form-row">
-        <div class="form-group"><label>生地品番（生地に書いてある番号）</label><input type="text" id="new-fab-code" placeholder="例：P66"></div>
+        <div class="form-group"><label>生地品番 *</label><input type="text" id="new-fab-code" placeholder="例：P66"></div>
         <div class="form-group" style="flex:2"><label>品名</label><input type="text" id="new-fab-name" placeholder="例：つぶつぶ天竺"></div>
         <div class="form-group"><label>素材</label><input type="text" id="new-fab-material" placeholder="例：綿100%"></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label>幅 (cm)</label><input type="number" id="new-fab-width" placeholder="例：36"></div>
+        <div class="form-group"><label>長さ (m/反)</label><input type="number" id="new-fab-length" placeholder="例：50"></div>
+        <div class="form-group"><label>重量 (kg/反)</label><input type="number" id="new-fab-weight" placeholder="例：2.5" step="0.01"></div>
         <button class="btn primary" onclick="addFabric()">追加</button>
       </div>
     </div>
@@ -402,8 +407,20 @@ function renderFabrics(list){
   const el=document.getElementById('fab-table');
   document.getElementById('fab-count').textContent=list.length+'件（全'+allFabrics.length+'件）';
   if(!list.length){el.innerHTML='<div class="empty">該当する生地がありません</div>';return;}
-  let h=`<table><thead><tr><th>生地品番</th><th>品名</th><th>素材</th><th>メモ</th><th style="width:90px"></th></tr></thead><tbody>`;
-  list.forEach(f=>{h+=`<tr><td style="font-family:monospace;font-weight:600">${f.fabric_code}</td><td>${f.fabric_name||'<span style="color:#bbb">未設定</span>'}</td><td>${f.material||'<span style="color:#bbb">—</span>'}</td><td>${f.note||''}</td><td><button class="btn ghost sm">編集</button><button class="btn ghost sm danger">削除</button></td></tr>`;});
+  let h=`<table><thead><tr><th>生地品番</th><th>品名</th><th>素材</th><th class="r">幅(cm)</th><th class="r">長さ(m)</th><th class="r">重量(kg)</th><th>メモ</th><th style="width:60px"></th></tr></thead><tbody>`;
+  list.forEach(f=>{
+    const fc=f.fabric_code.replace(/'/g,"\\'");
+    h+=`<tr>
+      <td style="font-family:monospace;font-weight:600">${f.fabric_code}</td>
+      <td><input type="text" value="${(f.fabric_name||'').replace(/"/g,'&quot;')}" style="width:120px;padding:3px 6px;font-size:12px;border:1px solid #e8e6e0;border-radius:5px" onchange="updateFabric('${fc}','fabric_name',this.value)"></td>
+      <td><input type="text" value="${(f.material||'').replace(/"/g,'&quot;')}" style="width:100px;padding:3px 6px;font-size:12px;border:1px solid #e8e6e0;border-radius:5px" placeholder="例：綿100%" onchange="updateFabric('${fc}','material',this.value)"></td>
+      <td class="r"><input type="number" value="${f.width_cm||''}" style="width:70px;padding:3px 6px;font-size:12px;border:1px solid #e8e6e0;border-radius:5px;text-align:right" placeholder="—" onchange="updateFabric('${fc}','width_cm',this.value?parseFloat(this.value):null)"></td>
+      <td class="r"><input type="number" value="${f.length_m||''}" style="width:70px;padding:3px 6px;font-size:12px;border:1px solid #e8e6e0;border-radius:5px;text-align:right" placeholder="—" onchange="updateFabric('${fc}','length_m',this.value?parseFloat(this.value):null)"></td>
+      <td class="r"><input type="number" value="${f.weight_kg||''}" step="0.01" style="width:70px;padding:3px 6px;font-size:12px;border:1px solid #e8e6e0;border-radius:5px;text-align:right" placeholder="—" onchange="updateFabric('${fc}','weight_kg',this.value?parseFloat(this.value):null)"></td>
+      <td>${f.note||''}</td>
+      <td><button class="btn ghost sm danger" onclick="deleteFabric('${fc}')">削除</button></td>
+    </tr>`;
+  });
   el.innerHTML=h+'</tbody></table>';
 }
 function filterFabrics(){
@@ -413,12 +430,37 @@ function filterFabrics(){
 async function addFabric(){
   const code=document.getElementById('new-fab-code').value.trim();
   if(!code)return alert('生地品番を入力してください');
-  const name=document.getElementById('new-fab-name').value.trim(),mat=document.getElementById('new-fab-material').value.trim();
-  const {error}=await _sb.from('master_fabrics').insert({fabric_code:code,fabric_name:name||null,material:mat||null});
+  const name=document.getElementById('new-fab-name').value.trim();
+  const mat=document.getElementById('new-fab-material').value.trim();
+  const width=document.getElementById('new-fab-width').value;
+  const length=document.getElementById('new-fab-length').value;
+  const weight=document.getElementById('new-fab-weight').value;
+  const {error}=await _sb.from('master_fabrics').insert({
+    fabric_code:code,
+    fabric_name:name||null,
+    material:mat||null,
+    width_cm:width?parseFloat(width):null,
+    length_m:length?parseFloat(length):null,
+    weight_kg:weight?parseFloat(weight):null,
+  });
   if(error){alert('追加エラー: '+error.message);return;}
-  document.getElementById('new-fab-code').value=''; document.getElementById('new-fab-name').value=''; document.getElementById('new-fab-material').value='';
+  ['new-fab-code','new-fab-name','new-fab-material','new-fab-width','new-fab-length','new-fab-weight'].forEach(id=>document.getElementById(id).value='');
   const {data}=await _sb.from('master_fabrics').select('*').order('fabric_code');
   fabrics=data||[]; allFabrics=[...fabrics]; renderFabrics(fabrics); renderPriceMatrices();
+}
+
+async function updateFabric(code,field,value){
+  const {error}=await _sb.from('master_fabrics').update({[field]:value}).eq('fabric_code',code);
+  if(error)alert('更新エラー: '+error.message);
+  else{const {data}=await _sb.from('master_fabrics').select('*').order('fabric_code');fabrics=data||[];allFabrics=[...fabrics];}
+}
+
+async function deleteFabric(code){
+  if(!confirm(`「${code}」を削除しますか？`))return;
+  const {error}=await _sb.from('master_fabrics').delete().eq('fabric_code',code);
+  if(error){alert('削除エラー: '+error.message);return;}
+  const {data}=await _sb.from('master_fabrics').select('*').order('fabric_code');
+  fabrics=data||[];allFabrics=[...fabrics];renderFabrics(fabrics);renderPriceMatrices();
 }
 
 /* 生地カラー */
