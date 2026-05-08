@@ -124,7 +124,7 @@ async function init(){
   // 並行フェッチ
   const [salesRes, itemsRes, fabricRes, colorRes, baseRes, detailRes] = await Promise.all([
     sb.from('monthly_sales').select('code,sales_qty').gte('year_month', getYm6()),
-    sb.from('items').select('item_code,item_name'),
+    sb.from('master_products').select('product_code,product_name').order('product_code'),
     sb.from('master_fabrics').select('fabric_code,fabric_name,width_cm,weight_g_m2,unit_price_per_kg').order('fabric_code'),
     sb.from('cost_color_list').select('*').order('color_name'),
     sb.from('product_cost_base').select('*'),
@@ -138,11 +138,11 @@ async function init(){
   });
 
   // 商品リスト（販売数降順）
-  const items=itemsRes.data||[];
-  allProds=items.map(it=>({
-    code:it.item_code,
-    name:it.item_name||it.item_code,
-    sales:salesMap[it.item_code]||0,
+  const prods=itemsRes.data||[];
+  allProds=prods.map(p=>({
+    code:p.product_code,
+    name:p.product_name||p.product_code,
+    sales:salesMap[p.product_code]||0,
   })).sort((a,b)=>b.sales-a.sales);
 
   allFabrics=fabricRes.data||[];
