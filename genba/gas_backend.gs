@@ -157,6 +157,8 @@ function recordEntry(payload) {
       setBacklog(ss, payload.skuCode, Number(payload.qty));
     } else if (payload.mode === '生産目標更新') {
       setTarget(ss, payload.skuCode, Number(payload.qty));
+    } else if (payload.mode === '在庫修正') {
+      setStageValue(ss, payload.skuCode, payload.dest, Number(payload.qty));
     } else {
       updateSnapshot(ss, payload);
     }
@@ -258,6 +260,19 @@ function setTarget(ss, skuCode, qty) {
     }
   }
   sheet.appendRow([skuCode, 'target', qty]);
+}
+
+// 在庫修正: Snapshotの任意の工程行を直接上書き
+function setStageValue(ss, skuCode, stage, qty) {
+  const sheet = ss.getSheetByName('Snapshot');
+  const data  = sheet.getDataRange().getValues();
+  for (let i = 1; i < data.length; i++) {
+    if (data[i][0] === skuCode && data[i][1] === stage) {
+      sheet.getRange(i + 1, 3).setValue(qty);
+      return;
+    }
+  }
+  sheet.appendRow([skuCode, stage, qty]);
 }
 
 // 出荷残更新: Snapshotの 'backlog' 行を上書き

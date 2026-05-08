@@ -61,7 +61,7 @@
 
   /* Mode tabs — 3 modes */
   .mode-tabs {
-    display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px;
+    display: grid; grid-template-columns: repeat(5, 1fr); gap: 4px;
     background: #ebe5da; padding: 4px; border-radius: 10px; margin-bottom: 20px;
   }
   .mtab {
@@ -209,6 +209,12 @@
   /* 生産目標更新: 移動元・移動先を非表示 */
   .mode-生産目標更新 .field-source { display: none; }
   .mode-生産目標更新 .field-dest   { display: none; }
+  /* 在庫修正: 移動元・移動先を非表示 */
+  .mode-修正 .field-source { display: none; }
+  .mode-修正 .field-dest   { display: none; }
+  /* 修正工程選択フィールド（修正モードのみ） */
+  .field-fix-stage { display: none; }
+  .mode-修正 .field-fix-stage { display: block; }
 
   /* 外部入荷の入荷先固定表示（外部入荷モードのみ表示） */
   .field-dest-fixed { display: none; }
@@ -238,16 +244,19 @@
     <!-- Mode selector -->
     <div class="mode-tabs">
       <button class="mtab" data-mode="外部入荷" onclick="switchMode('外部入荷')">
-        <span class="icon">🆕</span>外部入荷
+        <span class="icon">🆕</span>入荷
       </button>
       <button class="mtab active" data-mode="工程移動" onclick="switchMode('工程移動')">
-        <span class="icon">🔄</span>工程移動
+        <span class="icon">🔄</span>移動
       </button>
       <button class="mtab" data-mode="出荷残更新" onclick="switchMode('出荷残更新')">
-        <span class="icon">📋</span>出荷残更新
+        <span class="icon">📋</span>出荷残
       </button>
       <button class="mtab" data-mode="生産目標更新" onclick="switchMode('生産目標更新')">
-        <span class="icon">🎯</span>生産目標更新
+        <span class="icon">🎯</span>目標
+      </button>
+      <button class="mtab" data-mode="修正" onclick="switchMode('修正')">
+        <span class="icon">🔧</span>修正
       </button>
     </div>
 
@@ -284,6 +293,16 @@
       <div class="field-label">移動先 <span class="req">必須</span></div>
       <div class="stage-pills" id="destPills"></div>
       <div class="field-hint">※ 途中工程をスキップしてもOK</div>
+    </div>
+
+    <!-- 修正対象工程（在庫修正モードのみ表示） -->
+    <div class="field field-fix-stage">
+      <div class="field-label">修正する工程 <span class="req">必須</span></div>
+      <div class="stage-pills" id="fixStagePills"></div>
+      <div class="context-box" id="currentValBox" style="display:none; margin-top:10px;">
+        <div class="ctx-title">▼ 現在の登録値</div>
+        <div id="currentValContent"></div>
+      </div>
     </div>
 
     <!-- 入荷先（外部入荷モードのみ・神木さん固定） -->
@@ -366,13 +385,14 @@ const DEFAULT_DATA = {
   snapshot: {}
 };
 
-let masterData     = JSON.parse(JSON.stringify(DEFAULT_DATA));
-let currentMode    = '工程移動';
-let selectedSource = null;
-let selectedDest   = null;
-let userName       = '未認証';
-let userId         = null;
-let lastSubmission = null;
+let masterData       = JSON.parse(JSON.stringify(DEFAULT_DATA));
+let currentMode      = '工程移動';
+let selectedSource   = null;
+let selectedDest     = null;
+let selectedFixStage = null;
+let userName         = '未認証';
+let userId           = null;
+let lastSubmission   = null;
 
 // ============================================================
 // LIFF init
@@ -423,6 +443,7 @@ function initUI() {
     .map(p => `<option value="${p.code}">${p.code} ${p.name}</option>`).join('');
   onProductChange();
   renderStagePills();
+  renderFixStagePills();
   switchMode('工程移動');
 }
 
@@ -514,6 +535,34 @@ function renderStagePills() {
   });
 }
 
+function renderFixStagePills() {
+  const fixStages = ['神木さん','エルアイシー(未縫製)','池本さん','刑務所','エルアイシー(加工前)','内職','実在庫'];
+  document.getElementById('fixStagePills').innerHTML =
+    fixStages.map(n => `<div class="pill" data-stage="${n}">${n}</div>`).join('');
+  document.querySelectorAll('#fixStagePills .pill').forEach(pill => {
+    pill.onclick = () => {
+      document.querySelectorAll('#fixStagePills .pill').forEach(p => p.classList.remove('selected'));
+      pill.classList.add('selected');
+      selectedFixStage = pill.dataset.stage;
+      updateCurrentVal();
+      updateUnitDisplay();
+      updateFlow();
+    };
+  });
+}
+
+function updateCurrentVal() {
+  const box = document.getElementById('currentValBox');
+  const content = document.getElementById('currentValContent');
+  if (!selectedFixStage) { box.style.display = 'none'; return; }
+  const skuCode = document.getElementById('skuSelect').value;
+  const snap    = masterData.snapshot[skuCode] || {};
+  const cur     = snap[selectedFixStage] != null ? snap[selectedFixStage] : 0;
+  const unit    = selectedFixStage === '神木さん' ? 'kg' : '個';
+  content.innerHTML = `<b>${selectedFixStage}</b>：現在 <b>${cur}${unit}</b>`;
+  box.style.display = '';
+}
+
 function filterDestPills() {
   document.querySelectorAll('#destPills .pill').forEach(pill => {
     const isSame = pill.dataset.stage === selectedSource;
@@ -527,9 +576,11 @@ function filterDestPills() {
 
 function updateUnitDisplay() {
   const ud = document.getElementById('unitDisplay');
-  // 外部入荷: 神木さんへの糸入荷なので常にkg
   if (currentMode === '外部入荷') { ud.textContent = 'kg'; return; }
-  // 工程移動・出荷残更新: 個数入力（神木さん移動元もスタッフは個数入力）
+  if (currentMode === '修正') {
+    ud.textContent = selectedFixStage === '神木さん' ? 'kg' : '個';
+    return;
+  }
   ud.textContent = '個';
 }
 
@@ -547,20 +598,25 @@ function switchMode(mode) {
   document.querySelector('.field-source').style.display = showSource ? '' : 'none';
   document.querySelector('.field-dest').style.display   = showDest   ? '' : 'none';
 
-  // 数量ラベルを切り替え
   document.getElementById('qtyLabel').innerHTML = mode === '出荷残更新'
     ? '現在の出荷残（個） <span class="req">必須</span>'
     : mode === '生産目標更新'
       ? '生産目標数（個） <span class="req">必須</span>'
-      : '数量 <span class="req">必須</span>';
+      : mode === '修正'
+        ? '修正後の数値 <span class="req">必須</span>'
+        : '数量 <span class="req">必須</span>';
 
-  selectedSource = null;
-  selectedDest   = null;
+  selectedSource   = null;
+  selectedDest     = null;
+  selectedFixStage = null;
   document.querySelectorAll('#sourcePills .pill, #destPills .pill')
     .forEach(p => p.classList.remove('selected', 'disabled'));
+  document.querySelectorAll('#fixStagePills .pill')
+    .forEach(p => p.classList.remove('selected'));
+  document.getElementById('currentValBox').style.display = 'none';
 
   if (mode === '外部入荷') {
-    selectedDest = '神木さん'; // 入荷先は神木さん固定
+    selectedDest = '神木さん';
   }
 
   updateUnitDisplay();
@@ -583,6 +639,10 @@ function updateFlow() {
   } else if (currentMode === '生産目標更新') {
     text    = `生産目標を ${qty} 個 にセット`;
     subtext = '';
+  } else if (currentMode === '修正') {
+    const unit2 = document.getElementById('unitDisplay').textContent;
+    text    = selectedFixStage ? `${selectedFixStage} の在庫を修正` : '工程を選択';
+    subtext = qty !== '―' ? `→ ${qty} ${unit2}` : '';
   }
 
   document.getElementById('flowText').innerHTML = currentMode === '出荷残更新'
@@ -608,18 +668,20 @@ async function submitForm() {
     return showToast('移動元・移動先を選択してください', true);
   if (currentMode === '外部入荷' && !selectedDest)
     return showToast('入荷先を選択してください', true);
+  if (currentMode === '修正' && !selectedFixStage)
+    return showToast('修正する工程を選択してください', true);
 
   const payload = {
     action:    'recordEntry',
     timestamp: new Date().toISOString(),
     user:      userName,
     userId:    userId,
-    mode:      currentMode,
+    mode:      currentMode === '修正' ? '在庫修正' : currentMode,
     product:   product,
     skuCode:   skuCode,
     skuName:   sku.name,
-    source:    (currentMode === '外部入荷' || currentMode === '出荷残更新' || currentMode === '生産目標更新') ? '—' : selectedSource,
-    dest:      (currentMode === '出荷残更新' || currentMode === '生産目標更新') ? '—' : selectedDest,
+    source:    (currentMode === '外部入荷' || currentMode === '出荷残更新' || currentMode === '生産目標更新' || currentMode === '修正') ? '—' : selectedSource,
+    dest:      (currentMode === '出荷残更新' || currentMode === '生産目標更新') ? '—' : currentMode === '修正' ? selectedFixStage : selectedDest,
     qty:       qty,
     unit:      unit,
     memo:      memo
