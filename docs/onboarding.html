@@ -1,0 +1,553 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SOWAN 生産管理 スタートガイド</title>
+<style>
+:root{
+  --bg:#faf8f4;--card:#ffffff;--ink:#1a1a1a;--soft:#6b6357;
+  --line:#e8e2d8;--red:#a64635;--red-bg:#fdf3ee;--red-light:#f9e8e3;
+  --green:#4a7c3f;--green-bg:#f0f7ed;--blue:#2c5f8a;--blue-bg:#eef4fb;
+  --yellow:#b8842a;--yellow-bg:#fdf6e8;--purple:#6b4c9a;--purple-bg:#f5f0fb;
+  --gray:#f5f3ef;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{font-family:"Noto Sans JP","Hiragino Sans","Yu Gothic UI",sans-serif;background:var(--bg);color:var(--ink);font-size:15px;line-height:1.7}
+
+/* ===== HEADER ===== */
+.hero{background:linear-gradient(135deg,var(--red) 0%,#7a2d1f 100%);color:#fff;padding:60px 24px 48px;text-align:center}
+.hero-logo{font-size:11px;letter-spacing:.3em;opacity:.8;margin-bottom:12px;font-weight:700}
+.hero-title{font-size:32px;font-weight:900;line-height:1.2;margin-bottom:12px}
+.hero-sub{font-size:15px;opacity:.85;max-width:500px;margin:0 auto}
+
+/* ===== NAV ===== */
+.nav-bar{background:var(--card);border-bottom:2px solid var(--red);position:sticky;top:0;z-index:100;padding:0 24px}
+.nav-inner{max-width:900px;margin:0 auto;display:flex;gap:0;overflow-x:auto}
+.nav-link{padding:14px 16px;font-size:12px;font-weight:700;color:var(--soft);text-decoration:none;white-space:nowrap;border-bottom:3px solid transparent;transition:all .2s}
+.nav-link:hover,.nav-link.active{color:var(--red);border-bottom-color:var(--red)}
+
+/* ===== LAYOUT ===== */
+.container{max-width:900px;margin:0 auto;padding:40px 24px}
+.section{margin-bottom:56px}
+.section-badge{display:inline-flex;align-items:center;gap:8px;background:var(--red);color:#fff;font-size:11px;font-weight:700;letter-spacing:.1em;padding:4px 14px;border-radius:20px;margin-bottom:12px}
+.section-title{font-size:24px;font-weight:900;margin-bottom:6px}
+.section-lead{color:var(--soft);font-size:14px;margin-bottom:28px;line-height:1.6}
+
+/* ===== CARDS ===== */
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:24px;margin-bottom:16px}
+.card-title{font-size:16px;font-weight:900;margin-bottom:8px;display:flex;align-items:center;gap:8px}
+.card p{color:var(--soft);font-size:14px;line-height:1.7}
+
+/* ===== FLOW DIAGRAM ===== */
+.flow{display:flex;align-items:center;flex-wrap:wrap;gap:8px;margin:24px 0}
+.flow-node{background:var(--card);border:2px solid var(--line);border-radius:10px;padding:12px 16px;text-align:center;min-width:120px}
+.flow-node.highlight{border-color:var(--red);background:var(--red-bg)}
+.flow-node .fn-icon{font-size:22px;margin-bottom:4px}
+.flow-node .fn-name{font-size:12px;font-weight:700}
+.flow-node .fn-sub{font-size:10px;color:var(--soft)}
+.flow-arrow{font-size:20px;color:var(--soft)}
+
+/* ===== PERSON GRID ===== */
+.person-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:14px}
+.person-card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:18px}
+.person-card .pc-role{font-size:10px;font-weight:700;letter-spacing:.1em;color:var(--soft);margin-bottom:6px}
+.person-card .pc-name{font-size:16px;font-weight:900;margin-bottom:8px}
+.person-card .pc-desc{font-size:12px;color:var(--soft);line-height:1.6}
+
+/* ===== TOOL CARDS ===== */
+.tool-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:16px}
+.tool-card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:20px;border-top:4px solid}
+.tool-card.red{border-top-color:var(--red)}
+.tool-card.green{border-top-color:var(--green)}
+.tool-card.blue{border-top-color:var(--blue)}
+.tool-card.yellow{border-top-color:var(--yellow)}
+.tool-card.purple{border-top-color:var(--purple)}
+.tool-card .tc-icon{font-size:28px;margin-bottom:8px}
+.tool-card .tc-name{font-size:15px;font-weight:900;margin-bottom:4px}
+.tool-card .tc-who{font-size:10px;font-weight:700;letter-spacing:.1em;color:var(--soft);margin-bottom:10px}
+.tool-card .tc-desc{font-size:13px;color:var(--soft);line-height:1.6}
+.tool-card .tc-link{display:inline-block;margin-top:12px;font-size:12px;font-weight:700;color:var(--red);text-decoration:none}
+.tool-card .tc-link:hover{text-decoration:underline}
+
+/* ===== STEPS ===== */
+.steps{counter-reset:step}
+.step{display:flex;gap:16px;margin-bottom:20px;align-items:flex-start}
+.step-num{flex-shrink:0;width:36px;height:36px;background:var(--red);color:#fff;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:900;counter-increment:step}
+.step-body{flex:1}
+.step-title{font-size:15px;font-weight:700;margin-bottom:4px}
+.step-desc{font-size:13px;color:var(--soft);line-height:1.6}
+.step-tip{background:var(--yellow-bg);border-left:3px solid var(--yellow);padding:8px 12px;border-radius:4px;margin-top:8px;font-size:12px;line-height:1.6}
+.step-tip strong{color:var(--yellow)}
+
+/* ===== TABLE ===== */
+.data-table{width:100%;border-collapse:collapse;font-size:13px}
+.data-table th{background:var(--gray);padding:10px 14px;text-align:left;font-size:11px;font-weight:700;letter-spacing:.05em;color:var(--soft);border-bottom:2px solid var(--line)}
+.data-table td{padding:10px 14px;border-bottom:1px solid var(--line);vertical-align:top}
+.data-table tr:last-child td{border-bottom:none}
+.data-table tr:hover td{background:var(--gray)}
+
+/* ===== BADGES ===== */
+.badge{display:inline-block;padding:2px 10px;border-radius:20px;font-size:11px;font-weight:700}
+.badge-red{background:var(--red-bg);color:var(--red)}
+.badge-green{background:var(--green-bg);color:var(--green)}
+.badge-blue{background:var(--blue-bg);color:var(--blue)}
+.badge-yellow{background:var(--yellow-bg);color:var(--yellow)}
+.badge-purple{background:var(--purple-bg);color:var(--purple)}
+
+/* ===== CALLOUT ===== */
+.callout{border-radius:8px;padding:16px 18px;margin:16px 0;font-size:13px;line-height:1.7}
+.callout-warn{background:var(--yellow-bg);border-left:4px solid var(--yellow)}
+.callout-info{background:var(--blue-bg);border-left:4px solid var(--blue)}
+.callout-ok{background:var(--green-bg);border-left:4px solid var(--green)}
+.callout strong{display:block;margin-bottom:4px;font-size:12px;letter-spacing:.05em}
+
+/* ===== CHECKLIST ===== */
+.checklist{list-style:none}
+.checklist li{padding:8px 0;border-bottom:1px solid var(--line);font-size:14px;display:flex;align-items:flex-start;gap:10px}
+.checklist li:last-child{border-bottom:none}
+.checklist li::before{content:"☐";font-size:18px;color:var(--soft);flex-shrink:0;line-height:1.3}
+
+/* ===== Q&A ===== */
+.qa-item{margin-bottom:16px}
+.qa-q{background:var(--red-bg);border-left:4px solid var(--red);padding:12px 16px;border-radius:4px;font-weight:700;font-size:14px}
+.qa-a{padding:12px 16px;font-size:13px;color:var(--soft);line-height:1.7;background:var(--card);border:1px solid var(--line);border-radius:4px;margin-top:4px}
+
+/* ===== FOOTER ===== */
+footer{background:var(--ink);color:#fff;padding:32px 24px;text-align:center;font-size:12px;opacity:.9}
+footer p{opacity:.7;margin-top:6px}
+
+@media(max-width:600px){
+  .hero-title{font-size:24px}
+  .flow{flex-direction:column;align-items:flex-start}
+  .flow-arrow{transform:rotate(90deg)}
+  .person-grid,.tool-grid{grid-template-columns:1fr}
+}
+</style>
+</head>
+<body>
+
+<!-- HERO -->
+<div class="hero">
+  <div class="hero-logo">SOWAN / 株式会社エル・アイ・シー</div>
+  <div class="hero-title">生産管理 スタートガイド</div>
+  <div class="hero-sub">新入社員向け — 生産の流れからツールの使い方まで、これ一冊でわかります</div>
+</div>
+
+<!-- NAV -->
+<nav class="nav-bar">
+  <div class="nav-inner">
+    <a class="nav-link" href="#flow">生産フロー</a>
+    <a class="nav-link" href="#people">担当者</a>
+    <a class="nav-link" href="#tools">ツール一覧</a>
+    <a class="nav-link" href="#daily">日常業務</a>
+    <a class="nav-link" href="#new-product">新商品登録</a>
+    <a class="nav-link" href="#new-factory">新工場登録</a>
+    <a class="nav-link" href="#faq">よくある質問</a>
+  </div>
+</nav>
+
+<div class="container">
+
+<!-- ===== 1. 生産フロー ===== -->
+<section class="section" id="flow">
+  <div class="section-badge">01 PRODUCTION FLOW</div>
+  <div class="section-title">生産フローの全体像</div>
+  <div class="section-lead">SOWANの商品は「糸」から「出荷」まで、複数の工場を経由して完成します。<br>まずはこの流れをしっかり理解しましょう。</div>
+
+  <div class="flow">
+    <div class="flow-node highlight">
+      <div class="fn-icon">🧵</div>
+      <div class="fn-name">神木さん</div>
+      <div class="fn-sub">糸の入荷・編み立て</div>
+    </div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-node highlight">
+      <div class="fn-icon">🏢</div>
+      <div class="fn-name">エルアイシー</div>
+      <div class="fn-sub">生地受取・管理</div>
+    </div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-node">
+      <div class="fn-icon">✂️</div>
+      <div class="fn-name">池本さん</div>
+      <div class="fn-sub">裁断</div>
+    </div>
+    <div class="flow-node" style="margin-left:-4px">
+      <div class="fn-icon">🏛️</div>
+      <div class="fn-name">刑務所</div>
+      <div class="fn-sub">裁断・縫製</div>
+    </div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-node">
+      <div class="fn-icon">🧶</div>
+      <div class="fn-name">内職さん</div>
+      <div class="fn-sub">縫製・仕上げ</div>
+    </div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-node highlight">
+      <div class="fn-icon">📦</div>
+      <div class="fn-name">実在庫</div>
+      <div class="fn-sub">エルアイシー倉庫</div>
+    </div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-node highlight">
+      <div class="fn-icon">🚚</div>
+      <div class="fn-name">出荷</div>
+      <div class="fn-sub">楽天・TikTok等</div>
+    </div>
+  </div>
+
+  <div class="callout callout-info">
+    <strong>💡 ポイント</strong>
+    各工程の「今どこに何個あるか」を管理するのが生産管理の基本です。これを把握することで、いつ発注すべきかがわかります。
+  </div>
+
+  <div class="card" style="margin-top:20px">
+    <div class="card-title">🧵 糸系商品（つぶつぶベビーレッグウォーマー等）の流れ</div>
+    <p>神木さん（編み立て）→ エルアイシー → 染色工場（東陽染業・松田染工場等）→ 裁断（神共ニット）→ 縫製（コンセプト・川西等）→ 実在庫</p>
+  </div>
+
+  <div class="card">
+    <div class="card-title">📊 販売チャネル</div>
+    <p>楽天市場 / TikTok Shop / クロスモール（複数モール同時管理）<br>受注データはクロスモールで一元管理し、生産予測ツールに取り込んでいます。</p>
+  </div>
+</section>
+
+<!-- ===== 2. 担当者 ===== -->
+<section class="section" id="people">
+  <div class="section-badge">02 PEOPLE</div>
+  <div class="section-title">担当者と役割</div>
+  <div class="section-lead">誰が何を担当しているかを把握しておくと、困ったときにすぐ動けます。</div>
+
+  <div class="person-grid">
+    <div class="person-card">
+      <div class="pc-role">OWNER / 経営責任者</div>
+      <div class="pc-name">渋谷さん</div>
+      <div class="pc-desc">SOWANブランド全体の意思決定・EC・商品企画・生産管理を統括。ツールの最終管理者。</div>
+    </div>
+    <div class="person-card">
+      <div class="pc-role">生産担当（靴下・糸系）</div>
+      <div class="pc-name">木梨さん</div>
+      <div class="pc-desc">塩山メリヤス（取引先）経由の発注担当。染色・縫製工場への発注書を作成・送付。県またぎの工場を担当。</div>
+    </div>
+    <div class="person-card">
+      <div class="pc-role">生産担当（靴下系）</div>
+      <div class="pc-name">森本さん</div>
+      <div class="pc-desc">靴下系商品の担当。ハイエースで近隣の工場を回って納品・受取を行う。</div>
+    </div>
+    <div class="person-card">
+      <div class="pc-role">編み立て工場</div>
+      <div class="pc-name">神木さん</div>
+      <div class="pc-desc">糸を受け取り、生地を編み立てる最初の工程。糸の入荷・在庫管理を担当。</div>
+    </div>
+  </div>
+</section>
+
+<!-- ===== 3. ツール一覧 ===== -->
+<section class="section" id="tools">
+  <div class="section-badge">03 TOOLS</div>
+  <div class="section-title">使うツール一覧</div>
+  <div class="section-lead">それぞれ役割が違います。「自分には何が必要か」を最初に確認してください。</div>
+
+  <div class="tool-grid">
+    <div class="tool-card red">
+      <div class="tc-icon">📱</div>
+      <div class="tc-name">工程管理LIFF</div>
+      <div class="tc-who">現場スタッフ全員</div>
+      <div class="tc-desc">LINEで開くアプリ。商品が工場間を移動するたびに入力します。「移動元→移動先・数量」を記録するだけ。</div>
+      <a class="tc-link" href="https://liff.line.me/2009935318-eq7U4Fuc" target="_blank">▶ LINEで開く</a>
+    </div>
+    <div class="tool-card green">
+      <div class="tc-icon">📍</div>
+      <div class="tc-name">在処管理</div>
+      <div class="tc-who">生産担当者</div>
+      <div class="tc-desc">現在どの工場に何個あるかを一覧で確認。移動の記録もここからできます。</div>
+      <a class="tc-link" href="../process_mgmt.html" target="_blank">▶ 開く</a>
+    </div>
+    <div class="tool-card blue">
+      <div class="tc-icon">📋</div>
+      <div class="tc-name">発注書作成ツール</div>
+      <div class="tc-who">木梨さん・渋谷さん</div>
+      <div class="tc-desc">工場ごとのフォーマットに合わせた発注書をPDF出力。送信と同時に発注管理にも自動登録されます。</div>
+      <a class="tc-link" href="../order_form.html" target="_blank">▶ 開く</a>
+    </div>
+    <div class="tool-card yellow">
+      <div class="tc-icon">📊</div>
+      <div class="tc-name">発注管理</div>
+      <div class="tc-who">渋谷さん・生産担当</div>
+      <div class="tc-desc">発注の履歴・集計を確認。「どの工場に何をいつ発注したか」が一目でわかります。</div>
+      <a class="tc-link" href="../order_management.html" target="_blank">▶ 開く</a>
+    </div>
+    <div class="tool-card purple">
+      <div class="tc-icon">🔮</div>
+      <div class="tc-name">生産予測</div>
+      <div class="tc-who">渋谷さん</div>
+      <div class="tc-desc">過去の売上実績から「今何個発注すべきか」を自動計算。在庫不足のリスクを事前に検知します。</div>
+      <a class="tc-link" href="../production_forecast.html" target="_blank">▶ 開く</a>
+    </div>
+    <div class="tool-card red">
+      <div class="tc-icon">🗂️</div>
+      <div class="tc-name">マスタ管理</div>
+      <div class="tc-who">管理者のみ</div>
+      <div class="tc-desc">商品・工場・生地・単価などの基礎データを管理。ここに登録しないと他のツールで使えません。</div>
+      <a class="tc-link" href="../master.html" target="_blank">▶ 開く</a>
+    </div>
+  </div>
+</section>
+
+<!-- ===== 4. 日常業務 ===== -->
+<section class="section" id="daily">
+  <div class="section-badge">04 DAILY WORK</div>
+  <div class="section-title">日常業務の流れ</div>
+  <div class="section-lead">毎日やること・状況に応じてやることを整理しました。</div>
+
+  <div class="card">
+    <div class="card-title">📱 工程管理LIFF — 工程が動いたら即入力</div>
+    <p style="margin-bottom:16px">商品が工場間を移動したら、その場でLINEから入力します。後でまとめて入力すると数が合わなくなります。</p>
+    <div class="steps">
+      <div class="step">
+        <div class="step-num"></div>
+        <div class="step-body">
+          <div class="step-title">LINEでLIFFアプリを開く</div>
+          <div class="step-desc">渋谷さんから共有されたLINEのリンクをタップ。ログインしていなければLINEアカウントで自動ログインされます。</div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num"></div>
+        <div class="step-body">
+          <div class="step-title">「移動」タブで商品・移動元・移動先を選んで数量入力</div>
+          <div class="step-desc">商品（例: つぶつぶベビーレッグウォーマー）→ 色（SKU）→ 移動元の工場 → 移動先の工場 → 数量を入力。</div>
+          <div class="step-tip"><strong>⚠️ 注意：</strong>神木さんからの移動は「個数」で入力（kgではなく）。神木さんへの糸の入荷は「入荷」タブで入力。</div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num"></div>
+        <div class="step-body">
+          <div class="step-title">「記録する」ボタンを押す</div>
+          <div class="step-desc">送信完了のトーストが出れば登録完了。ダッシュボードで在庫が反映されたか確認できます。</div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num"></div>
+        <div class="step-body">
+          <div class="step-title">数を入れ間違えた場合は「🔧 修正」タブで修正</div>
+          <div class="step-desc">修正したい工程を選んで正しい数値を入力すると、スナップショットが上書きされます。後から気づいても修正できます。</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">📋 発注書作成 — 工場に発注するとき</div>
+    <div class="steps">
+      <div class="step">
+        <div class="step-num"></div>
+        <div class="step-body">
+          <div class="step-title">発注書作成ツールを開く</div>
+          <div class="step-desc">「差出会社」と「発注先工場」を選択。選んだ工場のフォーマットに合わせた入力フォームが自動で表示されます。</div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num"></div>
+        <div class="step-body">
+          <div class="step-title">必要事項を入力して「印刷/PDF出力」を押す</div>
+          <div class="step-desc">押した瞬間に発注管理ツールへ自動登録 → 印刷ダイアログが開くのでPDF保存。</div>
+          <div class="step-tip"><strong>💡 ポイント：</strong>発注書を作るだけで発注管理への記録が自動でされます。別途入力する必要はありません。</div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num"></div>
+        <div class="step-body">
+          <div class="step-title">PDFをメールまたはFAXで工場に送付</div>
+          <div class="step-desc">工場によってメール/FAXを使い分けます。送付方法は先輩に確認してください。</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ===== 5. 新商品登録 ===== -->
+<section class="section" id="new-product">
+  <div class="section-badge">05 NEW PRODUCT</div>
+  <div class="section-title">新商品を追加するときの手順</div>
+  <div class="section-lead">新しい商品が決まったら、マスタ管理ツールに順番通り登録してください。<br>登録する順番が大切です。抜け漏れがあると他のツールで正しく表示されません。</div>
+
+  <div class="callout callout-warn">
+    <strong>⚠️ 登録前に確認</strong>
+    渋谷さんから「新商品追加してください」と指示が来てから登録してください。独断で登録すると在庫や予測の数値がズレます。
+  </div>
+
+  <div class="steps">
+    <div class="step">
+      <div class="step-num"></div>
+      <div class="step-body">
+        <div class="step-title">マスタ管理 → 「商品管理番号」タブで商品を登録</div>
+        <div class="step-desc">商品コード（例: tubutubu-babyleg-mini）と商品名を登録。コードは英数字とハイフンのみ使用。渋谷さんに確認してから決定する。</div>
+        <div class="step-tip"><strong>📝 記入例：</strong>商品コード: new-product-code / 商品名: 新商品名</div>
+      </div>
+    </div>
+    <div class="step">
+      <div class="step-num"></div>
+      <div class="step-body">
+        <div class="step-title">「SKU管理」タブで色・サイズごとにSKUを登録</div>
+        <div class="step-desc">同じ商品でも色が違えば別のSKUとして登録します。item_codeは「商品コード-色コード」の形式（例: TBL-KN）。memo欄のparentに商品コードを入力するのを忘れずに。</div>
+        <div class="step-tip"><strong>⚠️ 注意：</strong>SKUが登録されないと生産予測・納品書管理で商品が表示されません。</div>
+      </div>
+    </div>
+    <div class="step">
+      <div class="step-num"></div>
+      <div class="step-body">
+        <div class="step-title">「生地品番」タブで使用する生地を登録（未登録の場合）</div>
+        <div class="step-desc">既存の生地を使う場合はスキップ。新しい生地素材の場合はfabric_codeと生地名を登録。生地コードは木梨さんに確認。</div>
+      </div>
+    </div>
+    <div class="step">
+      <div class="step-num"></div>
+      <div class="step-body">
+        <div class="step-title">「生地カラー」タブで色ごとの生地を登録</div>
+        <div class="step-desc">色コード（例: DP-07）・カラー名・使用生地・染色費用を登録。染色費用は木梨さんに確認。</div>
+      </div>
+    </div>
+    <div class="step">
+      <div class="step-num"></div>
+      <div class="step-body">
+        <div class="step-title">「単価マスタ」タブで工場ごとの単価を登録</div>
+        <div class="step-desc">商品×工場の組み合わせで単価を登録。発注する工場の数だけ登録が必要。単価は渋谷さんに確認。</div>
+        <div class="step-tip"><strong>💡 ポイント：</strong>ここを登録しないと発注書・納品書に金額が出ません。毎朝のマスタレポートメールで「単価未登録」として通知が来ます。</div>
+      </div>
+    </div>
+    <div class="step">
+      <div class="step-num"></div>
+      <div class="step-body">
+        <div class="step-title">生産予測ツール → 「新商品」タブで生産計画数を登録</div>
+        <div class="step-desc">実績がない新商品は通常の予測タブには出ません。「新商品」タブで計画数（初回生産目標）を手入力してください。渋谷さんが決めた数値を入力します。</div>
+      </div>
+    </div>
+    <div class="step">
+      <div class="step-num"></div>
+      <div class="step-body">
+        <div class="step-title">渋谷さんに登録完了を報告</div>
+        <div class="step-desc">全項目登録が完了したらLINEまたは口頭で報告。渋谷さんが各ツールで正しく表示されているか確認します。</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="callout callout-ok">
+    <strong>✅ 登録完了チェックリスト</strong>
+  </div>
+  <ul class="checklist">
+    <li>商品管理番号（master_products）に追加した</li>
+    <li>色ごとのSKU（items）をすべて追加した</li>
+    <li>使用する生地品番（master_fabrics）が登録されている</li>
+    <li>生地カラー（master_fabric_colors）を登録した</li>
+    <li>発注する工場すべての単価（master_prices）を登録した</li>
+    <li>生産予測の「新商品」タブに計画数を入力した</li>
+    <li>渋谷さんに報告した</li>
+  </ul>
+</section>
+
+<!-- ===== 6. 新工場登録 ===== -->
+<section class="section" id="new-factory">
+  <div class="section-badge">06 NEW FACTORY</div>
+  <div class="section-title">新しい工場と取引するときの手順</div>
+  <div class="section-lead">新しい工場との取引が決まったら、以下の順番で登録してください。</div>
+
+  <div class="steps">
+    <div class="step">
+      <div class="step-num"></div>
+      <div class="step-body">
+        <div class="step-title">マスタ管理 → 「工場マスタ」タブで工場を登録</div>
+        <div class="step-desc">工場ID・工場名・工程タイプ（編み/染色/裁断/縫製/糸/靴下）・単位（kg/反/枚）を登録。工場IDは英数字とアンダースコアのみ（例: new_factory_sew）。</div>
+        <div class="step-tip"><strong>💡 登録するとすぐに</strong>発注書作成ツール・在処管理・発注管理で工場が選べるようになります。</div>
+      </div>
+    </div>
+    <div class="step">
+      <div class="step-num"></div>
+      <div class="step-body">
+        <div class="step-title">「単価マスタ」タブで取り扱う商品の単価を登録</div>
+        <div class="step-desc">この工場に発注する商品ごとに単価を登録。登録しないと発注書に金額が出ません。</div>
+      </div>
+    </div>
+    <div class="step">
+      <div class="step-num"></div>
+      <div class="step-body">
+        <div class="step-title">発注書のフォーマットを確認する</div>
+        <div class="step-desc">既存の10種類のフォーマット（生産発注書・発注書・加工指図書等）のどれかと同じであれば即使用可能。完全に独自のフォーマットが必要な場合は渋谷さんを通してClaudeに依頼する。</div>
+      </div>
+    </div>
+    <div class="step">
+      <div class="step-num"></div>
+      <div class="step-body">
+        <div class="step-title">渋谷さんに登録完了を報告</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ===== 7. FAQ ===== -->
+<section class="section" id="faq">
+  <div class="section-badge">07 FAQ</div>
+  <div class="section-title">よくある質問</div>
+  <div class="section-lead">困ったときはまずここを確認してください。</div>
+
+  <div class="qa-item">
+    <div class="qa-q">Q. LIFFアプリで数を入れ間違えました。どうすればいいですか？</div>
+    <div class="qa-a">「🔧 修正」タブを開いて、修正したい商品・SKU・工程を選び、正しい数値を入力して送信してください。スナップショットが上書きされます。後から気づいても修正できるので焦らず対応してください。</div>
+  </div>
+
+  <div class="qa-item">
+    <div class="qa-q">Q. ツールにアクセスできません（画面が真っ白・エラーが出る）</div>
+    <div class="qa-a">①ブラウザを更新する → ②別のブラウザで開く → ③渋谷さんに報告。Google ChromeまたはSafariの最新版を使ってください。Internet ExplorerやEdgeは対応していません。</div>
+  </div>
+
+  <div class="qa-item">
+    <div class="qa-q">Q. 発注書を作ったのに発注管理に表示されません</div>
+    <div class="qa-a">発注書作成ツールの「印刷/PDF出力」ボタンを押したときに自動登録されます。ボタンを押さずにブラウザを閉じた場合は登録されていません。もう一度発注書作成ツールを開いて「リセット」せずにそのまま「印刷/PDF出力」を押してください。</div>
+  </div>
+
+  <div class="qa-item">
+    <div class="qa-q">Q. 在処管理の数字と工程管理LIFFの数字が合いません</div>
+    <div class="qa-a">在処管理（Supabase）と工程管理LIFF（GASスプレッドシート）は現在別々のシステムで管理されています。正確な在庫はLIFFのダッシュボードを確認してください。この連携は将来的に改善予定です。</div>
+  </div>
+
+  <div class="qa-item">
+    <div class="qa-q">Q. 新しい商品・工場を勝手に登録してもいいですか？</div>
+    <div class="qa-a">必ず渋谷さんの指示を受けてから登録してください。マスタへの無断登録は在庫・予測・発注の数値がズレる原因になります。毎朝渋谷さんにマスタ変更のレポートが届くため、無断登録はすぐに発覚します。</div>
+  </div>
+
+  <div class="qa-item">
+    <div class="qa-q">Q. 発注書のフォーマットが工場と違うと言われました</div>
+    <div class="qa-a">発注書作成ツールには10種類のフォーマットが用意されています。まず「差出会社」と「発注先工場」の選択が正しいか確認してください。それでも合わない場合は、その工場の発注書サンプル（PDF）を渋谷さんに提出し、Claudeへの追加依頼をしてもらいます。</div>
+  </div>
+
+  <div class="qa-item">
+    <div class="qa-q">Q. 生産予測ツールに新しく追加した商品が出てきません</div>
+    <div class="qa-a">実績12ヶ月未満の商品は「新商品」タブに表示されます。生産計画数を入力してください。通常の予測タブは実績データが1年以上ある商品のみ対象です。</div>
+  </div>
+</section>
+
+</div><!-- /container -->
+
+<footer>
+  <div>SOWAN 生産管理スタートガイド</div>
+  <p>株式会社エル・アイ・シー — 内部資料 / 更新: 2026年5月</p>
+</footer>
+
+<script>
+// Nav highlight on scroll
+const sections=document.querySelectorAll('section[id]');
+const navLinks=document.querySelectorAll('.nav-link');
+window.addEventListener('scroll',()=>{
+  let current='';
+  sections.forEach(s=>{
+    if(window.scrollY>=s.offsetTop-80)current=s.id;
+  });
+  navLinks.forEach(l=>{
+    l.classList.toggle('active',l.getAttribute('href')==='#'+current);
+  });
+});
+</script>
+</body>
+</html>
