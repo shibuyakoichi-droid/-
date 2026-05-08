@@ -154,9 +154,10 @@ footer p{opacity:.7;margin-top:6px}
 <section class="section" id="flow">
   <div class="section-badge">01 PRODUCTION FLOW</div>
   <div class="section-title">生産フローの全体像</div>
-  <div class="section-lead">SOWANの商品は「糸」から「出荷」まで、複数の工場を経由して完成します。<br>まずはこの流れをしっかり理解しましょう。</div>
+  <div class="section-lead">SOWANの商品は「糸・生地」から「出荷」まで、複数の工場を経由して完成します。<br>商品の種類によってフローが異なります。まずはこの流れをしっかり理解しましょう。</div>
 
-  <div class="flow">
+  <div style="font-size:12px;font-weight:700;color:var(--soft);letter-spacing:.05em;margin-bottom:8px">🧦 靴下系商品の流れ（例：つぶつぶベビーレッグウォーマー）</div>
+  <div class="flow" style="margin-bottom:24px">
     <div class="flow-node highlight">
       <div class="fn-icon">🧵</div>
       <div class="fn-name">神木さん</div>
@@ -199,14 +200,54 @@ footer p{opacity:.7;margin-top:6px}
     </div>
   </div>
 
+  <div style="font-size:12px;font-weight:700;color:var(--soft);letter-spacing:.05em;margin-bottom:8px">🧵 生地系商品の流れ（例：スタイ・ロンパース等）</div>
+  <div class="flow" style="margin-bottom:24px">
+    <div class="flow-node highlight">
+      <div class="fn-icon">🏭</div>
+      <div class="fn-name">坂本繊維工業</div>
+      <div class="fn-sub">生地の編み立て</div>
+    </div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-node">
+      <div class="fn-icon">🎨</div>
+      <div class="fn-name">松田染工場</div>
+      <div class="fn-sub">染色・加工</div>
+    </div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-node">
+      <div class="fn-icon">✂️</div>
+      <div class="fn-name">神共ニット裁断所</div>
+      <div class="fn-sub">裁断</div>
+    </div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-node">
+      <div class="fn-icon">🪡</div>
+      <div class="fn-name">有限会社コンセプト</div>
+      <div class="fn-sub">縫製</div>
+    </div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-node">
+      <div class="fn-icon">🔍</div>
+      <div class="fn-name">ほまれ</div>
+      <div class="fn-sub">検品・加工</div>
+    </div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-node highlight">
+      <div class="fn-icon">📦</div>
+      <div class="fn-name">実在庫</div>
+      <div class="fn-sub">エルアイシー倉庫</div>
+    </div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-node highlight">
+      <div class="fn-icon">🚚</div>
+      <div class="fn-name">出荷</div>
+      <div class="fn-sub">楽天・TikTok等</div>
+    </div>
+  </div>
+
   <div class="callout callout-info">
     <strong>💡 ポイント</strong>
     各工程の「今どこに何個あるか」を管理するのが生産管理の基本です。これを把握することで、いつ発注すべきかがわかります。
-  </div>
-
-  <div class="card" style="margin-top:20px">
-    <div class="card-title">🧵 糸系商品（つぶつぶベビーレッグウォーマー等）の流れ</div>
-    <p>神木さん（編み立て）→ エルアイシー → 染色工場（東陽染業・松田染工場等）→ 裁断（神共ニット）→ 縫製（コンセプト・川西等）→ 実在庫</p>
   </div>
 
   <div class="card">
@@ -217,30 +258,45 @@ footer p{opacity:.7;margin-top:6px}
 
 <!-- ===== 2. 担当者 ===== -->
 <section class="section" id="people">
-  <div class="section-badge">02 PEOPLE</div>
-  <div class="section-title">担当者と役割</div>
-  <div class="section-lead">誰が何を担当しているかを把握しておくと、困ったときにすぐ動けます。</div>
+  <div class="section-badge">02 FACTORIES</div>
+  <div class="section-title">工場の種類と役割</div>
+  <div class="section-lead">SOWANが取引する工場は工程ごとに役割が分かれています。どの工場が何を担当しているかを把握しておきましょう。</div>
 
   <div class="person-grid">
     <div class="person-card">
-      <div class="pc-role">OWNER / 経営責任者</div>
-      <div class="pc-name">渋谷さん</div>
-      <div class="pc-desc">SOWANブランド全体の意思決定・EC・商品企画・生産管理を統括。ツールの最終管理者。</div>
+      <div class="pc-role">🧵 糸・原材料仕入れ先</div>
+      <div class="pc-name">糸屋</div>
+      <div class="pc-desc">生産に使う糸・原材料を仕入れる取引先。<br>例）新内外綿株式会社</div>
     </div>
     <div class="person-card">
-      <div class="pc-role">生産担当（靴下・糸系）</div>
-      <div class="pc-name">木梨さん</div>
-      <div class="pc-desc">塩山メリヤス（取引先）経由の発注担当。染色・縫製工場への発注書を作成・送付。県またぎの工場を担当。</div>
+      <div class="pc-role">🏭 編み工場</div>
+      <div class="pc-name">編み立て</div>
+      <div class="pc-desc">糸から生地・靴下を編み立てる最初の工程。<br>例）坂本繊維工業㈱（生地）、神木さん（靴下）</div>
     </div>
     <div class="person-card">
-      <div class="pc-role">生産担当（靴下系）</div>
-      <div class="pc-name">森本さん</div>
-      <div class="pc-desc">靴下系商品の担当。ハイエースで近隣の工場を回って納品・受取を行う。</div>
+      <div class="pc-role">🎨 染色工場</div>
+      <div class="pc-name">染色・加工</div>
+      <div class="pc-desc">生地を染色・仕上げ加工する工場。<br>例）有限会社松田染工場、東陽染業株式会社</div>
     </div>
     <div class="person-card">
-      <div class="pc-role">編み立て工場</div>
-      <div class="pc-name">神木さん</div>
-      <div class="pc-desc">糸を受け取り、生地を編み立てる最初の工程。糸の入荷・在庫管理を担当。</div>
+      <div class="pc-role">✂️ 裁断工場</div>
+      <div class="pc-name">裁断</div>
+      <div class="pc-desc">生地を商品の形に裁断する工場。<br>例）神共ニット裁断所、池本さん</div>
+    </div>
+    <div class="person-card">
+      <div class="pc-role">🪡 縫製工場</div>
+      <div class="pc-name">縫製・仕上げ</div>
+      <div class="pc-desc">裁断した生地を縫い合わせて商品にする工場。<br>例）有限会社コンセプト、ソーイング川西、有限会社メリット縫製</div>
+    </div>
+    <div class="person-card">
+      <div class="pc-role">🔍 検品・加工</div>
+      <div class="pc-name">検品</div>
+      <div class="pc-desc">完成品の品質検査・最終加工を行う工場。<br>例）ほまれ</div>
+    </div>
+    <div class="person-card">
+      <div class="pc-role">🏛️ 職業訓練（刑務所）</div>
+      <div class="pc-name">刑務所</div>
+      <div class="pc-desc">裁断・縫製を担当。職業訓練の一環として発注。<br>例）加古川刑務所、姫路刑務所</div>
     </div>
   </div>
 </section>
@@ -252,13 +308,6 @@ footer p{opacity:.7;margin-top:6px}
   <div class="section-lead">それぞれ役割が違います。「自分には何が必要か」を最初に確認してください。</div>
 
   <div class="tool-grid">
-    <div class="tool-card red">
-      <div class="tc-icon">📱</div>
-      <div class="tc-name">工程管理LIFF</div>
-      <div class="tc-who">現場スタッフ全員</div>
-      <div class="tc-desc">LINEで開くアプリ。商品が工場間を移動するたびに入力します。「移動元→移動先・数量」を記録するだけ。</div>
-      <a class="tc-link" href="https://liff.line.me/2009935318-eq7U4Fuc" target="_blank">▶ LINEで開く</a>
-    </div>
     <div class="tool-card green">
       <div class="tc-icon">📍</div>
       <div class="tc-name">在処管理</div>
