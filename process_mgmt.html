@@ -131,6 +131,7 @@ tr:hover td{background:#faf9f7}
     <button class="tab active" id="tab-btn-map" onclick="switchTab('map')">在処マップ</button>
     <button class="tab" id="tab-btn-log" onclick="switchTab('log')">操作ログ</button>
     <button class="tab" id="tab-btn-add" onclick="switchTab('add')">生地・商品を登録</button>
+    <button class="tab" id="tab-btn-yarn" onclick="switchTab('yarn')">🧵 糸・原材料</button>
   </div>
 
   <!-- 在処マップ -->
@@ -202,6 +203,33 @@ tr:hover td{background:#faf9f7}
           <th>日時</th><th>操作</th><th>内容</th><th>担当</th><th>メモ</th>
         </tr></thead>
         <tbody id="log-tbody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- 糸・原材料タブ -->
+  <div class="panel" id="tab-yarn">
+    <div style="display:flex;gap:6px;margin-bottom:16px;align-items:center;flex-wrap:wrap">
+      <div style="font-size:13px;font-weight:600;color:#999;margin-right:8px">仕入先：</div>
+      <button class="btn sm" id="yarn-sup-神吉商店" onclick="setYarnSupplier('神吉商店')" style="background:#1a1a1a;color:#fff;border-color:#1a1a1a">神吉商店</button>
+      <button class="btn sm" id="yarn-sup-河辺" onclick="setYarnSupplier('河辺')">河辺</button>
+      <button class="btn sm" id="yarn-sup-坂本繊維" onclick="setYarnSupplier('坂本繊維')">坂本繊維</button>
+      <span style="font-size:11px;color:#bbb;margin-left:8px" id="yarn-updated"></span>
+      <button class="btn sm primary" onclick="addYarnRow()" style="margin-left:auto">＋ 行追加</button>
+      <button class="btn sm" onclick="saveYarnChanges()" style="background:#0a6b50;color:#fff;border-color:#0a6b50" id="yarn-save-btn">💾 変更を保存</button>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr>
+          <th>糸の種類</th>
+          <th>カラーNO</th>
+          <th>カラー名</th>
+          <th class="r">在庫(kg)</th>
+          <th class="r">加工中(kg)</th>
+          <th>メモ</th>
+          <th></th>
+        </tr></thead>
+        <tbody id="yarn-tbody"></tbody>
       </table>
     </div>
   </div>
@@ -759,6 +787,130 @@ function switchTab(id){
   document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
   document.getElementById('tab-'+id).classList.add('active');
   document.getElementById('tab-btn-'+id).classList.add('active');
+  if(id==='yarn') renderYarnTab();
+}
+
+// ── 糸・原材料タブ ─────────────────────────────────────
+let yarnSupplier='神吉商店';
+let yarnData=[];
+let yarnDirty={}; // {id: {stock_kg, wip_kg, notes}} 変更行
+
+function setYarnSupplier(sup){
+  yarnSupplier=sup;
+  ['神吉商店','河辺','坂本繊維'].forEach(s=>{
+    const el=document.getElementById('yarn-sup-'+s);
+    if(el){el.style.background=s===sup?'#1a1a1a':'';el.style.color=s===sup?'#fff':'';el.style.borderColor=s===sup?'#1a1a1a':'';}
+  });
+  renderYarnTab();
+}
+
+async function renderYarnTab(){
+  const tbody=document.getElementById('yarn-tbody');
+  if(!tbody)return;
+  tbody.innerHTML='<tr><td colspan="7" style="text-align:center;color:#aaa;padding:20px">読込中…</td></tr>';
+  yarnDirty={};
+
+  const {data,error}=await sb.from('yarn_stock')
+    .select('*').eq('supplier',yarnSupplier)
+    .order('yarn_type').order('color_no');
+
+  if(error||!data){tbody.innerHTML='<tr><td colspan="7" style="color:#c00;padding:16px">読み込みエラー</td></tr>';return;}
+  yarnData=data;
+
+  if(data.length===0){
+    tbody.innerHTML=`<tr><td colspan="7" style="text-align:center;color:#aaa;padding:30px">
+      ${yarnSupplier}のデータがありません。「＋ 行追加」から登録してください。
+    </td></tr>`;
+    return;
+  }
+
+  // 最終更新日表示
+  const latest=data.reduce((a,b)=>a.updated_at>b.updated_at?a:b);
+  const d=new Date(latest.updated_at);
+  document.getElementById('yarn-updated').textContent=
+    `最終更新: ${d.getFullYear()}/${d.getMonth()+1}/${d.getDate()}`;
+
+  // グループ化（yarn_type別）
+  const groups={};
+  data.forEach(r=>{
+    if(!groups[r.yarn_type])groups[r.yarn_type]=[];
+    groups[r.yarn_type].push(r);
+  });
+
+  let html='';
+  Object.entries(groups).forEach(([type,rows])=>{
+    const total=rows.reduce((s,r)=>s+(parseFloat(r.stock_kg)||0),0);
+    const totalWip=rows.reduce((s,r)=>s+(parseFloat(r.wip_kg)||0),0);
+    html+=`<tr style="background:#faf9f7">
+      <td colspan="3" style="font-weight:700;font-size:13px;color:#555;padding:8px 14px">${type}</td>
+      <td class="r" style="font-weight:700;color:#1a5fa0">${total>0?total.toFixed(2)+' kg':'-'}</td>
+      <td class="r" style="font-weight:700;color:#b86a00">${totalWip>0?totalWip.toFixed(2)+' kg':'-'}</td>
+      <td colspan="2"></td>
+    </tr>`;
+    rows.forEach(r=>{
+      html+=`<tr data-id="${r.id}">
+        <td style="padding-left:28px;color:#999;font-size:12px">${type}</td>
+        <td><input type="text" value="${r.color_no||''}" style="width:90px;padding:4px 6px;font-size:12px"
+          onchange="markDirty('${r.id}','color_no',this.value)"></td>
+        <td><input type="text" value="${r.color_name||''}" style="width:120px;padding:4px 6px;font-size:12px"
+          onchange="markDirty('${r.id}','color_name',this.value)"></td>
+        <td class="r"><input type="number" value="${r.stock_kg||0}" step="0.01" style="width:90px;padding:4px 6px;font-size:13px;font-weight:600;text-align:right;color:#1a5fa0"
+          onchange="markDirty('${r.id}','stock_kg',parseFloat(this.value)||0)"></td>
+        <td class="r"><input type="number" value="${r.wip_kg||0}" step="0.01" style="width:90px;padding:4px 6px;font-size:13px;font-weight:600;text-align:right;color:#b86a00"
+          onchange="markDirty('${r.id}','wip_kg',parseFloat(this.value)||0)"></td>
+        <td><input type="text" value="${r.notes||''}" placeholder="メモ" style="width:140px;padding:4px 6px;font-size:12px"
+          onchange="markDirty('${r.id}','notes',this.value)"></td>
+        <td><button class="btn ghost" onclick="deleteYarnRow('${r.id}')">×</button></td>
+      </tr>`;
+    });
+  });
+  tbody.innerHTML=html;
+}
+
+function markDirty(id,field,val){
+  if(!yarnDirty[id])yarnDirty[id]={};
+  yarnDirty[id][field]=val;
+  document.getElementById('yarn-save-btn').style.background='#a64635';
+  document.getElementById('yarn-save-btn').style.borderColor='#a64635';
+}
+
+async function saveYarnChanges(){
+  const ids=Object.keys(yarnDirty);
+  if(ids.length===0){alert('変更がありません');return;}
+  const btn=document.getElementById('yarn-save-btn');
+  btn.textContent='保存中…';btn.disabled=true;
+  let ok=0,err=0;
+  for(const id of ids){
+    const patch={...yarnDirty[id],updated_at:new Date().toISOString()};
+    const {error}=await sb.from('yarn_stock').update(patch).eq('id',id);
+    if(error)err++;else ok++;
+  }
+  btn.textContent='💾 変更を保存';btn.disabled=false;
+  btn.style.background='#0a6b50';btn.style.borderColor='#0a6b50';
+  yarnDirty={};
+  if(err>0)alert(`${ok}件保存、${err}件エラーが発生しました`);
+  else{showAlert(`${ok}件の変更を保存しました`,'ok');renderYarnTab();}
+}
+
+function addYarnRow(){
+  const type=prompt('糸の種類を入力してください\n例: オーガニックコットン30/1');
+  if(!type)return;
+  const color=prompt('カラー名を入力してください');
+  if(!color)return;
+  sb.from('yarn_stock').insert({
+    supplier:yarnSupplier,yarn_type:type,color_name:color,
+    color_no:'',stock_kg:0,wip_kg:0
+  }).then(({error})=>{
+    if(error)alert('登録エラー: '+error.message);
+    else renderYarnTab();
+  });
+}
+
+async function deleteYarnRow(id){
+  if(!confirm('この行を削除しますか？'))return;
+  const {error}=await sb.from('yarn_stock').delete().eq('id',id);
+  if(error)alert('削除エラー: '+error.message);
+  else renderYarnTab();
 }
 function closeOverlay(e,id){if(e.target===document.getElementById(id))document.getElementById(id).classList.remove('open');}
 
