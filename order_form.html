@@ -1,0 +1,784 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>発注書作成ツール — SOWAN</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+:root{--bg:#f5f1ea;--card:#fffdf8;--ink:#1a1a1a;--soft:#6b6357;--line:#d4cdbf;--red:#a64635;--red-bg:#fdf3ee;--green:#5a7a3e;--green-bg:#f4f8ec;--warn:#b8842a}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:"Noto Sans JP","Hiragino Sans",sans-serif;background:var(--bg);color:var(--ink);font-size:14px;min-height:100vh}
+#appUI{max-width:960px;margin:0 auto;padding:20px 16px 60px}
+.h1{font-size:20px;font-weight:900;color:var(--red);margin-bottom:18px}
+/* company tabs */
+.ctabs{display:flex;gap:4px;background:#ebe5da;padding:4px;border-radius:10px;margin-bottom:16px;width:fit-content}
+.ctab{padding:8px 22px;font-size:13px;font-weight:700;border:none;background:none;border-radius:7px;color:var(--soft);cursor:pointer;font-family:inherit}
+.ctab.active{background:var(--card);color:var(--red);box-shadow:0 1px 3px rgba(0,0,0,.08)}
+/* factory */
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px}
+.flabel{font-size:11px;font-weight:700;color:var(--soft);margin-bottom:4px;display:block}
+.sw{position:relative}
+.sw::after{content:'▾';position:absolute;right:10px;top:50%;transform:translateY(-50%);color:var(--soft);pointer-events:none;font-size:11px}
+select,input,textarea{width:100%;padding:10px 12px;font-size:13px;font-family:inherit;background:var(--card);border:1px solid var(--line);border-radius:6px;color:var(--ink);appearance:none;-webkit-appearance:none}
+/* cards */
+.card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:18px;margin-bottom:14px}
+.ctitle{font-size:11px;font-weight:700;color:var(--soft);letter-spacing:.05em;border-bottom:1px solid var(--line);padding-bottom:7px;margin-bottom:13px}
+.fg{margin-bottom:10px}.fg label{font-size:11px;font-weight:700;color:var(--soft);display:block;margin-bottom:3px}
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.g3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px}
+.g4{display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:10px}
+/* table */
+.tbl-wrap{overflow-x:auto;margin-bottom:10px}
+.rtbl{width:100%;border-collapse:collapse}
+.rtbl th{background:#f0ebe0;font-size:10px;font-weight:700;color:var(--soft);padding:6px 7px;border:1px solid var(--line);text-align:center;white-space:nowrap}
+.rtbl td{padding:2px 3px;border:1px solid var(--line)}
+.rtbl td input{border:none;background:none;padding:5px 4px;font-size:12px}
+.rtbl td input[type=number]{text-align:right}
+.rnum{width:24px;text-align:center;color:var(--soft);font-size:11px;padding:6px 4px}
+.delbtn{background:none;border:none;color:#ccc;cursor:pointer;font-size:13px;padding:4px 6px}
+.delbtn:hover{color:var(--red)}
+.add-btn{font-size:12px;color:var(--red);background:var(--red-bg);border:1px dashed var(--red);border-radius:6px;padding:5px 14px;cursor:pointer;font-family:inherit}
+/* checks */
+.checks{display:flex;gap:16px;align-items:center;padding:8px 0}
+.chk{display:flex;align-items:center;gap:5px;font-size:13px;font-weight:700;cursor:pointer}
+.chk input{width:17px;height:17px;cursor:pointer}
+/* btns */
+.btnrow{display:flex;gap:10px;margin-top:20px}
+.print-btn{flex:1;padding:14px;background:var(--red);color:#fff;border:none;border-radius:8px;font-size:15px;font-weight:700;cursor:pointer;font-family:inherit}
+.print-btn:hover{opacity:.9}
+.reset-btn{padding:14px 18px;background:var(--card);border:1px solid var(--line);border-radius:8px;font-size:13px;cursor:pointer;font-family:inherit;color:var(--soft)}
+/* alert */
+.alert{padding:10px 16px;border-radius:8px;font-size:13px;margin-bottom:14px;display:none}
+.alert.show{display:block}
+.alert-ok{background:var(--green-bg);color:var(--green);border:1px solid #b8d98a}
+.alert-err{background:#fcebeb;color:#a32d2d;border:1px solid #f0c0c0}
+/* ===== PRINT ===== */
+#printArea{display:none}
+@media print{
+  #appUI{display:none!important}
+  #printArea{display:block!important}
+  *{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  @page{margin:15mm 18mm}
+}
+/* print styles */
+.pf{font-family:"Hiragino Mincho ProN","Yu Mincho","MS Mincho",serif;font-size:11pt;color:#000;line-height:1.5;max-width:176mm}
+.pf-title{font-size:24pt;font-weight:900;letter-spacing:.1em;text-align:center;margin-bottom:5mm}
+.pf-title.sm{font-size:20pt}
+.pf-hrow{display:flex;justify-content:space-between;align-items:flex-end;margin-bottom:3mm}
+.pf-recip{font-size:16pt;font-weight:900;border-bottom:2.5px solid #000;padding-bottom:1mm}
+.pf-recip .onchu{font-size:12pt;font-weight:normal;margin-left:5px}
+.pf-meta{text-align:right;font-size:10pt;line-height:1.8}
+.pf-sender{text-align:right;font-size:11pt;font-weight:700;margin-bottom:2mm}
+.pf-greet{font-size:9.5pt;margin-bottom:2mm}
+.pt{width:100%;border-collapse:collapse;margin-bottom:3mm;font-size:10pt}
+.pt th{background:#efefef;border:1px solid #000;padding:4px 6px;text-align:center;font-weight:700;white-space:nowrap}
+.pt td{border:1px solid #000;padding:5px 7px;min-height:8mm}
+.pt td.c{text-align:center}.pt td.r{text-align:right}
+.pt tr.sub td{border-top:2px solid #000;font-weight:700}
+.pf-memo{border:1px solid #000;padding:7px 10px;min-height:25mm;font-size:10pt;white-space:pre-wrap}
+.pf-addr{font-size:9.5pt;line-height:1.7}
+.pf-checks{display:flex;gap:8mm;font-size:10pt;justify-content:flex-end;margin-bottom:2mm}
+.pf-chk{border:1px solid #000;padding:2px 8px;min-width:40px;text-align:center}
+.pf-chk.on{font-weight:900}
+.pf-chk.on::after{content:" ○"}
+.pf-sdblock{display:flex;justify-content:space-between;margin-bottom:3mm;align-items:flex-start}
+/* toyo specific */
+.pt-meta th,.pt-meta td{padding:3px 6px;font-size:9.5pt}
+.pt-meta td.label{background:#efefef;font-weight:700;text-align:center;width:18mm}
+</style>
+</head>
+<body>
+<div id="appUI">
+  <div class="h1">発注書作成ツール</div>
+  <div id="alertBox" class="alert"></div>
+
+  <div class="ctabs">
+    <button class="ctab active" onclick="setCompany('lic')">株式会社エル・アイ・シー</button>
+    <button class="ctab" onclick="setCompany('shioyama')">塩山メリヤス株式会社</button>
+  </div>
+
+  <div class="row2">
+    <div><span class="flabel">発注先（工場）</span>
+      <div class="sw"><select id="factorySel" onchange="onFactory()"></select></div>
+    </div>
+    <div id="docTypeWrap" style="display:none">
+      <span class="flabel">書類種別</span>
+      <div class="sw"><select id="docTypeSel" onchange="onFactory()"></select></div>
+    </div>
+  </div>
+
+  <div id="formArea"></div>
+</div>
+<div id="printArea"></div>
+
+<script>
+const SB_URL='https://yukcdqnnevomhdcpsvms.supabase.co';
+const SB_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inl1a2NkcW5uZXZvbWhkY3Bzdm1zIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY0Mjc2MTUsImV4cCI6MjA5MjAwMzYxNX0.XBSc2kQNwR_bleSwrfYZD8l0fbKTbL1Z3S7ewEtSkDc';
+const sb=supabase.createClient(SB_URL,SB_KEY);
+
+// 工場ごとの設定（どの会社名義・どのフォーム）
+const F_CONFIG={
+  sakamoto_knit:    {co:'lic',      form:'sakamoto',   name:'坂本繊維工株式会社'},
+  toyo_dye:         {co:'shioyama', form:'toyo',        name:'東陽染業株式会社'},
+  matsuda_dye:      {co:'shioyama', form:'matsuda',     name:'有限会社 松田染工場'},
+  kamikyo_cut:      {co:'shioyama', form:'kiritatsu',   name:'神共ニット裁断所'},
+  concept_sew:      {co:'shioyama', form:'seisan_mai',  name:'有限会社コンセプト'},
+  merit_sew:        {co:'lic',      form:'seisan_mai',  name:'有限会社メリット縫製'},
+  soeing_kawanishi: {co:'lic',      form:'seisan_mai',  name:'ソーイング川西'},
+  kakogawa_prison:  {co:'lic',      form:'prison',      name:'加古川刑務所'},
+  himeji_prison:    {co:'lic',      form:'prison',      name:'姫路刑務所'},
+  kamiki_socks:     {co:'lic',      form:'seisan_mai',  name:'神木さん'},
+  oei_order:        {co:'lic',      form:'oei_order',   name:'株式会社大営メリヤス（発注書）',   process:'knit', unit:'反'},
+  oei_delivery:     {co:'lic',      form:'oei_delivery',name:'株式会社大営メリヤス（納品依頼書）',process:'other',unit:'反'},
+  shibata_glove:    {co:'lic',      form:'seisan_mai',  name:'有限会社柴田手袋製造所',           process:'sew',  unit:'枚'},
+  hiramoto_socks:   {co:'lic',      form:'seisan_kg',   name:'平本靴下',                         process:'socks',unit:'kg'},
+  naigaimen_yarn:   {co:'shioyama', form:'naigaimen',   name:'新内外綿株式会社',                 process:'yarn', unit:'kg'},
+};
+
+// 追加が必要な工場（Supabaseにない場合）
+const NEW_FACTORIES=[
+  {id:'oei_order',     name:'大営メリヤス（発注書）',     process:'knit',  unit:'反'},
+  {id:'oei_delivery',  name:'大営メリヤス（納品依頼書）', process:'other', unit:'反'},
+  {id:'shibata_glove', name:'柴田手袋製造所',             process:'sew',   unit:'枚'},
+  {id:'hiramoto_socks',name:'平本靴下',                   process:'socks', unit:'kg'},
+  {id:'naigaimen_yarn',name:'新内外綿株式会社',           process:'yarn',  unit:'kg'},
+];
+
+let currentCo='lic';
+let currentFactoryId=null;
+let factories=[];
+
+// ========== INIT ==========
+async function init(){
+  const {data}=await sb.from('factories').select('*').order('name');
+  factories=data||[];
+  // 不足分を追加
+  for(const nf of NEW_FACTORIES){
+    if(!factories.find(f=>f.id===nf.id)){
+      const {data:ins}=await sb.from('factories').insert(nf).select();
+      if(ins) factories.push(...ins);
+    }
+  }
+  renderFactorySelect();
+  onFactory();
+}
+
+function setCompany(co){
+  currentCo=co;
+  document.querySelectorAll('.ctab').forEach((t,i)=>t.classList.toggle('active',(co==='lic'&&i===0)||(co==='shioyama'&&i===1)));
+  renderFactorySelect();
+  onFactory();
+}
+
+function renderFactorySelect(){
+  const sel=document.getElementById('factorySel');
+  const visible=Object.entries(F_CONFIG).filter(([,c])=>c.co===currentCo);
+  sel.innerHTML=visible.map(([id,c])=>`<option value="${id}">${c.name}</option>`).join('');
+}
+
+function onFactory(){
+  const fid=document.getElementById('factorySel').value;
+  currentFactoryId=fid;
+  renderForm(fid);
+}
+
+// ========== FORM RENDER ==========
+function today(){return new Date().toISOString().slice(0,10)}
+function gNo(id){return localStorage.getItem('ono_'+id)||''}
+function sNo(id,v){localStorage.setItem('ono_'+id,v)}
+function v(id){return document.getElementById(id)?.value||''}
+function chk(id){return document.getElementById(id)?.checked}
+
+function renderForm(fid){
+  const cfg=F_CONFIG[fid];
+  if(!cfg){document.getElementById('formArea').innerHTML='';return;}
+  const area=document.getElementById('formArea');
+  switch(cfg.form){
+    case 'sakamoto':   area.innerHTML=fSakamoto(fid); break;
+    case 'oei_order':  area.innerHTML=fOeiOrder(fid); break;
+    case 'oei_delivery':area.innerHTML=fOeiDelivery(fid);break;
+    case 'matsuda':    area.innerHTML=fMatsuda(fid); break;
+    case 'seisan_mai': area.innerHTML=fSeisanMai(fid); break;
+    case 'kiritatsu':  area.innerHTML=fKiritatsu(fid); break;
+    case 'naigaimen':  area.innerHTML=fNaigaimen(fid); break;
+    case 'seisan_kg':  area.innerHTML=fSeisanKg(fid); break;
+    case 'prison':     area.innerHTML=fPrison(fid); break;
+    case 'toyo':       area.innerHTML=fToyo(fid); break;
+    default: area.innerHTML='<div class="card" style="text-align:center;padding:30px;color:var(--soft)">準備中</div>';
+  }
+  initRows(cfg.form);
+}
+
+function baseInfo(fid,extra=''){
+  return `<div class="card"><div class="ctitle">基本情報</div>
+  <div class="g${extra?'3':'2'}">
+    <div class="fg"><label>発注No.</label><input id="f_no" value="${gNo(fid)}" placeholder="例: 160"></div>
+    <div class="fg"><label>日付</label><input type="date" id="f_date" value="${today()}"></div>
+    ${extra}
+  </div></div>`;
+}
+function printBtns(){
+  return `<div class="btnrow">
+    <button class="print-btn" onclick="doPrint()">🖨️ 印刷 / PDF出力（発注管理に自動登録）</button>
+    <button class="reset-btn" onclick="onFactory()">リセット</button>
+  </div>`;
+}
+
+// ----- 坂本繊維工 -----
+function fSakamoto(fid){
+  return baseInfo(fid,`<div class="fg"><label>区分</label><div class="checks">
+    <label class="chk"><input type="checkbox" id="chk_m"> 見本</label>
+    <label class="chk"><input type="checkbox" id="chk_s"> 出荷</label>
+    <label class="chk"><input type="checkbox" id="chk_a"> 編立</label>
+  </div></div>`)+
+  `<div class="card"><div class="ctitle">発注明細</div>
+  <div class="tbl-wrap"><table class="rtbl" id="rowT">
+    <thead><tr><th>#</th><th style="min-width:90px">品番</th><th style="min-width:80px">品名</th>
+    <th style="width:65px">反/kg</th><th style="width:70px">単価</th>
+    <th style="width:60px">数量(反)</th><th style="min-width:90px">出荷先</th><th></th></tr></thead>
+    <tbody id="rowB"></tbody></table></div>
+  <button class="add-btn" onclick="addRow('sakamoto')">＋ 行追加</button></div>
+  <div class="card"><div class="ctitle">備考</div><textarea id="f_memo" rows="3"></textarea></div>`+printBtns();
+}
+
+// ----- 大営メリヤス発注書 -----
+function fOeiOrder(fid){
+  return baseInfo(fid)+
+  `<div class="card"><div class="ctitle">発注明細</div>
+  <div class="tbl-wrap"><table class="rtbl" id="rowT">
+    <thead><tr><th>#</th><th style="min-width:100px">品名</th><th style="min-width:90px">品番</th>
+    <th style="min-width:80px">糸使</th><th style="width:60px">編機</th>
+    <th style="width:60px">数量(反)</th><th style="min-width:120px">備考</th><th></th></tr></thead>
+    <tbody id="rowB"></tbody></table></div>
+  <button class="add-btn" onclick="addRow('oei_order')">＋ 行追加</button></div>
+  <div class="card"><div class="ctitle">備考</div><textarea id="f_memo" rows="4"></textarea></div>`+printBtns();
+}
+
+// ----- 大営メリヤス納品依頼書 -----
+function fOeiDelivery(fid){
+  return baseInfo(fid)+
+  `<div class="card"><div class="ctitle">明細</div>
+  <div class="tbl-wrap"><table class="rtbl" id="rowT">
+    <thead><tr><th>#</th><th style="min-width:160px">品番・品名</th>
+    <th style="width:60px">数量</th><th style="width:50px">単位</th>
+    <th style="width:80px">単価(税抜)</th><th style="width:55px">税率</th><th></th></tr></thead>
+    <tbody id="rowB"></tbody></table></div>
+  <button class="add-btn" onclick="addRow('oei_delivery')">＋ 行追加</button></div>
+  <div class="card"><div class="ctitle">備考（納品先）</div>
+  <textarea id="f_memo" rows="7" placeholder="納品先:&#10;【〇反】&#10;住所&#10;工場名&#10;tel:"></textarea></div>`+printBtns();
+}
+
+// ----- 松田染工場 -----
+function fMatsuda(fid){
+  return baseInfo(fid)+
+  `<div class="card"><div class="ctitle">発注明細</div>
+  <div class="tbl-wrap"><table class="rtbl" id="rowT">
+    <thead><tr><th style="width:60px">生機</th><th style="width:70px">色番</th>
+    <th style="min-width:90px">カラー名</th><th style="width:55px">反物</th>
+    <th style="width:70px">仕上げ巾</th><th style="min-width:120px">備考</th><th></th></tr></thead>
+    <tbody id="rowB"></tbody></table></div>
+  <button class="add-btn" onclick="addRow('matsuda')">＋ 行追加</button></div>
+  <div class="card"><div class="ctitle">備考（入荷・出荷先）</div>
+  <div class="g2">
+    <div class="fg"><label>入荷元</label><input id="f_nyuuka" placeholder="例: 坂本繊維様納品予定です【M62生地：6反】"></div>
+    <div class="fg"><label>出荷先</label><input id="f_shukko" placeholder="例: エル・アイ・シー"></div>
+  </div>
+  <div class="fg" style="margin-top:8px"><label>担当者</label><input id="f_tanto" value="木梨" style="width:120px"></div>
+  </div>`+printBtns();
+}
+
+// ----- 縫製系・枚数（コンセプト・メリット・川西など） -----
+function fSeisanMai(fid){
+  const cfg=F_CONFIG[fid];
+  const isSender=cfg.co==='shioyama';
+  return baseInfo(fid)+
+  `<div class="card"><div class="ctitle">発注明細</div>
+  <div class="tbl-wrap"><table class="rtbl" id="rowT">
+    <thead><tr><th style="width:70px">生地番号</th><th style="min-width:70px">カラー</th>
+    <th style="min-width:120px">商品名</th><th style="width:65px">枚数</th>
+    <th style="width:55px">反物</th><th style="min-width:100px">備考/内訳</th><th></th></tr></thead>
+    <tbody id="rowB"></tbody></table></div>
+  <button class="add-btn" onclick="addRow('seisan_mai')">＋ 行追加</button></div>
+  <div class="card"><div class="ctitle">備考</div>
+  <div class="g2">
+    <div class="fg"><label>入荷元・コメント</label><input id="f_nyuuka" placeholder="例: 神共ニット裁断所様より納品です"></div>
+    ${isSender?'<div class="fg"><label>担当者</label><input id="f_tanto" value="木梨" style="width:120px"></div>':'<div></div>'}
+  </div>
+  <textarea id="f_memo" rows="2" style="margin-top:8px" placeholder="その他備考"></textarea>
+  </div>`+printBtns();
+}
+
+// ----- 神共ニット裁断所 -----
+function fKiritatsu(fid){
+  return baseInfo(fid)+
+  `<div class="card"><div class="ctitle">発注明細</div>
+  <div class="tbl-wrap"><table class="rtbl" id="rowT">
+    <thead><tr><th style="width:70px">生地番号</th><th style="min-width:70px">カラー</th>
+    <th style="min-width:120px">商品名</th><th style="width:65px">枚数</th>
+    <th style="width:60px">反物</th><th></th></tr></thead>
+    <tbody id="rowB"></tbody></table></div>
+  <button class="add-btn" onclick="addRow('kiritatsu')">＋ 行追加</button></div>
+  <div class="card"><div class="ctitle">追加情報</div>
+  <div class="g2">
+    <div class="fg"><label>裁断品番①</label><input id="f_sai1" placeholder="例: つけ襟スタイ：開き巾80㎝×18㎝"></div>
+    <div class="fg"><label>裁断品番②</label><input id="f_sai2" placeholder="例: K-07：ロンパース半袖"></div>
+  </div>
+  <div class="g2" style="margin-top:8px">
+    <div class="fg"><label>バインダー指定</label><input id="f_binder" placeholder="例: 生地両端裁断・長さ120㎝程で裁断お願いします"></div>
+    <div class="fg"><label>発送先</label><input id="f_hasso" placeholder="例: ソーイング川西（バインダーもお願いします）"></div>
+  </div>
+  <div class="fg" style="margin-top:8px"><label>担当者</label><input id="f_tanto" value="木梨" style="width:120px"></div>
+  </div>`+printBtns();
+}
+
+// ----- 新内外綿 -----
+function fNaigaimen(fid){
+  return baseInfo(fid)+
+  `<div class="card"><div class="ctitle">発注明細</div>
+  <div class="tbl-wrap"><table class="rtbl" id="rowT">
+    <thead><tr><th style="min-width:160px">品名（番手・種類）</th>
+    <th style="width:70px">数量(kg)</th><th style="min-width:80px">備考</th><th></th></tr></thead>
+    <tbody id="rowB"></tbody></table></div>
+  <button class="add-btn" onclick="addRow('naigaimen')">＋ 行追加</button>
+  <div style="margin-top:12px">
+    <div class="ctitle" style="margin-bottom:8px">工場別内訳（任意）</div>
+    <div id="naiwakeArea"><div class="fg"><label>内訳コメント（例: ①坂本繊維工業㈱ 250kg）</label>
+    <textarea id="f_naiwake" rows="3" placeholder="①　坂本繊維工業㈱　250&#10;②　㈱大営メリヤス　150&#10;③　エル・アイ・シー　100"></textarea></div></div>
+  </div></div>
+  <div class="card"><div class="ctitle">備考・担当者</div>
+  <textarea id="f_memo" rows="2" placeholder="例: 内訳予定で生地発注を進めてまいります"></textarea>
+  <div class="fg" style="margin-top:8px"><label>担当者</label><input id="f_tanto" value="木梨" style="width:120px"></div>
+  </div>`+printBtns();
+}
+
+// ----- 平本靴下（kg単位） -----
+function fSeisanKg(fid){
+  return baseInfo(fid)+
+  `<div class="card"><div class="ctitle">発注明細</div>
+  <div class="tbl-wrap"><table class="rtbl" id="rowT">
+    <thead><tr><th style="min-width:160px">カラー名 / 商品</th>
+    <th style="width:65px">/kg</th><th style="min-width:100px">備考</th><th></th></tr></thead>
+    <tbody id="rowB"></tbody></table></div>
+  <button class="add-btn" onclick="addRow('seisan_kg')">＋ 行追加</button></div>
+  <div class="card"><div class="ctitle">備考</div>
+  <textarea id="f_memo" rows="3" placeholder="例: 糸在庫：各12kg"></textarea></div>`+printBtns();
+}
+
+// ----- 刑務所 -----
+function fPrison(fid){
+  return baseInfo(fid)+
+  `<div class="card"><div class="ctitle">発注明細</div>
+  <div class="tbl-wrap"><table class="rtbl" id="rowT">
+    <thead><tr><th style="min-width:80px">カラー名</th>
+    <th style="min-width:120px">商品</th><th style="width:65px">枚数</th>
+    <th style="width:60px">反物</th><th style="min-width:80px">備考</th><th></th></tr></thead>
+    <tbody id="rowB"></tbody></table></div>
+  <button class="add-btn" onclick="addRow('prison')">＋ 行追加</button></div>
+  <div class="card"><div class="ctitle">備考</div>
+  <textarea id="f_memo" rows="3"></textarea></div>`+printBtns();
+}
+
+// ----- 東陽染業（加工指図書）-----
+function fToyo(fid){
+  return `<div class="card"><div class="ctitle">基本情報</div>
+  <div class="g3">
+    <div class="fg"><label>指図No.</label><input id="f_no" value="${gNo(fid)}" placeholder="例: S-46"></div>
+    <div class="fg"><label>日付</label><input type="date" id="f_date" value="${today()}"></div>
+    <div class="fg"><label>加工種別</label><input id="f_kakoShubetsu" value="染色" placeholder="染色 / セット 等"></div>
+  </div>
+  <div class="g4" style="margin-top:8px">
+    <div class="fg"><label>生機品番</label><input id="f_seiki" placeholder="N-40/52"></div>
+    <div class="fg"><label>製品品番</label><input id="f_seihin" placeholder="品番"></div>
+    <div class="fg"><label>混率</label><input id="f_konritsu" placeholder="綿100%"></div>
+    <div class="fg"><label>総反数</label><input type="number" id="f_totalTan" placeholder="30"></div>
+  </div>
+  <div class="g2" style="margin-top:8px">
+    <div class="fg"><label>規格巾＊目付＊長さ</label><input id="f_kibo" placeholder="60cm等"></div>
+    <div class="fg"><label>注記（優先・特記）</label><input id="f_chuki" placeholder="例: ※優先でお願いします 10kg"></div>
+  </div></div>
+  <div class="card"><div class="ctitle">出荷先（複数可）</div>
+  <div id="shukkoList"></div>
+  <button class="add-btn" onclick="addShukko()">＋ 出荷先を追加</button></div>
+  <div class="card"><div class="ctitle">色番テーブル</div>
+  <div class="tbl-wrap"><table class="rtbl" id="rowT">
+    <thead><tr><th style="width:80px">色番</th><th style="min-width:90px">色名</th>
+    <th style="width:55px">反数</th><th style="min-width:120px">適用・備考</th><th></th></tr></thead>
+    <tbody id="rowB"></tbody></table></div>
+  <button class="add-btn" onclick="addRow('toyo')">＋ 行追加</button></div>
+  <div class="card"><div class="ctitle">備考</div>
+  <textarea id="f_memo" rows="3" placeholder="例: 大営メリヤス様から納品分です【N-40/52生地：1反と29反：計30反】"></textarea></div>`+printBtns();
+}
+
+// 出荷先追加（東陽用）
+let shukkoCount=0;
+function addShukko(){
+  shukkoCount++;
+  const num=['①','②','③','④','⑤'][shukkoCount-1]||`(${shukkoCount})`;
+  const div=document.createElement('div');
+  div.className='fg';div.style.marginBottom='10px';
+  div.innerHTML=`<label>${num} 出荷先</label>
+    <input style="margin-bottom:4px" placeholder="例: ㈱ソーイング井東（ピクシー様）" class="shukko-name">
+    <input placeholder="色別内訳（例: ブラック5反 ライトベージュ5反 モーヴピンク3反）" class="shukko-detail">`;
+  document.getElementById('shukkoList').appendChild(div);
+}
+
+// ========== ROW TEMPLATES ==========
+const RT={
+  sakamoto:    ()=>`<td class="rnum">${rn()}</td><td><input placeholder="G55-2376"></td><td><input placeholder="品名"></td><td><input type="number" placeholder="10" step="0.5"></td><td><input type="number" placeholder="1500"></td><td><input type="number" placeholder="0"></td><td><input placeholder="出荷先"></td>`,
+  oei_order:   ()=>`<td class="rnum">${rn()}</td><td><input placeholder="ノーマルテレコ"></td><td><input placeholder="N-40/52/NEP"></td><td><input placeholder="糸使"></td><td><input placeholder="編機"></td><td><input type="number" placeholder="0"></td><td><input placeholder="備考"></td>`,
+  oei_delivery:()=>`<td class="rnum">${rn()}</td><td><input placeholder="品番・品名"></td><td><input type="number" placeholder="0"></td><td><input placeholder="反" style="width:45px"></td><td><input type="number" placeholder="単価"></td><td><input placeholder="10%" style="width:45px"></td>`,
+  matsuda:     ()=>`<td><input placeholder="M62"></td><td><input placeholder="DP-07"></td><td><input placeholder="ダスティピンク"></td><td><input type="number" placeholder="0"></td><td><input placeholder="36cm"></td><td><input placeholder="反返しセット等"></td>`,
+  seisan_mai:  ()=>`<td><input placeholder="G55NEP"></td><td><input placeholder="ホワイト"></td><td><input placeholder="2段フリルスタイ"></td><td><input type="number" placeholder="0"></td><td><input type="number" placeholder=""></td><td><input placeholder="内訳など"></td>`,
+  kiritatsu:   ()=>`<td><input placeholder="4040A30"></td><td><input placeholder="青リボン"></td><td><input placeholder="半袖ロンパース 65-75cm"></td><td><input type="number" placeholder="0"></td><td><input placeholder="各1反"></td>`,
+  naigaimen:   ()=>`<td><input placeholder="E NEPクロ2%/綿 40/1"></td><td><input type="number" placeholder="0"></td><td><input placeholder="半年引き取り等"></td>`,
+  seisan_kg:   ()=>`<td><input placeholder="30/2：オーガニックコットン　ブラック"></td><td><input type="number" placeholder="22.5" step="0.5"></td><td><input placeholder="備考"></td>`,
+  prison:      ()=>`<td><input placeholder="G40 ダスティピンク"></td><td><input placeholder="腹巻"></td><td><input type="number" placeholder="0"></td><td><input type="number" placeholder=""></td><td><input placeholder="備考"></td>`,
+  toyo:        ()=>`<td><input placeholder="NBL-04"></td><td><input placeholder="ブラック"></td><td><input type="number" placeholder="0"></td><td><input placeholder="前回指図S-36等"></td>`,
+};
+let _rn=0;function rn(){return ++_rn;}
+function initRows(form){
+  _rn=0;shukkoCount=0;
+  const cnt={oei_delivery:3,naigaimen:2,toyo:3}[form]||4;
+  for(let i=0;i<cnt;i++) addRow(form);
+  if(form==='toyo'){addShukko();addShukko();}
+}
+function addRow(form){
+  const tmpl=RT[form];if(!tmpl)return;
+  const tbody=document.getElementById('rowB');if(!tbody)return;
+  const tr=document.createElement('tr');
+  tr.innerHTML=tmpl()+`<td><button class="delbtn" onclick="this.closest('tr').remove();renumRows()">✕</button></td>`;
+  tbody.appendChild(tr);
+}
+function renumRows(){document.querySelectorAll('#rowB .rnum').forEach((td,i)=>td.textContent=i+1);}
+function rows(){return [...document.querySelectorAll('#rowB tr')]}
+function rowVals(tr){return [...tr.querySelectorAll('input')].map(i=>i.value)}
+
+// ========== PRINT & REGISTER ==========
+const LIC_ADDR='株式会社エル・アイ・シー<br>〒675-0332<br>兵庫県加古川市志方町横大路302-2<br>TEL：079-452-0238<br>E-Mail：sowan@e-mail.jp';
+const SHIOYAMA='塩山メリヤス株式会社';
+
+function fmtD(d){if(!d)return '';const[y,m,day]=d.split('-');return `${y}/${m}/${day}`;}
+
+async function doPrint(){
+  const cfg=F_CONFIG[currentFactoryId];
+  if(!cfg){return;}
+  const no=v('f_no');const date=v('f_date');
+  if(!no){showAlert('発注No.を入力してください','err');return;}
+  if(!date){showAlert('日付を入力してください','err');return;}
+
+  // 印刷HTML生成
+  const html=buildPrintHtml(cfg.form,cfg.name);
+  if(!html)return;
+  document.getElementById('printArea').innerHTML=html;
+
+  // Supabase登録
+  await registerOrder(cfg,no,date);
+
+  // No保存
+  sNo(currentFactoryId,no);
+  window.print();
+}
+
+async function registerOrder(cfg,no,date){
+  const factory=factories.find(f=>f.id===currentFactoryId);
+  const fid=factory?.id||currentFactoryId;
+
+  // 明細をJSON化
+  const items=rows().map(tr=>{
+    const vals=rowVals(tr);
+    return {vals};
+  }).filter(i=>i.vals.some(v=>v.trim()!==''));
+
+  // メモに概要を含める
+  const summary=buildSummary(cfg.form);
+  const memo=(summary+(v('f_memo')?'\n'+v('f_memo'):'')).trim();
+
+  const order={
+    id:'of'+Date.now(),
+    number:no,
+    factory_id:fid,
+    category:cfg.co==='shioyama'?'塩山メリヤス':'エルアイシー',
+    date,due:'',memo,items,
+    form_type:cfg.form
+  };
+  const {error}=await sb.from('om_orders').insert(order);
+  if(error){showAlert('⚠️ 印刷は進みますが発注管理への登録に失敗しました: '+error.message,'err');}
+  else{showAlert('✓ 発注管理に登録されました（No.'+no+'）','ok');}
+}
+
+function buildSummary(form){
+  const r=rows();if(!r.length)return '';
+  const first=rowVals(r[0]).filter(v=>v).slice(0,3).join(' ');
+  const more=r.length>1?` 他${r.length-1}行`:'';
+  return first+more;
+}
+
+function showAlert(msg,type){
+  const el=document.getElementById('alertBox');
+  el.textContent=msg;
+  el.className='alert show alert-'+(type==='err'?'err':'ok');
+  setTimeout(()=>el.classList.remove('show'),5000);
+}
+
+// ========== PRINT HTML BUILDERS ==========
+function buildPrintHtml(form,fname){
+  switch(form){
+    case 'sakamoto':   return pSakamoto(fname);
+    case 'oei_order':  return pOeiOrder(fname);
+    case 'oei_delivery':return pOeiDelivery(fname);
+    case 'matsuda':    return pMatsuda(fname);
+    case 'seisan_mai': return pSeisanMai(fname);
+    case 'kiritatsu':  return pKiritatsu(fname);
+    case 'naigaimen':  return pNaigaimen(fname);
+    case 'seisan_kg':  return pSeisanKg(fname);
+    case 'prison':     return pPrison(fname);
+    case 'toyo':       return pToyo(fname);
+    default: return null;
+  }
+}
+
+function pHeader(title,recip,no,date,sender,greet=''){
+  return `<div class="pf">
+  <div class="pf-title">${title}</div>
+  <div class="pf-hrow">
+    <span class="pf-recip">${recip}<span class="onchu">御中</span></span>
+    <div class="pf-meta">No ${no}<br>日付 ${fmtD(date)}</div>
+  </div>
+  <div class="pf-sender">${sender}</div>
+  ${greet?`<div class="pf-greet">${greet}</div>`:''}`;
+}
+const GREET='お世話になっております。<br>下記の通り発注させて頂きますので、恐れ入りますが、ご確認の程何卒宜しくお願い致します。';
+
+function pSakamoto(fname){
+  const checks=['chk_m','chk_s','chk_a'].map((id,i)=>`<span class="pf-chk${chk(id)?' on':''}">${['見本','出荷','編立'][i]}</span>`).join('');
+  let rh='';let tot=0;
+  rows().forEach((tr,i)=>{
+    const[hinban,hinmei,tan,tanka,qty,shukko]=rowVals(tr);
+    const q=parseFloat(qty)||0;const p=parseFloat(tanka)||0;
+    tot+=q*p;
+    rh+=`<tr><td class="c">${i+1}</td><td>${hinban}</td><td>${hinmei}</td><td class="c">${tan}</td><td class="r">${p||''}</td><td class="c">${q||''}</td><td>${shukko}</td></tr>`;
+  });
+  return `<div class="pf">
+  <div class="pf-checks">${checks}</div>
+  <div class="pf-title">発　注　書</div>
+  <div class="pf-hrow">
+    <span class="pf-recip">坂本繊維工株式会社<span class="onchu">御中</span></span>
+    <div class="pf-meta">No ${v('f_no')}<br>日付 ${fmtD(v('f_date'))}</div>
+  </div>
+  <div class="pf-sdblock"><div style="font-size:10pt">下記の通りお手配お願い申し上げます。</div><div class="pf-addr">${LIC_ADDR}</div></div>
+  <table class="pt"><thead><tr><th></th><th>品番</th><th>品名</th><th>反/kg</th><th>単価</th><th>数量(反)</th><th>出荷先</th></tr></thead>
+  <tbody>${rh}</tbody></table>
+  ${tot?`<div style="text-align:right;font-size:10pt;margin-bottom:3mm">${tot.toLocaleString()}円</div>`:''}
+  <table class="pt"><thead><tr><th colspan="7">備考</th></tr></thead>
+  <tbody><tr><td colspan="7" style="min-height:22mm;white-space:pre-wrap">${v('f_memo')}</td></tr></tbody></table></div>`;
+}
+
+function pOeiOrder(fname){
+  let rh='';
+  rows().forEach((tr,i)=>{
+    const[hinmei,hinban,ito,amiki,qty,biko]=rowVals(tr);
+    rh+=`<tr><td class="c">${i+1}</td><td>${hinmei}</td><td>${hinban}</td><td>${ito}</td><td class="c">${amiki}</td><td class="c">${qty||''}</td><td>${biko}</td></tr>`;
+  });
+  const empty=Math.max(0,5-rows().length);
+  for(let i=0;i<empty;i++) rh+=`<tr><td class="c">${rows().length+i+1}</td><td colspan="6">&nbsp;</td></tr>`;
+  return `<div class="pf">
+  <div class="pf-title">発　注　書</div>
+  <div class="pf-hrow">
+    <span class="pf-recip">株式会社 大営メリヤス<span class="onchu">御中</span></span>
+    <div class="pf-meta">請求日：${fmtD(v('f_date'))}<br>登録番号：T3140001042628</div>
+  </div>
+  <div class="pf-sdblock"><div style="font-size:10pt">下記の通りご発注申し上げます。</div><div class="pf-addr">${LIC_ADDR}</div></div>
+  <table class="pt"><thead><tr><th></th><th>品名</th><th>品番</th><th>糸使</th><th>編機</th><th>数量(反)</th><th>備考</th></tr></thead>
+  <tbody>${rh}</tbody></table>
+  <table class="pt" style="margin-top:4mm"><thead><tr><th colspan="7">備考</th></tr></thead>
+  <tbody><tr><td colspan="7" style="min-height:22mm;white-space:pre-wrap">${v('f_memo')}</td></tr></tbody></table></div>`;
+}
+
+function pOeiDelivery(fname){
+  let rh='';let sub=0;
+  rows().forEach(tr=>{
+    const[hinban,qty,tani,tanka,zei]=rowVals(tr);
+    const q=parseFloat(qty)||0;const p=parseFloat(tanka)||0;
+    const amt=q*p;sub+=amt;
+    rh+=`<tr><td>${hinban}</td><td class="r">${q||''}</td><td class="c">${tani}</td><td class="r">${p||''}</td><td class="c">${zei}</td><td class="r">${amt?amt.toLocaleString():''}</td></tr>`;
+  });
+  return `<div class="pf">
+  <div class="pf-title">納　品　依　頼　書</div>
+  <div class="pf-hrow">
+    <span class="pf-recip">株式会社 大営メリヤス<span class="onchu">御中</span></span>
+    <div class="pf-meta">請求日：${fmtD(v('f_date'))}<br>登録番号：T3140001042628</div>
+  </div>
+  <div class="pf-sdblock"><div style="font-size:10pt">下記の通り納品ご依頼申し上げます。</div><div class="pf-addr">${LIC_ADDR}</div></div>
+  <table class="pt"><thead><tr><th>品番・品名</th><th>数量</th><th>単位</th><th>単価(税抜)</th><th>税率</th><th>金額</th></tr></thead>
+  <tbody>${rh}
+  <tr class="sub"><td colspan="5" class="r">小計</td><td class="r">${sub?sub.toLocaleString():0}</td></tr>
+  <tr><td colspan="5" class="r">消費税</td><td class="r">0</td></tr>
+  <tr class="sub"><td colspan="5" class="r">合計金額</td><td class="r">${sub?sub.toLocaleString():0}</td></tr>
+  </tbody></table>
+  <table class="pt" style="margin-top:4mm"><thead><tr><th colspan="6">備考</th></tr></thead>
+  <tbody><tr><td colspan="6" style="min-height:28mm;white-space:pre-wrap">${v('f_memo')}</td></tr></tbody></table></div>`;
+}
+
+function pMatsuda(fname){
+  let rh='';let tot=0;
+  rows().forEach(tr=>{
+    const[seiki,iroban,color,tan,haba,biko]=rowVals(tr);
+    const t=parseInt(tan)||0;tot+=t;
+    rh+=`<tr><td class="c">${seiki}</td><td class="c">${iroban}</td><td>${color}</td><td class="c">${t||''}</td><td class="c">${haba}</td><td>${biko}</td></tr>`;
+  });
+  rh+=`<tr><td colspan="3" class="r" style="font-weight:700">計</td><td class="c" style="font-weight:700">${tot}反</td><td colspan="2"></td></tr>`;
+  const ny=v('f_nyuuka');const sh=v('f_shukko');const ta=v('f_tanto');
+  const memo=`いつもお世話になっております\n入荷：${ny}\n出荷先：${sh}\nどうぞよろしくお願いいたします。　${ta}`;
+  return pHeader('生産発注書','有限会社 松田染工場',v('f_no'),v('f_date'),SHIOYAMA,GREET)+
+  `<table class="pt"><thead><tr><th>生機</th><th>色番</th><th>カラー名</th><th>反物</th><th>仕上げ巾</th><th>備考</th></tr></thead>
+  <tbody>${rh}</tbody></table>
+  <div class="pf-memo">${memo}</div></div>`;
+}
+
+function pSeisanMai(fname){
+  const cfg=F_CONFIG[currentFactoryId];
+  const sender=cfg.co==='shioyama'?SHIOYAMA:'株式会社エル・アイ・シー';
+  let rh='';let totM=0;
+  rows().forEach(tr=>{
+    const[seichi,color,hinmei,maisuu,tan,biko]=rowVals(tr);
+    const m=parseInt(maisuu)||0;totM+=m;
+    rh+=`<tr><td class="c">${seichi}</td><td>${color}</td><td>${hinmei}</td><td class="c">${m||''}</td><td class="c">${tan||''}</td><td>${biko}</td></tr>`;
+  });
+  rh+=`<tr><td colspan="4" class="r" style="font-size:9pt">※枚数は参考です。</td><td class="c" style="font-weight:700">${totM}枚</td><td></td></tr>`;
+  const ny=v('f_nyuuka')||'';const ta=v('f_tanto')||'';const memo=v('f_memo')||'';
+  const note=`いつもお世話になっております\n${ny}\nどうぞよろしくお願いいたします。${ta}${memo?'\n'+memo:''}`;
+  return pHeader('生産発注書',fname,v('f_no'),v('f_date'),sender,GREET)+
+  `<table class="pt"><thead><tr><th>カラー名</th><th></th><th>商品</th><th>枚数</th><th>反物</th><th>備考</th></tr></thead>
+  <tbody>${rh}</tbody></table>
+  <div class="pf-memo">${note}</div></div>`;
+}
+
+function pKiritatsu(fname){
+  let rh='';let totM=0;let totT=0;
+  rows().forEach(tr=>{
+    const[seichi,color,hinmei,maisuu,tan]=rowVals(tr);
+    const m=parseInt(maisuu)||0;const t=parseInt(tan)||0;
+    totM+=m;if(!isNaN(t))totT+=t;
+    rh+=`<tr><td class="c">${seichi}</td><td>${color}</td><td>${hinmei}</td><td class="c">${m||''}</td><td class="c">${tan||''}</td></tr>`;
+  });
+  rh+=`<tr><td colspan="3" class="r" style="font-size:9pt">※枚数は参考です。</td><td class="c" style="font-weight:700">${totM}枚</td><td class="c">${totT?totT+'反':''}</td></tr>`;
+  const s1=v('f_sai1');const s2=v('f_sai2');const bd=v('f_binder');const hs=v('f_hasso');const ta=v('f_tanto');
+  let memo='いつもお世話になっております\n弊社よりお送りいたします';
+  if(s1)memo+=`\n裁断品番：①${s1}`;
+  if(s2)memo+=`\n裁断品番：②【${s2}】`;
+  if(bd)memo+=`\nバインダー：${bd}`;
+  if(hs)memo+=`\n発送先：${hs}`;
+  memo+=`\nどうぞよろしくお願いいたします。${ta}`;
+  return pHeader('生産発注書','神共ニット裁断所',v('f_no'),v('f_date'),SHIOYAMA,GREET)+
+  `<table class="pt"><thead><tr><th>カラー名</th><th></th><th>商品</th><th>枚数</th><th>反物</th></tr></thead>
+  <tbody>${rh}</tbody></table>
+  <div class="pf-memo">${memo}</div></div>`;
+}
+
+function pNaigaimen(fname){
+  let rh='';
+  rows().forEach((tr,i)=>{
+    const[hinmei,qty,biko]=rowVals(tr);
+    const nums=['①','②','③','④','⑤'];
+    rh+=`<tr><td>　${nums[i]||''}　${hinmei}</td><td class="c">${qty||''}</td><td>${biko}</td></tr>`;
+  });
+  const nw=v('f_naiwake');const me=v('f_memo');const ta=v('f_tanto');
+  const note=(me||'')+(nw?'\n\n内訳：\n'+nw:'')+(ta?'\n'+ta:'');
+  return pHeader('生産発注書','新内外綿株式会社',v('f_no'),v('f_date'),SHIOYAMA,GREET)+
+  `<table class="pt"><thead><tr><th>品名</th><th>kg</th><th>備考</th></tr></thead>
+  <tbody>${rh}</tbody></table>
+  <div class="pf-memo">${note}</div></div>`;
+}
+
+function pSeisanKg(fname){
+  const cfg=F_CONFIG[currentFactoryId];
+  const sender=cfg.co==='shioyama'?SHIOYAMA:'株式会社エル・アイ・シー';
+  let rh='';
+  rows().forEach(tr=>{
+    const[item,kg,biko]=rowVals(tr);
+    rh+=`<tr><td>${item}</td><td class="c">${kg||''}</td><td>${biko}</td></tr>`;
+  });
+  return pHeader('生産発注書',fname,v('f_no'),v('f_date'),sender,GREET)+
+  `<table class="pt"><thead><tr><th>カラー名 / 商品</th><th>/kg</th><th>備考</th></tr></thead>
+  <tbody>${rh}</tbody></table>
+  <div class="pf-memo">${v('f_memo')}</div></div>`;
+}
+
+function pPrison(fname){
+  let rh='';let totM=0;let totT=0;
+  rows().forEach(tr=>{
+    const[color,hinmei,maisuu,tan,biko]=rowVals(tr);
+    const m=parseInt(maisuu)||0;const t=parseInt(tan)||0;
+    totM+=m;totT+=t;
+    rh+=`<tr><td>${color}</td><td>${hinmei}</td><td class="c">${m||''}</td><td class="c">${t||''}</td><td>${biko}</td></tr>`;
+  });
+  rh+=`<tr class="sub"><td colspan="3" class="r">計</td><td class="c">${totT}反</td><td></td></tr>`;
+  return `<div class="pf">
+  <div class="pf-title sm">生産発注書</div>
+  <div class="pf-hrow">
+    <div><div style="font-size:12pt">No ${v('f_no')} ${totT}反</div><div style="font-size:10pt">日付 ${fmtD(v('f_date'))}</div></div>
+  </div>
+  <table class="pt"><thead><tr><th>カラー名</th><th>商品</th><th>枚数</th><th>反物</th><th>備考</th></tr></thead>
+  <tbody>${rh}</tbody></table>
+  <div class="pf-memo">${v('f_memo')}</div></div>`;
+}
+
+// ----- 東陽染業（加工指図書） -----
+function pToyo(fname){
+  const shukkoEls=document.querySelectorAll('#shukkoList .fg');
+  let shukkoHtml='';
+  shukkoEls.forEach((el,i)=>{
+    const nums=['①','②','③','④','⑤'];
+    const nm=el.querySelector('.shukko-name')?.value||'';
+    const dt=el.querySelector('.shukko-detail')?.value||'';
+    if(nm) shukkoHtml+=`<div style="margin-bottom:2mm"><b>${nums[i]||''}　${nm}</b><br><span style="padding-left:4mm">${dt}</span></div>`;
+  });
+  let rh='';let totTan=0;
+  rows().forEach(tr=>{
+    const[iroban,ironame,tan,tekiyo]=rowVals(tr);
+    const t=parseInt(tan)||0;totTan+=t;
+    rh+=`<tr><td class="c">${iroban}</td><td>${ironame}</td><td class="c">${t||''}</td><td>${tekiyo}</td></tr>`;
+  });
+  return `<div class="pf">
+  <div class="pf-title">加　工　指　図　書</div>
+  <div class="pf-hrow">
+    <span class="pf-recip">東陽染業株式会社<span class="onchu">御中</span></span>
+    <div class="pf-meta">日付 ${fmtD(v('f_date'))}</div>
+  </div>
+  <table class="pt pt-meta" style="margin-bottom:3mm">
+    <tr>
+      <td class="label">社名</td><td colspan="3">${SHIOYAMA}</td>
+      <td class="label">指図NO</td><td>${v('f_no')}</td>
+    </tr>
+    <tr>
+      <td class="label">生機品番</td><td>${v('f_seiki')}</td>
+      <td class="label">製品品番</td><td>${v('f_seihin')}</td>
+      <td class="label">混率</td><td>${v('f_konritsu')}</td>
+    </tr>
+    <tr>
+      <td class="label">規格巾＊目付＊長さ</td><td colspan="3">${v('f_kibo')}</td>
+      <td class="label">総反数</td><td>${v('f_totalTan')}反</td>
+    </tr>
+  </table>
+  ${v('f_chuki')?`<div style="font-size:10pt;font-weight:700;margin-bottom:2mm">${v('f_chuki')}</div>`:''}
+  <table class="pt" style="margin-bottom:3mm">
+    <thead><tr><th style="width:50mm">加工種別</th><th>出荷先</th></tr></thead>
+    <tbody><tr>
+      <td class="c" style="vertical-align:top">${v('f_kakoShubetsu')||'染色'}</td>
+      <td>${shukkoHtml||'&nbsp;'}</td>
+    </tr></tbody>
+  </table>
+  <table class="pt">
+    <thead><tr><th>色番</th><th>色名</th><th>反数</th><th>適用</th></tr></thead>
+    <tbody>${rh}
+    <tr style="border-top:2px solid #000"><td colspan="2"></td><td class="c" style="font-weight:700">${totTan}反</td><td></td></tr>
+    </tbody>
+  </table>
+  <div class="pf-memo" style="margin-top:3mm">${v('f_memo')}</div></div>`;
+}
+
+init();
+</script>
+</body>
+</html>
