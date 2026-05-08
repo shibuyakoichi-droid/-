@@ -21,20 +21,18 @@ body{font-family:'Helvetica Neue',Arial,'Hiragino Kaku Gothic ProN',sans-serif;f
 .btn.danger:hover{background:#fcebeb}
 .btn.ghost{background:none;border:none;color:#bbb;cursor:pointer;padding:2px 6px;font-size:18px;font-family:inherit;line-height:1}
 .btn.ghost:hover{color:#555}
-/* filter */
 .filter-tabs{display:flex;gap:0;margin-bottom:20px;border-bottom:2px solid #e8e6e0}
 .ftab{padding:8px 20px;font-size:13px;cursor:pointer;border:none;background:none;color:#888;font-family:inherit;border-bottom:2px solid transparent;margin-bottom:-2px;transition:all .15s}
 .ftab.active{color:#1a1a1a;font-weight:600;border-bottom-color:#1a1a1a}
 .badge{display:inline-block;background:#f0ede8;color:#777;border-radius:10px;font-size:11px;padding:1px 7px;margin-left:4px}
 .badge.red{background:#fde8e8;color:#c00}
-/* cards */
 .cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:16px}
 .card{background:#fff;border:1px solid #e8e6e0;border-radius:14px;padding:18px 20px;cursor:pointer;transition:box-shadow .15s,border-color .15s;position:relative;border-left:4px solid #e8e6e0}
-.card:hover{box-shadow:0 4px 18px rgba(0,0,0,.09);border-color:#ccc}
+.card:hover{box-shadow:0 4px 18px rgba(0,0,0,.09)}
 .card.stalled{border-left-color:#e05252}
 .card.warn{border-left-color:#f0a030}
 .card.ok{border-left-color:#2cb67d}
-.card-title{font-size:15px;font-weight:700;margin-bottom:2px;padding-right:90px}
+.card-title{font-size:15px;font-weight:700;margin-bottom:2px;padding-right:100px}
 .card-code{font-size:11px;color:#bbb;margin-bottom:10px}
 .card-meta{display:flex;gap:8px;align-items:center;margin-bottom:12px;flex-wrap:wrap}
 .phase-chip{display:inline-block;padding:2px 9px;border-radius:12px;font-size:11px;font-weight:600}
@@ -43,16 +41,12 @@ body{font-family:'Helvetica Neue',Arial,'Hiragino Kaku Gothic ProN',sans-serif;f
 .days-ok{background:#e8f5f0;color:#0a6b50}
 .days-warn{background:#fff3e0;color:#b86a00}
 .days-stall{background:#fde8e8;color:#c00}
-/* progress */
-.progress-wrap{margin-bottom:12px}
 .pbar{height:6px;background:#f0ede8;border-radius:3px;overflow:hidden;margin-bottom:5px}
-.pfill{height:100%;border-radius:3px;transition:width .4s}
-.plabel{font-size:11px;color:#aaa;display:flex;justify-content:space-between}
-/* next step */
+.pfill{height:100%;border-radius:3px}
+.plabel{font-size:11px;color:#aaa;display:flex;justify-content:space-between;margin-bottom:12px}
 .next-step{font-size:12px;background:#faf9f7;border-radius:8px;padding:8px 12px;display:flex;justify-content:space-between;align-items:center;gap:8px}
-.next-name{font-weight:600;color:#333;white-space:nowrap}
+.next-name{font-weight:600;color:#333}
 .next-who{color:#999;font-size:11px}
-/* right panel */
 .overlay{position:fixed;inset:0;background:rgba(0,0,0,.35);z-index:200;display:none}
 .overlay.open{display:block}
 .panel{position:fixed;top:0;right:0;width:500px;max-width:100vw;height:100vh;background:#fff;overflow-y:auto;z-index:201;box-shadow:-8px 0 40px rgba(0,0,0,.15);padding:24px}
@@ -61,39 +55,50 @@ body{font-family:'Helvetica Neue',Arial,'Hiragino Kaku Gothic ProN',sans-serif;f
 .panel-code{font-size:12px;color:#bbb;margin-bottom:4px}
 .panel-target{font-size:12px;color:#888;margin-bottom:16px}
 .panel-actions{display:flex;gap:8px;margin-bottom:20px;padding-bottom:16px;border-bottom:1px solid #f0ede8}
-/* steps */
 .phase-head{font-size:10px;font-weight:700;color:#bbb;text-transform:uppercase;letter-spacing:.08em;margin:20px 0 8px;display:flex;align-items:center;gap:8px}
 .phase-head::after{content:'';flex:1;height:1px;background:#f0ede8}
 .step-row{display:flex;align-items:flex-start;gap:10px;padding:10px 0;border-bottom:1px solid #f8f7f4}
-.step-icon{width:24px;height:24px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;flex-shrink:0;margin-top:1px}
-.icon-done{background:#e8f5f0;color:#2cb67d;font-weight:700}
+.step-icon{width:24px;height:24px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;flex-shrink:0;margin-top:1px;font-weight:700}
+.icon-done{background:#e8f5f0;color:#2cb67d}
 .icon-pend{background:#f5f4f0;color:#ccc;border:1.5px dashed #ddd}
 .step-body{flex:1;min-width:0}
 .step-name{font-size:13px;font-weight:500}
 .step-sub{font-size:11px;color:#aaa;margin-top:2px}
 .step-ctrl{display:flex;gap:6px;align-items:center;flex-shrink:0;flex-wrap:wrap;justify-content:flex-end}
 select.assign-sel{font-size:11px;padding:3px 6px;border:1px solid #d8d5cf;border-radius:6px;background:#fff;font-family:inherit;color:#1a1a1a;max-width:90px}
-/* modals */
 .modal-bg{position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:300;display:none;align-items:center;justify-content:center}
 .modal-bg.open{display:flex}
 .modal{background:#fff;border-radius:16px;padding:28px;width:420px;max-width:95vw;max-height:90vh;overflow-y:auto}
-.modal-title{font-size:16px;font-weight:700;margin-bottom:18px}
+.modal-title{font-size:16px;font-weight:700;margin-bottom:16px}
 .fg{margin-bottom:14px}
 .fg label{display:block;font-size:11px;font-weight:700;color:#999;margin-bottom:5px;text-transform:uppercase;letter-spacing:.04em}
 input[type=text],input[type=date],select.full,textarea{padding:8px 10px;border:1px solid #d8d5cf;border-radius:7px;font-size:13px;background:#fff;font-family:inherit;color:#1a1a1a;width:100%}
 input:focus,select:focus,textarea:focus{outline:none;border-color:#999;box-shadow:0 0 0 3px rgba(0,0,0,.05)}
 .modal-actions{display:flex;gap:8px;justify-content:flex-end;margin-top:20px}
-/* setup screen */
-.setup-card{background:#fff;border:1px solid #e8e6e0;border-radius:14px;padding:32px;max-width:600px;margin:40px auto}
-.setup-card h2{font-size:18px;font-weight:700;margin-bottom:8px}
-.setup-card p{color:#666;margin-bottom:20px;line-height:1.7}
-pre{background:#1a1a1a;color:#e8e6e0;padding:16px;border-radius:10px;font-size:12px;overflow-x:auto;white-space:pre;line-height:1.6;margin-bottom:16px}
-/* toast */
-.toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:#1a1a1a;color:#fff;padding:10px 22px;border-radius:10px;font-size:13px;z-index:400;opacity:0;transition:opacity .25s;pointer-events:none}
-.toast.show{opacity:1}
-/* empty */
+/* 担当者別 */
+.member-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:16px}
+.member-card{background:#fff;border:1px solid #e8e6e0;border-radius:14px;padding:18px 20px}
+.member-name{font-size:16px;font-weight:700;margin-bottom:12px;display:flex;align-items:center;gap:8px}
+.member-avatar{width:32px;height:32px;border-radius:50%;color:#fff;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:700;flex-shrink:0}
+.task-item{padding:8px 10px;border-radius:8px;margin-bottom:6px;border:1px solid #f0ede8;display:flex;align-items:center;gap:10px}
+.task-item.urgent{border-color:#f5c6c6;background:#fff8f8}
+.task-item.normal{background:#faf9f7}
+.task-product{font-size:12px;color:#aaa;margin-bottom:2px}
+.task-step{font-size:13px;font-weight:600}
+.task-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+.dot-urgent{background:#e05252}
+.dot-normal{background:#2cb67d}
+.no-tasks{font-size:13px;color:#bbb;text-align:center;padding:16px 0}
+/* 項目管理 */
+.step-edit-row{display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid #f5f4f0}
+.drag-handle{color:#ccc;cursor:grab;font-size:16px;padding:0 4px;user-select:none}
+.step-edit-name{flex:1;font-size:13px}
+.phase-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0}
+.step-edit-row.dragging{opacity:.4;background:#f5f4f0;border-radius:6px}
 .empty{text-align:center;padding:60px 20px;color:#aaa}
 .empty h3{font-size:18px;color:#888;margin-bottom:8px}
+.toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:#1a1a1a;color:#fff;padding:10px 22px;border-radius:10px;font-size:13px;z-index:400;opacity:0;transition:opacity .25s;pointer-events:none}
+.toast.show{opacity:1}
 </style>
 </head>
 <body>
@@ -101,6 +106,7 @@ pre{background:#1a1a1a;color:#e8e6e0;padding:16px;border-radius:10px;font-size:1
 <div class="topbar">
   <div class="topbar-title">🚀 新商品パイプライン</div>
   <div class="topbar-right">
+    <button class="btn sm" onclick="openStepsModal()">⚙ 項目</button>
     <button class="btn sm" onclick="openStaffModal()">👥 スタッフ</button>
     <button class="btn sm primary" onclick="openAddModal()">＋ 商品を追加</button>
   </div>
@@ -108,32 +114,36 @@ pre{background:#1a1a1a;color:#e8e6e0;padding:16px;border-radius:10px;font-size:1
 
 <div class="container">
   <div class="filter-tabs">
-    <button class="ftab active" id="ftab-all" onclick="setFilter('all')">全て<span class="badge" id="cnt-all">0</span></button>
-    <button class="ftab" id="ftab-stalled" onclick="setFilter('stalled')">要対応<span class="badge red" id="cnt-stalled">0</span></button>
-    <button class="ftab" id="ftab-active" onclick="setFilter('active')">進行中<span class="badge" id="cnt-active">0</span></button>
-    <button class="ftab" id="ftab-done" onclick="setFilter('done')">完了<span class="badge" id="cnt-done">0</span></button>
+    <button class="ftab active" id="ftab-all"     onclick="setFilter('all')">全て<span class="badge" id="cnt-all">0</span></button>
+    <button class="ftab"        id="ftab-stalled" onclick="setFilter('stalled')">要対応<span class="badge red" id="cnt-stalled">0</span></button>
+    <button class="ftab"        id="ftab-active"  onclick="setFilter('active')">進行中<span class="badge" id="cnt-active">0</span></button>
+    <button class="ftab"        id="ftab-done"    onclick="setFilter('done')">完了<span class="badge" id="cnt-done">0</span></button>
+    <button class="ftab"        id="ftab-member"  onclick="setFilter('member')">👤 担当者別</button>
   </div>
-  <div class="cards" id="cards-wrap">
-    <div class="empty"><h3>読込中…</h3></div>
-  </div>
+  <div class="cards" id="cards-wrap"><div class="empty"><h3>読込中…</h3></div></div>
+  <div id="member-wrap" style="display:none"></div>
 </div>
 
-<!-- 右パネルオーバーレイ -->
-<div class="overlay" id="overlay" onclick="closePanel()"></div>
-<div class="panel" id="detail-panel" style="display:none">
-  <div class="panel-head">
-    <div>
-      <div class="panel-title" id="panel-name"></div>
-      <div class="panel-code" id="panel-code"></div>
-      <div class="panel-target" id="panel-target"></div>
+<!-- 項目管理モーダル -->
+<div class="modal-bg" id="steps-modal">
+  <div class="modal" style="width:480px">
+    <div class="modal-title">⚙ 項目（ステップ）の管理</div>
+    <p style="font-size:12px;color:#aaa;margin-bottom:14px">ドラッグで並び替え、×で削除。変更は全商品に反映されます。</p>
+    <div id="steps-edit-list" style="margin-bottom:16px;max-height:340px;overflow-y:auto"></div>
+    <div style="background:#faf9f7;border-radius:10px;padding:14px;border:1px solid #e8e6e0">
+      <div style="font-size:11px;font-weight:700;color:#999;margin-bottom:10px;text-transform:uppercase;letter-spacing:.04em">項目を追加</div>
+      <div style="display:flex;gap:8px;margin-bottom:8px">
+        <input type="text" id="new-step-name" placeholder="項目名（例: 社内レビュー）" style="flex:1;padding:7px 10px;border:1px solid #d8d5cf;border-radius:7px;font-size:13px;font-family:inherit">
+        <select id="new-step-phase" style="padding:7px 10px;border:1px solid #d8d5cf;border-radius:7px;font-size:13px;font-family:inherit;background:#fff">
+          <option value="生産">生産</option>
+          <option value="マスタ">マスタ</option>
+          <option value="マーケ">マーケ</option>
+        </select>
+      </div>
+      <button class="btn primary sm" onclick="addStep()" style="width:100%">＋ 追加</button>
     </div>
-    <button class="btn ghost" onclick="closePanel()">✕</button>
+    <div class="modal-actions"><button class="btn primary" onclick="closeStepsModal()">完了</button></div>
   </div>
-  <div class="panel-actions">
-    <button class="btn sm" onclick="editProduct()">✏ 編集</button>
-    <button class="btn sm danger" onclick="deleteProduct()">削除</button>
-  </div>
-  <div id="panel-steps"></div>
 </div>
 
 <!-- 商品追加モーダル -->
@@ -171,16 +181,32 @@ pre{background:#1a1a1a;color:#e8e6e0;padding:16px;border-radius:10px;font-size:1
 <div class="modal-bg" id="staff-modal">
   <div class="modal">
     <div class="modal-title">👥 スタッフ管理</div>
-    <p style="font-size:12px;color:#aaa;margin-bottom:12px">ステップに割り当てる担当者を登録します</p>
+    <p style="font-size:12px;color:#aaa;margin-bottom:14px">ステップに割り当てる担当者を登録します</p>
     <div id="staff-list-wrap" style="margin-bottom:14px"></div>
     <div style="display:flex;gap:8px">
-      <input type="text" id="staff-new-name" placeholder="名前を入力" style="flex:1">
+      <input type="text" id="staff-new-name" placeholder="名前を入力" style="flex:1;padding:8px 10px;border:1px solid #d8d5cf;border-radius:7px;font-size:13px;font-family:inherit">
       <button class="btn primary sm" onclick="addStaff()">追加</button>
     </div>
-    <div class="modal-actions">
-      <button class="btn primary" onclick="closeStaffModal()">閉じる</button>
-    </div>
+    <div class="modal-actions"><button class="btn primary" onclick="closeStaffModal()">閉じる</button></div>
   </div>
+</div>
+
+<!-- 右パネル -->
+<div class="overlay" id="overlay" onclick="closePanel()"></div>
+<div class="panel" id="detail-panel" style="display:none">
+  <div class="panel-head">
+    <div>
+      <div class="panel-title" id="panel-name"></div>
+      <div class="panel-code" id="panel-code"></div>
+      <div class="panel-target" id="panel-target"></div>
+    </div>
+    <button class="btn ghost" onclick="closePanel()">✕</button>
+  </div>
+  <div class="panel-actions">
+    <button class="btn sm" onclick="editProduct()">✏ 編集</button>
+    <button class="btn sm danger" onclick="deleteProduct()">削除</button>
+  </div>
+  <div id="panel-steps"></div>
 </div>
 
 <div class="toast" id="toast"></div>
@@ -190,20 +216,27 @@ const SB_URL='https://yukcdqnnevomhdcpsvms.supabase.co';
 const SB_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inl1a2NkcW5uZXZvbWhkY3Bzdm1zIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY0Mjc2MTUsImV4cCI6MjA5MjAwMzYxNX0.XBSc2kQNwR_bleSwrfYZD8l0fbKTbL1Z3S7ewEtSkDc';
 const sb=supabase.createClient(SB_URL,SB_KEY);
 
-const STEPS=[
-  {code:'sample_create', name:'サンプル作成',   phase:'生産'},
-  {code:'sample_confirm',name:'サンプル確定',   phase:'生産'},
-  {code:'crossmall_reg', name:'クロスモール登録',phase:'マスタ'},
-  {code:'thomas_reg',    name:'トーマス登録',   phase:'マスタ'},
-  {code:'barcode',       name:'バーコード作成',  phase:'マスタ'},
-  {code:'master_reg',    name:'マスタ登録',     phase:'マスタ'},
-  {code:'photo',         name:'撮影',           phase:'マーケ'},
-  {code:'page_plan',     name:'ページ企画',     phase:'マーケ'},
-  {code:'page_build',    name:'ページ構成作成', phase:'マーケ'},
-  {code:'page_live',     name:'ページアップ',   phase:'マーケ'},
-  {code:'ads_reg',       name:'広告登録',       phase:'マーケ'},
+// ステップ定義はlocalStorageに保存して永続化
+const DEFAULT_STEPS=[
+  {code:'sample_create', name:'サンプル作成',     phase:'生産'},
+  {code:'sample_confirm',name:'サンプル確定',     phase:'生産'},
+  {code:'crossmall_reg', name:'クロスモール登録',  phase:'マスタ'},
+  {code:'thomas_reg',    name:'トーマス登録',     phase:'マスタ'},
+  {code:'barcode',       name:'バーコード作成',    phase:'マスタ'},
+  {code:'master_reg',    name:'マスタ登録',       phase:'マスタ'},
+  {code:'photo',         name:'撮影',             phase:'マーケ'},
+  {code:'page_plan',     name:'ページ企画',       phase:'マーケ'},
+  {code:'page_build',    name:'ページ構成作成',   phase:'マーケ'},
+  {code:'page_live',     name:'ページアップ',     phase:'マーケ'},
+  {code:'ads_reg',       name:'広告登録',         phase:'マーケ'},
   {code:'sales_check',   name:'売れてるかチェック',phase:'マーケ'},
 ];
+
+let STEPS=JSON.parse(localStorage.getItem('sowan_pipeline_steps')||'null')||DEFAULT_STEPS;
+let staffList=JSON.parse(localStorage.getItem('sowan_pipeline_staff')||'[]');
+let products=[];
+let currentFilter='all';
+let currentId=null;
 
 const PHASE_CFG={
   '生産':  {color:'#1a5fa0',bg:'#e8f0fa'},
@@ -211,21 +244,13 @@ const PHASE_CFG={
   'マーケ':{color:'#0a6b50',bg:'#e8f5f0'},
   '完了':  {color:'#666',   bg:'#ececec'},
 };
-
-let products=[];
-let staffList=JSON.parse(localStorage.getItem('sowan_pipeline_staff')||'[]');
-let currentFilter='all';
-let currentId=null;
+const AVATAR_COLORS=['#1a5fa0','#0a6b50','#7b5ea0','#b86a00','#c0392b'];
 
 // ── 初期化 ────────────────────────────────────
 async function init(){
   const{data,error}=await sb.from('product_pipeline')
     .select('*').neq('status','deleted').order('updated_at',{ascending:false});
-
   if(error){
-    if(error.code==='PGRST205'||error.message?.includes('does not exist')){
-      showSetupScreen();return;
-    }
     document.getElementById('cards-wrap').innerHTML=
       `<div class="empty"><h3>読み込みエラー</h3><p>${error.message}</p></div>`;
     return;
@@ -234,135 +259,120 @@ async function init(){
   renderAll();
 }
 
-function showSetupScreen(){
-  const sql=`CREATE TABLE IF NOT EXISTS product_pipeline (
-  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  product_name text NOT NULL,
-  product_code text,
-  target_sale_date date,
-  status text NOT NULL DEFAULT 'active',
-  steps jsonb NOT NULL DEFAULT '{}',
-  notes text,
-  created_at timestamptz NOT NULL DEFAULT now(),
-  updated_at timestamptz NOT NULL DEFAULT now()
-);
-ALTER TABLE product_pipeline ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "anon_all" ON product_pipeline
-  FOR ALL TO anon USING (true) WITH CHECK (true);`;
-
-  document.getElementById('cards-wrap').innerHTML=`
-    <div class="setup-card">
-      <h2>初回セットアップが必要です</h2>
-      <p>Supabaseダッシュボードの <strong>SQL Editor</strong> を開き、以下のSQLを実行してください。<br>
-      実行後このページを再読み込みすると使えるようになります。</p>
-      <pre>${sql}</pre>
-      <button class="btn primary" onclick="location.reload()">再読み込み</button>
-    </div>`;
-}
-
-// ── カード描画 ─────────────────────────────────
-function renderAll(){updateCounts();renderCards();}
-
+// ── ヘルパー ──────────────────────────────────
 function getDone(p){return STEPS.filter(s=>(p.steps||{})[s.code]?.done_at).length;}
-
 function getStalledDays(p){
   const steps=p.steps||{};
   let last=null;
   STEPS.forEach(s=>{const d=steps[s.code]?.done_at;if(d&&(!last||d>last))last=d;});
   return Math.floor((Date.now()-new Date(last||p.created_at).getTime())/86400000);
 }
-
 function getCurrentPhase(p){
   const done=getDone(p);
-  if(done===STEPS.length)return'完了';
-  return STEPS[done].phase;
+  return done===STEPS.length?'完了':STEPS[done].phase;
 }
-
-function getNextStep(p){
-  return STEPS.find(s=>!(p.steps||{})[s.code]?.done_at)||null;
-}
-
+function getNextStep(p){return STEPS.find(s=>!(p.steps||{})[s.code]?.done_at)||null;}
 function isStalled(p){return getDone(p)<STEPS.length&&getStalledDays(p)>=3;}
+function isDone(p){return getDone(p)===STEPS.length;}
+function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+function fmtDate(iso){if(!iso)return'';const d=new Date(iso);return`${d.getFullYear()}/${d.getMonth()+1}/${d.getDate()}`;}
+
+// ── 描画 ──────────────────────────────────────
+function renderAll(){updateCounts();renderCards();}
 
 function updateCounts(){
-  const stalled=products.filter(isStalled);
-  const done=products.filter(p=>getDone(p)===STEPS.length);
-  const active=products.filter(p=>getDone(p)<STEPS.length&&!isStalled(p));
   document.getElementById('cnt-all').textContent=products.length;
-  document.getElementById('cnt-stalled').textContent=stalled.length;
-  document.getElementById('cnt-active').textContent=active.length;
-  document.getElementById('cnt-done').textContent=done.length;
+  document.getElementById('cnt-stalled').textContent=products.filter(isStalled).length;
+  document.getElementById('cnt-active').textContent=products.filter(p=>!isDone(p)&&!isStalled(p)).length;
+  document.getElementById('cnt-done').textContent=products.filter(isDone).length;
 }
 
 function filtered(){
-  if(currentFilter==='stalled')return products.filter(isStalled);
-  if(currentFilter==='active')return products.filter(p=>getDone(p)<STEPS.length&&!isStalled(p));
-  if(currentFilter==='done')return products.filter(p=>getDone(p)===STEPS.length);
+  if(currentFilter==='stalled') return products.filter(isStalled);
+  if(currentFilter==='active')  return products.filter(p=>!isDone(p)&&!isStalled(p));
+  if(currentFilter==='done')    return products.filter(isDone);
   return products;
+}
+
+function setFilter(f){
+  currentFilter=f;
+  ['all','stalled','active','done','member'].forEach(k=>{
+    document.getElementById('ftab-'+k).classList.toggle('active',k===f);
+  });
+  const isMember=f==='member';
+  document.getElementById('cards-wrap').style.display=isMember?'none':'grid';
+  document.getElementById('member-wrap').style.display=isMember?'block':'none';
+  if(isMember) renderMemberView(); else renderCards();
 }
 
 function renderCards(){
   const wrap=document.getElementById('cards-wrap');
   const list=filtered();
-  if(!list.length){
-    wrap.innerHTML='<div class="empty"><h3>該当する商品がありません</h3></div>';return;
-  }
-  wrap.innerHTML=list.map(renderCard).join('');
-}
-
-function renderCard(p){
-  const done=getDone(p);
-  const total=STEPS.length;
-  const pct=Math.round(done/total*100);
-  const days=getStalledDays(p);
-  const phase=getCurrentPhase(p);
-  const pc=PHASE_CFG[phase];
-  const nextStep=getNextStep(p);
-
-  let cls='card';
-  let daysBadge='';
-  if(done===total){
-    cls+=' ok';
-    daysBadge=`<span class="days-badge days-ok">✅ 完了</span>`;
-  }else if(days>=3){
-    cls+=' stalled';
-    daysBadge=`<span class="days-badge days-stall">🔴 ${days}日停止</span>`;
-  }else if(days>=1){
-    cls+=' warn';
-    daysBadge=`<span class="days-badge days-warn">⏳ ${days}日経過</span>`;
-  }else{
-    cls+=' ok';
-    daysBadge=`<span class="days-badge days-ok">本日更新</span>`;
-  }
-
-  const barColor=phase==='完了'?'#2cb67d':pc.color;
-  const nextHtml=nextStep?`
-    <div class="next-step">
-      <span class="next-name">次: ${nextStep.name}</span>
-      <span class="next-who">${(p.steps||{})[nextStep.code]?.assigned||'未割当'}</span>
-    </div>`:'';
-
-  return`<div class="${cls}" onclick="openPanel('${p.id}')">
-    ${daysBadge}
-    <div class="card-title">${esc(p.product_name)}</div>
-    <div class="card-code">${esc(p.product_code||'')}</div>
-    <div class="card-meta">
-      <span class="phase-chip" style="background:${pc.bg};color:${pc.color}">${phase}</span>
-      ${p.target_sale_date?`<span class="target-txt">🗓 ${p.target_sale_date}</span>`:''}
-    </div>
-    <div class="progress-wrap">
+  if(!list.length){wrap.innerHTML='<div class="empty"><h3>該当する商品がありません</h3></div>';return;}
+  wrap.innerHTML=list.map(p=>{
+    const done=getDone(p),total=STEPS.length,pct=Math.round(done/total*100);
+    const days=getStalledDays(p),phase=getCurrentPhase(p),pc=PHASE_CFG[phase]||PHASE_CFG['完了'];
+    const nextStep=getNextStep(p);
+    let cls='card',badge='';
+    if(isDone(p)){cls+=' ok';badge=`<span class="days-badge days-ok">✅ 完了</span>`;}
+    else if(days>=3){cls+=' stalled';badge=`<span class="days-badge days-stall">🔴 ${days}日停止</span>`;}
+    else if(days>=1){cls+=' warn';badge=`<span class="days-badge days-warn">⏳ ${days}日経過</span>`;}
+    else{cls+=' ok';badge=`<span class="days-badge days-ok">本日更新</span>`;}
+    const barColor=phase==='完了'?'#2cb67d':pc.color;
+    const nextHtml=nextStep?`<div class="next-step"><span class="next-name">次: ${nextStep.name}</span><span class="next-who">${esc((p.steps||{})[nextStep.code]?.assigned||'未割当')}</span></div>`:'';
+    return`<div class="${cls}" onclick="openPanel('${p.id}')">
+      ${badge}
+      <div class="card-title">${esc(p.product_name)}</div>
+      <div class="card-code">${esc(p.product_code||'')}</div>
+      <div class="card-meta">
+        <span class="phase-chip" style="background:${pc.bg};color:${pc.color}">${phase}</span>
+        ${p.target_sale_date?`<span class="target-txt">🗓 ${p.target_sale_date}</span>`:''}
+      </div>
       <div class="pbar"><div class="pfill" style="width:${pct}%;background:${barColor}"></div></div>
       <div class="plabel"><span>${done}/${total} ステップ完了</span><span>${pct}%</span></div>
-    </div>
-    ${nextHtml}
-  </div>`;
+      ${nextHtml}
+    </div>`;
+  }).join('');
 }
 
-// ── 詳細パネル ──────────────────────────────────
+function renderMemberView(){
+  const tasks={};
+  staffList.forEach(s=>tasks[s]=[]);
+  products.forEach(p=>{
+    const days=getStalledDays(p);
+    STEPS.forEach(s=>{
+      const st=(p.steps||{})[s.code]||{};
+      if(!st.done_at&&st.assigned&&tasks[st.assigned]!==undefined){
+        tasks[st.assigned].push({product:p.product_name,step:s.name,isUrgent:days>=3});
+      }
+    });
+  });
+  const wrap=document.getElementById('member-wrap');
+  if(!staffList.length){
+    wrap.innerHTML='<div class="empty"><h3>スタッフが登録されていません</h3><p>「👥 スタッフ」ボタンから追加してください</p></div>';return;
+  }
+  wrap.innerHTML=`<div class="member-grid">`+staffList.map((name,i)=>{
+    const myTasks=tasks[name]||[];
+    const color=AVATAR_COLORS[i%AVATAR_COLORS.length];
+    const taskHtml=myTasks.length===0
+      ?`<div class="no-tasks">現在担当タスクなし ✓</div>`
+      :myTasks.map(t=>`<div class="task-item ${t.isUrgent?'urgent':'normal'}">
+          <div class="task-dot ${t.isUrgent?'dot-urgent':'dot-normal'}"></div>
+          <div><div class="task-product">${esc(t.product)}</div><div class="task-step">${esc(t.step)}</div></div>
+          ${t.isUrgent?`<span style="margin-left:auto;font-size:10px;color:#e05252;font-weight:700">急ぎ</span>`:''}
+        </div>`).join('');
+    return`<div class="member-card">
+      <div class="member-name">
+        <div class="member-avatar" style="background:${color}">${name[0]}</div>
+        ${esc(name)}<span style="font-size:12px;color:#aaa;font-weight:400;margin-left:4px">${myTasks.length}件</span>
+      </div>${taskHtml}</div>`;
+  }).join('')+`</div>`;
+}
+
+// ── 右パネル ──────────────────────────────────
 function openPanel(id){
   currentId=id;
-  const p=products.find(x=>x.id===id);
-  if(!p)return;
+  const p=products.find(x=>x.id===id);if(!p)return;
   document.getElementById('panel-name').textContent=p.product_name;
   document.getElementById('panel-code').textContent=p.product_code||'';
   document.getElementById('panel-target').textContent=p.target_sale_date?`目標: ${p.target_sale_date}`:(p.notes||'');
@@ -370,7 +380,6 @@ function openPanel(id){
   document.getElementById('overlay').classList.add('open');
   document.getElementById('detail-panel').style.display='block';
 }
-
 function closePanel(){
   document.getElementById('overlay').classList.remove('open');
   document.getElementById('detail-panel').style.display='none';
@@ -382,17 +391,12 @@ function renderPanelSteps(p){
   const phases=[...new Set(STEPS.map(s=>s.phase))];
   let html='';
   phases.forEach(ph=>{
-    const pc=PHASE_CFG[ph];
+    const pc=PHASE_CFG[ph]||{color:'#999'};
     html+=`<div class="phase-head" style="color:${pc.color}">${ph}</div>`;
     STEPS.filter(s=>s.phase===ph).forEach(s=>{
       const st=steps[s.code]||{};
       const done=!!st.done_at;
-      const iconCls=done?'icon-done':'icon-pend';
-      const icon=done?'✓':'';
-      const sub=done
-        ?`${st.done_by||st.assigned||''} · ${fmtDate(st.done_at)}`
-        :(st.assigned?`担当: ${esc(st.assigned)}`:'未割当');
-
+      const sub=done?`${esc(st.done_by||st.assigned||'')} · ${fmtDate(st.done_at)}`:(st.assigned?`担当: ${esc(st.assigned)}`:'未割当');
       const opts=staffList.map(n=>`<option value="${esc(n)}"${st.assigned===n?' selected':''}>${esc(n)}</option>`).join('');
       const ctrl=done
         ?`<button class="btn sm" style="font-size:11px;color:#bbb;padding:3px 10px" onclick="undoStep('${p.id}','${s.code}')">戻す</button>`
@@ -400,13 +404,9 @@ function renderPanelSteps(p){
             <option value="">担当者▼</option>${opts}
           </select>
           <button class="btn sm primary" onclick="completeStep('${p.id}','${s.code}')">完了</button>`;
-
       html+=`<div class="step-row">
-        <div class="step-icon ${iconCls}">${icon}</div>
-        <div class="step-body">
-          <div class="step-name">${s.name}</div>
-          <div class="step-sub">${sub}</div>
-        </div>
+        <div class="step-icon ${done?'icon-done':'icon-pend'}">${done?'✓':''}</div>
+        <div class="step-body"><div class="step-name">${esc(s.name)}</div><div class="step-sub">${sub}</div></div>
         <div class="step-ctrl">${ctrl}</div>
       </div>`;
     });
@@ -424,7 +424,6 @@ async function assignStep(id,code,staff){
   if(error){toast('エラーが発生しました');return;}
   p.steps=steps;
   renderPanelSteps(p);renderAll();
-  toast(`${code}を${staff}に割り当てました`);
 }
 
 async function completeStep(id,code){
@@ -436,8 +435,7 @@ async function completeStep(id,code){
   const{error}=await sb.from('product_pipeline').update({steps,updated_at:new Date().toISOString()}).eq('id',id);
   if(error){toast('エラーが発生しました');return;}
   p.steps=steps;p.updated_at=new Date().toISOString();
-  renderPanelSteps(p);renderAll();
-  toast('✓ 完了しました');
+  renderPanelSteps(p);renderAll();toast('✓ 完了しました');
 }
 
 async function undoStep(id,code){
@@ -451,7 +449,7 @@ async function undoStep(id,code){
   renderPanelSteps(p);renderAll();
 }
 
-// ── 商品追加・編集・削除 ───────────────────────
+// ── 商品追加 ──────────────────────────────────
 function openAddModal(){
   ['add-name','add-code','add-notes'].forEach(id=>document.getElementById(id).value='');
   document.getElementById('add-target').value='';
@@ -473,9 +471,11 @@ async function saveNewProduct(){
   if(error){alert('登録エラー: '+error.message);return;}
   products.unshift(data);
   closeAddModal();renderAll();
+  openPanel(data.id);
   toast('商品を追加しました 🎉');
 }
 
+// ── 編集・削除 ────────────────────────────────
 function editProduct(){
   const p=products.find(x=>x.id===currentId);if(!p)return;
   document.getElementById('edit-id').value=p.id;
@@ -520,21 +520,77 @@ async function deleteProduct(){
   closePanel();renderAll();toast('削除しました');
 }
 
-// ── スタッフ管理 ───────────────────────────────
+// ── 項目管理 ──────────────────────────────────
+let dragSrcIdx=null;
+
+function openStepsModal(){
+  renderStepsEditList();
+  document.getElementById('steps-modal').classList.add('open');
+}
+function closeStepsModal(){
+  document.getElementById('steps-modal').classList.remove('open');
+  localStorage.setItem('sowan_pipeline_steps',JSON.stringify(STEPS));
+  renderAll();
+  if(currentFilter==='member')renderMemberView();
+}
+
+function renderStepsEditList(){
+  const phaseColors={'生産':'#1a5fa0','マスタ':'#7b5ea0','マーケ':'#0a6b50'};
+  document.getElementById('steps-edit-list').innerHTML=STEPS.map((s,i)=>`
+    <div class="step-edit-row" id="step-edit-${i}" draggable="true"
+      ondragstart="dragStart(${i})" ondragover="dragOver(event,${i})" ondrop="drop(event,${i})" ondragend="dragEnd()">
+      <span class="drag-handle">⠿</span>
+      <span class="phase-dot" style="background:${phaseColors[s.phase]||'#aaa'}"></span>
+      <span class="step-edit-name">${esc(s.name)}</span>
+      <span style="font-size:11px;color:#bbb;background:#f5f4f0;padding:2px 8px;border-radius:10px">${s.phase}</span>
+      <button onclick="removeStep(${i})" style="background:none;border:none;color:#ccc;cursor:pointer;font-size:16px;padding:2px 6px;line-height:1">×</button>
+    </div>`).join('');
+}
+
+function addStep(){
+  const name=document.getElementById('new-step-name').value.trim();
+  if(!name){alert('項目名を入力してください');return;}
+  const phase=document.getElementById('new-step-phase').value;
+  STEPS.push({code:'custom_'+Date.now(),name,phase});
+  document.getElementById('new-step-name').value='';
+  renderStepsEditList();
+}
+
+function removeStep(i){
+  if(STEPS.length<=1){alert('項目は1つ以上必要です');return;}
+  if(!confirm(`「${STEPS[i].name}」を削除しますか？`))return;
+  STEPS.splice(i,1);
+  renderStepsEditList();
+}
+
+function dragStart(i){dragSrcIdx=i;document.getElementById('step-edit-'+i).classList.add('dragging');}
+function dragOver(e,i){e.preventDefault();}
+function drop(e,i){
+  e.preventDefault();
+  if(dragSrcIdx===null||dragSrcIdx===i)return;
+  const moved=STEPS.splice(dragSrcIdx,1)[0];
+  STEPS.splice(i,0,moved);
+  dragSrcIdx=null;
+  renderStepsEditList();
+}
+function dragEnd(){
+  dragSrcIdx=null;
+  document.querySelectorAll('.step-edit-row').forEach(el=>el.classList.remove('dragging'));
+}
+
+// ── スタッフ管理 ──────────────────────────────
 function openStaffModal(){renderStaffList();document.getElementById('staff-modal').classList.add('open');}
 function closeStaffModal(){document.getElementById('staff-modal').classList.remove('open');}
 
 function renderStaffList(){
-  const wrap=document.getElementById('staff-list-wrap');
-  wrap.innerHTML=staffList.length===0
-    ?`<p style="font-size:12px;color:#ccc;padding:8px 0">まだスタッフが登録されていません</p>`
+  document.getElementById('staff-list-wrap').innerHTML=staffList.length===0
+    ?`<p style="font-size:12px;color:#ccc;padding:8px 0">スタッフが登録されていません</p>`
     :staffList.map((n,i)=>`
       <div style="display:flex;justify-content:space-between;align-items:center;padding:7px 0;border-bottom:1px solid #f5f4f0">
         <span style="font-size:13px">${esc(n)}</span>
-        <button class="btn ghost" style="font-size:15px" onclick="removeStaff(${i})">×</button>
+        <button onclick="removeStaff(${i})" style="background:none;border:none;color:#ccc;cursor:pointer;font-size:16px;padding:2px 6px">×</button>
       </div>`).join('');
 }
-
 function addStaff(){
   const name=document.getElementById('staff-new-name').value.trim();
   if(!name||staffList.includes(name))return;
@@ -543,35 +599,15 @@ function addStaff(){
   document.getElementById('staff-new-name').value='';
   renderStaffList();
 }
-
 function removeStaff(i){
   staffList.splice(i,1);
   localStorage.setItem('sowan_pipeline_staff',JSON.stringify(staffList));
   renderStaffList();
 }
-
 document.getElementById('staff-new-name').addEventListener('keydown',e=>{if(e.key==='Enter')addStaff();});
+document.getElementById('new-step-name').addEventListener('keydown',e=>{if(e.key==='Enter')addStep();});
 
-// ── フィルター ──────────────────────────────────
-function setFilter(f){
-  currentFilter=f;
-  ['all','stalled','active','done'].forEach(k=>{
-    document.getElementById('ftab-'+k).classList.toggle('active',k===f);
-  });
-  renderCards();
-}
-
-// ── ユーティリティ ──────────────────────────────
-function fmtDate(iso){
-  if(!iso)return'';
-  const d=new Date(iso);
-  return`${d.getFullYear()}/${d.getMonth()+1}/${d.getDate()}`;
-}
-
-function esc(s){
-  return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
-}
-
+// ── トースト ──────────────────────────────────
 let toastTimer=null;
 function toast(msg){
   const el=document.getElementById('toast');
