@@ -53,6 +53,9 @@ select,input,textarea{width:100%;padding:10px 12px;font-size:13px;font-family:in
 .alert.show{display:block}
 .alert-ok{background:var(--green-bg);color:var(--green);border:1px solid #b8d98a}
 .alert-err{background:#fcebeb;color:#a32d2d;border:1px solid #f0c0c0}
+/* price alert */
+.price-alert{display:none;background:#fcf6e8;border:1px solid var(--warn);border-left:4px solid var(--warn);border-radius:6px;padding:10px 14px;font-size:13px;color:#7a4d0a;margin-bottom:14px}
+.price-alert a{color:#7a4d0a;font-weight:700;text-decoration:underline}
 /* ===== PRINT ===== */
 #printArea{display:none}
 @media print{
@@ -92,6 +95,10 @@ select,input,textarea{width:100%;padding:10px 12px;font-size:13px;font-family:in
 <div id="appUI">
   <div class="h1">発注書作成ツール</div>
   <div id="alertBox" class="alert"></div>
+  <div id="priceAlert" class="price-alert">
+    ⚠️ この工場の単価が <b>master_prices</b> に未登録です。発注書に金額が出ません。
+    → <a href="master.html" target="_blank">マスタ管理で登録する</a>
+  </div>
 
   <div class="ctabs">
     <button class="ctab active" onclick="setCompany('lic')">株式会社エル・アイ・シー</button>
@@ -177,10 +184,20 @@ function renderFactorySelect(){
   sel.innerHTML=visible.map(([id,c])=>`<option value="${id}">${c.name}</option>`).join('');
 }
 
-function onFactory(){
+async function onFactory(){
   const fid=document.getElementById('factorySel').value;
   currentFactoryId=fid;
   renderForm(fid);
+  await checkFactoryPrice(fid);
+}
+
+async function checkFactoryPrice(fid){
+  const el=document.getElementById('priceAlert');
+  if(!fid){el.style.display='none';return;}
+  try{
+    const {data}=await sb.from('master_prices').select('id').eq('factory_id',fid).limit(1);
+    el.style.display=(!data||data.length===0)?'':'none';
+  }catch(e){el.style.display='none';}
 }
 
 // ========== FORM RENDER ==========
