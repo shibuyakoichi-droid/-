@@ -123,8 +123,8 @@ let selectedCode=null, allProds=[];
 async function init(){
   // 並行フェッチ
   const [salesRes, itemsRes, fabricRes, colorRes, baseRes, detailRes] = await Promise.all([
-    sb.from('monthly_sales').select('item_code,qty_sold').gte('year_month', getYm6()),
-    sb.from('items').select('item_code,item_name,product_code'),
+    sb.from('monthly_sales').select('code,sales_qty').gte('year_month', getYm6()),
+    sb.from('items').select('item_code,item_name'),
     sb.from('master_fabrics').select('fabric_code,fabric_name,width_cm,weight_g_m2,unit_price_per_kg').order('fabric_code'),
     sb.from('cost_color_list').select('*').order('color_name'),
     sb.from('product_cost_base').select('*'),
@@ -134,7 +134,7 @@ async function init(){
   // 販売数集計
   const salesMap={};
   (salesRes.data||[]).forEach(r=>{
-    salesMap[r.item_code]=(salesMap[r.item_code]||0)+(r.qty_sold||0);
+    salesMap[r.code]=(salesMap[r.code]||0)+(r.sales_qty||0);
   });
 
   // 商品リスト（販売数降順）
@@ -162,7 +162,8 @@ async function init(){
 
 function getYm6(){
   const d=new Date();d.setMonth(d.getMonth()-6);
-  return String(d.getFullYear()*100+(d.getMonth()+1));
+  const m=String(d.getMonth()+1).padStart(2,'0');
+  return `${d.getFullYear()}-${m}`;
 }
 
 // ── リスト描画 ──────────────────────────────
