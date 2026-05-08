@@ -224,8 +224,8 @@ tr:hover td{background:#faf9f7}
           <th>糸の種類</th>
           <th>カラーNO</th>
           <th>カラー名</th>
-          <th class="r">在庫(kg)</th>
-          <th class="r">加工中(kg)</th>
+          <th class="r" id="yarn-th-stock">在庫</th>
+          <th class="r" id="yarn-th-wip">加工中</th>
           <th>メモ</th>
           <th></th>
         </tr></thead>
@@ -830,6 +830,13 @@ async function renderYarnTab(){
   document.getElementById('yarn-updated').textContent=
     `最終更新: ${d.getFullYear()}/${d.getMonth()+1}/${d.getDate()}`;
 
+  // 単位（坂本繊維は「反」、それ以外は「kg」）
+  const unitLabel=yarnSupplier==='坂本繊維'?'反':'kg';
+  const thStock=document.getElementById('yarn-th-stock');
+  const thWip=document.getElementById('yarn-th-wip');
+  if(thStock)thStock.textContent=`在庫(${unitLabel})`;
+  if(thWip)thWip.textContent=`加工中(${unitLabel})`;
+
   // グループ化（yarn_type別）
   const groups={};
   data.forEach(r=>{
@@ -841,24 +848,28 @@ async function renderYarnTab(){
   Object.entries(groups).forEach(([type,rows])=>{
     const total=rows.reduce((s,r)=>s+(parseFloat(r.stock_kg)||0),0);
     const totalWip=rows.reduce((s,r)=>s+(parseFloat(r.wip_kg)||0),0);
+    const rowUnit=rows[0].unit||unitLabel;
     html+=`<tr style="background:#faf9f7">
       <td colspan="3" style="font-weight:700;font-size:13px;color:#555;padding:8px 14px">${type}</td>
-      <td class="r" style="font-weight:700;color:#1a5fa0">${total>0?total.toFixed(2)+' kg':'-'}</td>
-      <td class="r" style="font-weight:700;color:#b86a00">${totalWip>0?totalWip.toFixed(2)+' kg':'-'}</td>
+      <td class="r" style="font-weight:700;color:#1a5fa0">${total>0?total.toFixed(rowUnit==='反'?0:2)+' '+rowUnit:'-'}</td>
+      <td class="r" style="font-weight:700;color:#b86a00">${totalWip>0?totalWip.toFixed(rowUnit==='反'?0:2)+' '+rowUnit:'-'}</td>
       <td colspan="2"></td>
     </tr>`;
     rows.forEach(r=>{
+      const u=r.unit||unitLabel;
+      const notesVal=(r.notes||'').replace(/'/g,"&#39;");
+      const wipBadge=r.wip_kg>0&&u==='反'?`<span style="font-size:10px;background:#fff3e0;color:#b86a00;border:1px solid #f5c06b;border-radius:4px;padding:1px 5px;margin-left:4px">加工中</span>`:'';
       html+=`<tr data-id="${r.id}">
-        <td style="padding-left:28px;color:#999;font-size:12px">${type}</td>
+        <td style="padding-left:28px;color:#999;font-size:12px">${type}${wipBadge}</td>
         <td><input type="text" value="${r.color_no||''}" style="width:90px;padding:4px 6px;font-size:12px"
           onchange="markDirty('${r.id}','color_no',this.value)"></td>
         <td><input type="text" value="${r.color_name||''}" style="width:120px;padding:4px 6px;font-size:12px"
           onchange="markDirty('${r.id}','color_name',this.value)"></td>
-        <td class="r"><input type="number" value="${r.stock_kg||0}" step="0.01" style="width:90px;padding:4px 6px;font-size:13px;font-weight:600;text-align:right;color:#1a5fa0"
+        <td class="r"><input type="number" value="${r.stock_kg||0}" step="${u==='反'?1:0.01}" style="width:90px;padding:4px 6px;font-size:13px;font-weight:600;text-align:right;color:#1a5fa0"
           onchange="markDirty('${r.id}','stock_kg',parseFloat(this.value)||0)"></td>
-        <td class="r"><input type="number" value="${r.wip_kg||0}" step="0.01" style="width:90px;padding:4px 6px;font-size:13px;font-weight:600;text-align:right;color:#b86a00"
+        <td class="r"><input type="number" value="${r.wip_kg||0}" step="${u==='反'?1:0.01}" style="width:90px;padding:4px 6px;font-size:13px;font-weight:600;text-align:right;color:#b86a00"
           onchange="markDirty('${r.id}','wip_kg',parseFloat(this.value)||0)"></td>
-        <td><input type="text" value="${r.notes||''}" placeholder="メモ" style="width:140px;padding:4px 6px;font-size:12px"
+        <td><input type="text" value="${notesVal}" placeholder="メモ" style="width:140px;padding:4px 6px;font-size:12px"
           onchange="markDirty('${r.id}','notes',this.value)"></td>
         <td><button class="btn ghost" onclick="deleteYarnRow('${r.id}')">×</button></td>
       </tr>`;
@@ -897,9 +908,10 @@ function addYarnRow(){
   if(!type)return;
   const color=prompt('カラー名を入力してください');
   if(!color)return;
+  const newUnit=yarnSupplier==='坂本繊維'?'反':'kg';
   sb.from('yarn_stock').insert({
     supplier:yarnSupplier,yarn_type:type,color_name:color,
-    color_no:'',stock_kg:0,wip_kg:0
+    color_no:'',stock_kg:0,wip_kg:0,unit:newUnit
   }).then(({error})=>{
     if(error)alert('登録エラー: '+error.message);
     else renderYarnTab();
