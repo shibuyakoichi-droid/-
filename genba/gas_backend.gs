@@ -128,14 +128,23 @@ function buildSnapshot(ss) {
     const stagePcs   = processStages.reduce((sum, st) => sum + (s[st] || 0), 0);
     const processTotal = kamikiPcs + stagePcs;
     const backlog    = s['backlog'] || 0;
+    const target     = s['target']  || 0;
 
-    const target   = s['target']  || 0;
+    // 出荷数（累計）と手元在庫（現在の実在庫）
+    const shipped    = s['出荷数']  || 0;
+    const physStock  = s['実在庫']  || 0;
+    const produced   = physStock + shipped; // 累計生産数 = 手元在庫 + 出荷済
+
     s.kamikiPcs    = kamikiPcs;
     s.processTotal = processTotal;
     s.backlog      = backlog;
     s.target       = target;
+    s.shipped      = shipped;
+    s.physStock    = physStock;
+    s.produced     = produced;
     s.diff         = backlog - processTotal;
-    s.progress     = target > 0 ? Math.round(processTotal / target * 100) : null;
+    // 進捗%は「累計生産÷目標」で計算（出荷しても下がらない）
+    s.progress     = target > 0 ? Math.round(produced / target * 100) : null;
   });
 
   return snapshot;
@@ -290,7 +299,12 @@ function setBacklog(ss, skuCode, qty) {
 
 // Snapshotの特定セルに加算（行がなければ新規追加）
 function addToSnapshot(sheet, skuCode, stage, delta) {
-  if (!stage || stage === '—' || stage === '出荷') return;
+  if (!stage || stage === '—') return;
+  // 「出荷」への移動は累計カウンター「出荷数」に加算（減算はしない）
+  if (stage === '出荷') {
+    if (delta <= 0) return;
+    stage = '出荷数';
+  }
 
   const data = sheet.getDataRange().getValues();
   for (let i = 1; i < data.length; i++) {

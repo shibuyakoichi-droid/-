@@ -475,25 +475,31 @@ function updateContext() {
   if (snap['池本さん'])     parts.push(`池本:${snap['池本さん']}`);
   if (snap['刑務所'])       parts.push(`刑務:${snap['刑務所']}`);
   if (snap['内職'])         parts.push(`内職:${snap['内職']}`);
-  if (snap['実在庫'])       parts.push(`実在庫:${snap['実在庫']}`);
+  const physStock = snap.physStock != null ? snap.physStock : (snap['実在庫'] || 0);
+  const shipped   = snap.shipped   != null ? snap.shipped   : (snap['出荷数'] || 0);
+  if (physStock)  parts.push(`手元在庫:${physStock.toLocaleString()}`);
+  if (shipped)    parts.push(`出荷済:${shipped.toLocaleString()}`);
   lines.push(parts.length ? parts.join(' / ') : '在庫データなし');
 
-  // 工程合計・出荷残・差分
-  const pt   = snap.processTotal != null ? snap.processTotal : 0;
-  const bl   = snap.backlog      != null ? snap.backlog      : 0;
-  const diff = snap.diff         != null ? snap.diff         : bl - pt;
-  const target = snap.target != null ? snap.target : 0;
-  lines.push(`工程合計: ${pt}個 ｜ 出荷残: ${bl}個`);
+  // 累計生産・目標達成度
+  const pt      = snap.processTotal != null ? snap.processTotal : 0;
+  const bl      = snap.backlog      != null ? snap.backlog      : 0;
+  const diff    = snap.diff         != null ? snap.diff         : bl - pt;
+  const target  = snap.target       != null ? snap.target       : 0;
+  const produced = snap.produced    != null ? snap.produced     : physStock + shipped;
+  const prog    = snap.progress     != null ? snap.progress     : (target > 0 ? Math.round(produced / target * 100) : 0);
+
+  if (target > 0) {
+    lines.push(`🏭 累計生産: ${produced.toLocaleString()}個 / 目標${target.toLocaleString()}個（${prog}%）`);
+  }
+  lines.push(`📦 手元在庫: ${physStock.toLocaleString()}個 ｜ 出荷済: ${shipped.toLocaleString()}個`);
+
   const diffLabel = diff > 0
     ? `🔴 不足 +${diff}個`
     : diff < 0
-      ? `✅ 余裕 ${diff}個`
+      ? `✅ 余裕 ${Math.abs(diff)}個`
       : '✅ ピッタリ';
-  lines.push(`差分: ${diffLabel}`);
-  if (target > 0) {
-    const prog = Math.round(pt / target * 100);
-    lines.push(`目標: ${target}個 ｜ 進捗: ${prog}%`);
-  }
+  lines.push(`📋 出荷残: ${bl.toLocaleString()}個 ｜ 工程合計: ${pt.toLocaleString()}個 → ${diffLabel}`);
 
   const box = document.getElementById('contextBox');
   box.className = diff > 0 ? 'context-box warn' : 'context-box';
@@ -536,7 +542,7 @@ function renderStagePills() {
 }
 
 function renderFixStagePills() {
-  const fixStages = ['神木さん','エルアイシー(未縫製)','池本さん','刑務所','エルアイシー(加工前)','内職','実在庫'];
+  const fixStages = ['神木さん','エルアイシー(未縫製)','池本さん','刑務所','エルアイシー(加工前)','内職','実在庫','出荷数'];
   document.getElementById('fixStagePills').innerHTML =
     fixStages.map(n => `<div class="pill" data-stage="${n}">${n}</div>`).join('');
   document.querySelectorAll('#fixStagePills .pill').forEach(pill => {
