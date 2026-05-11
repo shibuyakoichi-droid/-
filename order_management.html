@@ -99,7 +99,7 @@ input[readonly]{background:#f5f4f0;color:#888}
     <div class="topbar-title">発注管理</div>
     <div class="topbar-sub">株式会社エル・アイ・シー / mofmofu</div>
   </div>
-  <a href="order_form.html" target="_blank" class="btn primary" style="text-decoration:none">＋ 発注書を作成</a>
+  <button class="btn primary" onclick="openNewOrder()">＋ 新規発注書</button>
 </div>
 
 <div class="container no-print">
@@ -171,6 +171,59 @@ input[readonly]{background:#f5f4f0;color:#888}
   </div>
 </div>
 
+<!-- 発注書モーダル -->
+<div class="modal-overlay no-print" id="order-modal">
+  <div class="modal">
+    <div class="modal-header">
+      <div style="display:flex;align-items:center">
+        <div id="modal-title" class="modal-title">新規発注書</div>
+        <span id="process-tag"></span>
+      </div>
+      <button class="btn sm" onclick="closeModal()">閉じる</button>
+    </div>
+    <div style="margin-bottom:10px">
+      <div style="font-size:11px;font-weight:600;color:#999;margin-bottom:6px">工程で絞り込み</div>
+      <div id="o-cat-filters" style="display:flex;gap:4px;flex-wrap:wrap">
+        <button class="subtab active" onclick="filterOrderFactory('')">すべて</button>
+        <button class="subtab" onclick="filterOrderFactory('編み')">編み</button>
+        <button class="subtab" onclick="filterOrderFactory('染色')">染色</button>
+        <button class="subtab" onclick="filterOrderFactory('裁断')">裁断</button>
+        <button class="subtab" onclick="filterOrderFactory('縫製')">縫製</button>
+        <button class="subtab" onclick="filterOrderFactory('糸')">糸</button>
+        <button class="subtab" onclick="filterOrderFactory('靴下')">靴下</button>
+        <button class="subtab" onclick="filterOrderFactory('その他')">その他</button>
+      </div>
+    </div>
+    <div class="form-row col2">
+      <div class="form-group">
+        <label>発注先工場 *</label>
+        <select id="o-factory" onchange="onFactoryChange()"><option value="">選択してください</option></select>
+        <div id="o-factory-badge" style="margin-top:6px;min-height:22px"></div>
+      </div>
+      <div class="form-group"><label>発注日 *</label><input type="date" id="o-date"></div>
+    </div>
+    <div class="form-row col2">
+      <div class="form-group"><label>希望納期</label><input type="date" id="o-due"></div>
+      <div class="form-group"><label>発注番号（自動）</label><input id="o-number" readonly></div>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label>備考</label><textarea id="o-memo" rows="2" placeholder="特記事項など"></textarea></div>
+    </div>
+    <div style="margin-bottom:12px">
+      <div class="section-label" style="margin-bottom:8px">発注明細</div>
+      <div id="items-hint" style="font-size:12px;color:#bbb;padding:16px 0">工場を選択すると工程に合わせた項目が表示されます</div>
+      <table class="items-tbl" id="items-table" style="display:none">
+        <thead id="items-head"></thead>
+        <tbody id="items-body"></tbody>
+      </table>
+      <button class="add-row-btn" id="add-row-btn" style="display:none" onclick="addItemRow()">＋ 行を追加</button>
+    </div>
+    <div style="display:flex;justify-content:flex-end;gap:8px;padding-top:16px;border-top:1px solid #e8e6e0;margin-top:16px">
+      <button class="btn" onclick="closeModal()">キャンセル</button>
+      <button id="save-btn" class="btn primary" onclick="saveOrder()">保存する</button>
+    </div>
+  </div>
+</div>
 
 
 <div class="print-doc" id="print-content"></div>
@@ -290,6 +343,7 @@ let historyView='month';
 let analyticsView='factory';
 let histSort={col:'date',dir:'desc'};
 let orderCatFilter='';
+let editingOrderId=null;
 
 async function load(){
   const[r1,r2,r_items,r_prices]=await Promise.all([
@@ -403,16 +457,17 @@ function renderDashboard(){
   if(!mo.length){el.innerHTML='<div class="empty-state">今月の発注はまだありません</div>';return;}
   const sorted=[...mo].sort((a,b)=>b.date.localeCompare(a.date));
   el.innerHTML=`<div class="table-wrap"><table class="list">
-    <thead><tr><th>発注日</th><th>工場</th><th>工程</th><th>発注番号</th><th>数量計</th><th></th></tr></thead>
+    <thead><tr><th>発注日</th><th>工場</th><th>工程</th><th>発注番号</th><th>数量計</th><th style="min-width:120px">備考</th><th></th></tr></thead>
     <tbody>${sorted.map(o=>{
       const f=D.factories.find(f=>f.id===o.factoryId);
       return `<tr>
         <td style="color:#888">${o.date}</td>
-        <td style="font-weight:500">${f?f.name:'不明'}</td>
+        <td style="font-weight:500">${f?f.name:(o.factoryId||'不明')}</td>
         <td>${f?catBadge(f.category):''}</td>
         <td style="font-size:12px;color:#888;font-family:monospace">${o.number}</td>
         <td style="font-weight:500">${sumQty(o).toLocaleString()}</td>
-        <td><button class="btn sm" onclick="printOrder('${o.id}')">印刷</button></td>
+        <td style="font-size:12px;color:#888;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${(o.memo||'').replace(/"/g,'&quot;')}">${o.memo||''}</td>
+        <td style="display:flex;gap:4px;flex-wrap:nowrap"><button class="btn sm" onclick="openEditOrder('${o.id}')">編集</button><button class="btn sm" onclick="printOrder('${o.id}')">印刷</button><button class="btn sm danger" onclick="deleteOrder('${o.id}')">削除</button></td>
       </tr>`;
     }).join('')}</tbody>
   </table></div>`;
@@ -533,11 +588,11 @@ function renderHistory(){
         const qv=parseInt(i[qk])||0;
         return `<tr>
           <td style="color:#888">${o.date}</td>
-          <td style="font-weight:500">${f?f.name:'不明'}</td>
+          <td style="font-weight:500">${f?f.name:(o.factoryId||'不明')}</td>
           <td>${i.color||'—'}</td>
           <td>${i.productName||'—'}</td>
           <td style="text-align:right;font-weight:500">${qv.toLocaleString()}</td>
-          <td><button class="btn sm" onclick="printOrder('${o.id}')">印刷</button></td>
+          <td style="display:flex;gap:4px;flex-wrap:nowrap"><button class="btn sm" onclick="openEditOrder('${o.id}')">編集</button><button class="btn sm" onclick="printOrder('${o.id}')">印刷</button><button class="btn sm danger" onclick="deleteOrder('${o.id}')">削除</button></td>
         </tr>`;
       }).join('');
       return `<div class="month-section">
@@ -582,7 +637,7 @@ function renderAnalytics(){
         const f=D.factories.find(f=>f.id===r.factoryId);
         const pct=totalQty>0?Math.round(r.qty/totalQty*100):0;
         return `<tr>
-          <td style="font-weight:500">${f?f.name:'不明'}</td>
+          <td style="font-weight:500">${f?f.name:(o.factoryId||'不明')}</td>
           <td>${f?catBadge(f.category):''}</td>
           <td style="text-align:right">${r.count}件</td>
           <td style="text-align:right;font-weight:500">${r.qty.toLocaleString()}</td>
@@ -687,7 +742,251 @@ async function deleteFactory(id){
   renderFactories();
 }
 
-// ────── 発注書印刷 ──────
+// ────── 発注書 ──────
+
+function buildOrderFactoryOptions(cat){
+  const factories=cat?D.factories.filter(f=>f.category===cat):D.factories;
+  return '<option value="">選択してください</option>'+factories.map(f=>`<option value="${f.id}">${f.name}</option>`).join('');
+}
+
+function filterOrderFactory(cat){
+  orderCatFilter=cat;
+  document.querySelectorAll('#o-cat-filters .subtab').forEach(el=>{
+    el.classList.toggle('active',el.textContent===(cat||'すべて'));
+  });
+  const sel=document.getElementById('o-factory');
+  const prev=sel.value;
+  sel.innerHTML=buildOrderFactoryOptions(cat);
+  const stillValid=D.factories.find(f=>f.id===prev&&(!cat||f.category===cat));
+  if(stillValid){sel.value=prev;}
+  else{sel.value='';document.getElementById('o-factory-badge').innerHTML='';document.getElementById('process-tag').innerHTML='';}
+  onFactoryChange();
+}
+
+function openNewOrder(){
+  editingOrderId=null;
+  document.getElementById('modal-title').textContent='新規発注書';
+  document.getElementById('save-btn').textContent='保存する';
+  orderCatFilter='';
+  document.querySelectorAll('#o-cat-filters .subtab').forEach((el,i)=>el.classList.toggle('active',i===0));
+  const sel=document.getElementById('o-factory');
+  sel.innerHTML=buildOrderFactoryOptions('');
+  document.getElementById('o-date').value=new Date().toISOString().split('T')[0];
+  document.getElementById('o-number').value=genNumber();
+  document.getElementById('o-due').value='';
+  document.getElementById('o-memo').value='';
+  document.getElementById('process-tag').innerHTML='';
+  document.getElementById('o-factory-badge').innerHTML='';
+  document.getElementById('items-hint').style.display='block';
+  document.getElementById('items-table').style.display='none';
+  document.getElementById('items-head').innerHTML='';
+  document.getElementById('items-body').innerHTML='';
+  document.getElementById('add-row-btn').style.display='none';
+  currentSchema=[];
+  document.getElementById('order-modal').classList.add('open');
+}
+function closeModal(){document.getElementById('order-modal').classList.remove('open');}
+
+function openEditOrder(id){
+  const o=D.orders.find(o=>o.id===id);if(!o)return;
+  editingOrderId=id;
+  document.getElementById('modal-title').textContent='発注書を編集';
+  document.getElementById('save-btn').textContent='更新する';
+  orderCatFilter='';
+  document.querySelectorAll('#o-cat-filters .subtab').forEach((el,i)=>el.classList.toggle('active',i===0));
+  const sel=document.getElementById('o-factory');
+  sel.innerHTML=buildOrderFactoryOptions('');
+  sel.value=o.factory_id||o.factoryId||'';
+  document.getElementById('o-date').value=o.date||'';
+  document.getElementById('o-number').value=o.number||'';
+  document.getElementById('o-due').value=o.due||'';
+  document.getElementById('o-memo').value=o.memo||'';
+  onFactoryChange();
+  document.getElementById('items-body').innerHTML='';
+  (o.items||[]).forEach(item=>{
+    addItemRow();
+    const rows=document.querySelectorAll('#items-body tr');
+    const tr=rows[rows.length-1];
+    tr.querySelectorAll('[data-key]').forEach(el=>{
+      const k=el.dataset.key;
+      if(item[k]!==undefined&&item[k]!==null){
+        el.value=item[k];
+        if(k==='item_code')onItemCodeChange(el);
+      }
+    });
+    calcRowAmount(tr.querySelector('[data-key]')||tr);
+  });
+  document.getElementById('order-modal').classList.add('open');
+}
+
+function onFactoryChange(){
+  const fid=document.getElementById('o-factory').value;
+  if(!fid){
+    document.getElementById('process-tag').innerHTML='';
+    document.getElementById('o-factory-badge').innerHTML='';
+    document.getElementById('items-hint').style.display='block';
+    document.getElementById('items-table').style.display='none';
+    document.getElementById('items-body').innerHTML='';
+    document.getElementById('add-row-btn').style.display='none';
+    currentSchema=[];return;
+  }
+  const f=D.factories.find(f=>f.id===fid);
+  const cat=f?f.category:'その他';
+  const proc=CAT_TO_PROCESS[cat]||'other';
+  const pm=PM[proc]||PM.other;
+  currentSchema=SCHEMA[cat]||SCHEMA['その他'];
+
+  /* プロセスバッジ */
+  document.getElementById('process-tag').innerHTML=
+    `<span class="process-tag" style="${CAT_STYLE[cat]||CAT_STYLE['その他']}">${pm.icon} ${pm.label}</span>`;
+  document.getElementById('o-factory-badge').innerHTML=catBadge(cat);
+
+  /* 品番マスタ連携が必要な工程のみ datalist を生成 */
+  const existDL=document.getElementById('dl_order_items');
+  if(existDL)existDL.remove();
+  if(currentSchema.some(c=>c.type==='item_code')){
+    let dlHtml='<datalist id="dl_order_items">';
+    (D.items||[]).forEach(it=>{
+      const itProc=(()=>{try{return JSON.parse(it.memo||'{}').p||'';}catch{return '';}})();
+      if(!itProc||itProc===proc)
+        dlHtml+=`<option value="${it.item_code}">${it.item_name||''}</option>`;
+    });
+    dlHtml+='</datalist>';
+    document.getElementById('items-table').insertAdjacentHTML('beforebegin',dlHtml);
+  }
+
+  /* SCHEMAからヘッダーを生成 */
+  const thead=`<tr>${currentSchema.map(c=>`<th style="width:${c.w}%">${c.label}</th>`).join('')}<th style="width:4%"></th></tr>`;
+  document.getElementById('items-head').innerHTML=thead;
+
+  document.getElementById('items-body').innerHTML='';
+  document.getElementById('items-hint').style.display='none';
+  document.getElementById('items-table').style.display='table';
+  document.getElementById('add-row-btn').style.display='inline-block';
+  addItemRow();addItemRow();addItemRow();
+}
+
+function addItemRow(){
+  if(!currentSchema.length)return;
+  const s  ='style="width:100%;box-sizing:border-box;border:1px solid #d8d5cf;border-radius:5px;padding:4px 6px;font-family:inherit;font-size:12px;"';
+  const sr ='style="width:100%;box-sizing:border-box;border:1px solid #d8d5cf;border-radius:5px;padding:4px 6px;font-family:inherit;font-size:12px;text-align:right;"';
+  const sro='style="width:100%;box-sizing:border-box;border:1px solid #e8e6e0;border-radius:5px;padding:4px 6px;font-family:inherit;font-size:12px;background:#f5f4f0;color:#888;"';
+  const sror='style="width:100%;box-sizing:border-box;border:1px solid #e8e6e0;border-radius:5px;padding:4px 6px;font-family:inherit;font-size:12px;background:#f5f4f0;color:#888;text-align:right;"';
+  const cells=currentSchema.map(c=>{
+    switch(c.type){
+      case 'item_code':
+        return `<td><input ${s} list="dl_order_items" data-key="${c.key}" placeholder="${c.label}" onchange="onItemCodeChange(this)" oninput="onItemCodeChange(this)"></td>`;
+      case 'auto_name':
+        return `<td><input ${sro} data-key="${c.key}" readonly placeholder="自動"></td>`;
+      case 'auto_amt':
+        return `<td><input ${sror} type="number" data-key="${c.key}" readonly></td>`;
+      case 'number_calc':
+        return `<td><input ${sr} type="number" data-key="${c.key}" placeholder="0" min="0" oninput="calcRowAmount(this)"></td>`;
+      case 'number':
+        return `<td><input ${sr} type="number" data-key="${c.key}" placeholder="0" min="0"></td>`;
+      case 'unit':
+        return `<td><select data-key="${c.key}" style="padding:4px;font-size:12px;width:100%;border:1px solid #d8d5cf;border-radius:5px;"><option value="kg">kg</option><option value="ケース">ケース</option><option value="本">本</option></select></td>`;
+      default:
+        return `<td><input ${s} data-key="${c.key}" placeholder="${c.label}"></td>`;
+    }
+  }).join('');
+  const tr=document.createElement('tr');
+  tr.innerHTML=cells+`<td style="text-align:center"><button class="btn sm danger" onclick="this.closest('tr').remove()">×</button></td>`;
+  document.getElementById('items-body').appendChild(tr);
+}
+
+function onItemCodeChange(inputEl){
+  const fid=document.getElementById('o-factory')?.value;
+  const code=(inputEl.value||'').trim();
+  const tr=inputEl.closest('tr');
+  if(!tr)return;
+  const nameEl=tr.querySelector('[data-key="item_name"]');
+  const priceEl=tr.querySelector('[data-key="unit_price"]');
+  const item=D.items.find(x=>x.item_code===code);
+  if(nameEl)nameEl.value=item?.item_name||'';
+  const up=getOrderPrice(fid,code);
+  if(priceEl){
+    if(up!==''){priceEl.value=up;priceEl.style.background='#e8f5ef';priceEl.style.color='#0a6b50';}
+    else{priceEl.value='';priceEl.style.background='';priceEl.style.color='';}
+  }
+  calcRowAmount(inputEl);
+}
+
+function calcRowAmount(anyInputInRow){
+  const tr=anyInputInRow.closest('tr');
+  if(!tr)return;
+  const qty=tr.querySelector('[data-key="qty"]')?.value||'';
+  const up=tr.querySelector('[data-key="unit_price"]')?.value||'';
+  const amtEl=tr.querySelector('[data-key="amount"]');
+  if(amtEl){const a=calcAmt(qty,up);amtEl.value=a!==''?a:'';}
+}
+async function saveOrder(){
+  const factoryId=document.getElementById('o-factory').value;
+  const date=document.getElementById('o-date').value;
+  if(!factoryId){showAlert('工場を選択してください','err');return;}
+  if(!date){showAlert('発注日を入力してください','err');return;}
+  if(!currentSchema.length){showAlert('工場を選択してください','err');return;}
+  const rows=[...document.querySelectorAll('#items-body tr')];
+  const items=rows.map(tr=>{
+    const obj={};
+    tr.querySelectorAll('[data-key]').forEach(el=>{
+      const k=el.dataset.key;
+      let v=el.value.trim();
+      obj[k]=v;
+    });
+    return obj;
+  }).filter(i=>{
+    // 品番マスタ連携の工程は item_code、それ以外は最初のキーで判定
+    const firstKey=currentSchema[0]?.key||'item_code';
+    const v=i[firstKey];
+    return v&&v.trim()!=='';
+  });
+  if(!items.length){showAlert('明細を1行以上入力してください','err');return;}
+  const f=D.factories.find(f=>f.id===factoryId);
+  const order={
+    id:genId(),
+    number:document.getElementById('o-number').value,
+    factory_id:factoryId,
+    category:f?f.category:'その他',
+    date,
+    due:document.getElementById('o-due').value,
+    memo:document.getElementById('o-memo').value,
+    items
+  };
+  if(editingOrderId){
+    const{error}=await sb.from('om_orders').update({
+      factory_id:factoryId,
+      category:f?f.category:'その他',
+      date,
+      due:document.getElementById('o-due').value,
+      memo:document.getElementById('o-memo').value,
+      items
+    }).eq('id',editingOrderId);
+    if(error){showAlert('更新に失敗しました：'+error.message,'err');return;}
+    const idx=D.orders.findIndex(o=>o.id===editingOrderId);
+    if(idx>=0)D.orders[idx]={...D.orders[idx],factory_id:factoryId,factoryId,category:f?f.category:'その他',date,due:document.getElementById('o-due').value,memo:document.getElementById('o-memo').value,items};
+    closeModal();renderDashboard();
+    showAlert(`発注書 ${order.number} を更新しました`);
+    return;
+  }
+  const{error}=await sb.from('om_orders').insert(order);
+  if(error){showAlert('保存に失敗しました','err');return;}
+  D.orders.push({...order,factoryId,createdAt:new Date().toISOString()});
+  closeModal();renderDashboard();
+  showAlert(`発注書 ${order.number} を保存しました`);
+}
+
+async function deleteOrder(id){
+  const o=D.orders.find(o=>o.id===id);if(!o)return;
+  if(!confirm(`発注書 ${o.number} を削除しますか？`))return;
+  const{error}=await sb.from('om_orders').delete().eq('id',id);
+  if(error){showAlert('削除に失敗しました：'+error.message,'err');return;}
+  D.orders=D.orders.filter(o=>o.id!==id);
+  renderDashboard();
+  const hTab=document.getElementById('tab-history');
+  if(hTab.classList.contains('active')){buildMonthOptions('hist-filter-month');buildFactoryOptions('hist-filter-factory');renderHistory();}
+  showAlert('削除しました');
+}
 
 function printOrder(id){
   const o=D.orders.find(o=>o.id===id);if(!o)return;
