@@ -1,0 +1,512 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>デイリーチェック — SOWAN</title>
+<style>
+:root{--bg:#f5f4f0;--card:#fff;--border:#e8e6e0;--border-s:#d8d5cf;--ink:#1a1a1a;--muted:#888;--faint:#bbb;--accent:#1a1a1a;--green:#0a6b50;--green-bg:#e1f5ee;--green-border:#b8d98a;--amber:#b86a00;--amber-bg:#fef9ee;--red:#a32d2d;--red-bg:#fcebeb;--blue:#1a5fa0;--blue-bg:#e6f1fb;--r:10px}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Helvetica Neue',Arial,'Hiragino Kaku Gothic ProN',sans-serif;font-size:14px;color:var(--ink);background:var(--bg);min-height:100vh}
+.topbar{background:var(--card);border-bottom:1px solid var(--border);padding:0 24px;display:flex;align-items:center;justify-content:space-between;height:56px;position:sticky;top:0;z-index:100}
+.topbar-title{font-size:15px;font-weight:600}
+.topbar-sub{font-size:11px;color:var(--muted);margin-top:2px}
+.topbar-right{display:flex;gap:8px}
+.container{max-width:860px;margin:0 auto;padding:20px 16px 60px}
+.btn{padding:7px 14px;border:1px solid var(--border-s);border-radius:8px;font-size:13px;cursor:pointer;background:var(--card);color:var(--ink);font-family:inherit;transition:background .12s}
+.btn:hover{background:var(--bg)}
+.btn.primary{background:var(--ink);color:#fff;border-color:var(--ink)}
+.btn.primary:hover{background:#333}
+.btn.sm{padding:4px 10px;font-size:12px}
+.btn.danger{color:var(--red);border-color:#f0c0c0}
+.btn.danger:hover{background:var(--red-bg)}
+.btn.ghost{background:none;border:none;color:var(--faint);font-size:18px;padding:2px 6px;cursor:pointer;font-family:inherit}
+.btn.ghost:hover{color:var(--ink)}
+
+/* 日付ナビ */
+.date-nav{display:flex;align-items:center;gap:8px;background:var(--card);border:1px solid var(--border);border-radius:var(--r);padding:6px 8px;margin-bottom:16px}
+.date-nav .btn{border:none;background:none;padding:4px 10px}
+.date-nav .date-label{flex:1;text-align:center;font-size:15px;font-weight:600}
+
+/* サマリー */
+.summary{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:20px}
+.stat{background:var(--card);border:1px solid var(--border);border-radius:var(--r);padding:12px 14px;text-align:center}
+.stat-label{font-size:11px;color:var(--muted);margin-bottom:4px}
+.stat-value{font-size:22px;font-weight:700}
+.stat-value.green{color:var(--green)}
+.stat-value.amber{color:var(--amber)}
+.stat-value.red{color:var(--red)}
+
+/* スタッフカード */
+.staff-card{background:var(--card);border:1px solid var(--border);border-radius:var(--r);margin-bottom:14px;overflow:hidden}
+.staff-head{display:flex;align-items:center;gap:10px;padding:14px 16px;border-bottom:1px solid var(--border)}
+.avatar{width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;flex-shrink:0}
+.staff-name{font-size:14px;font-weight:600}
+.staff-sub{font-size:12px;color:var(--muted)}
+.progress-bar{flex:1;height:5px;background:#f0ede8;border-radius:3px;margin:0 12px}
+.progress-fill{height:100%;border-radius:3px;background:var(--green);transition:width .3s}
+.pct-label{font-size:12px;color:var(--muted);min-width:32px;text-align:right}
+
+/* タスクセクション */
+.task-section{padding:8px 12px}
+.section-divider{display:flex;align-items:center;gap:8px;padding:6px 4px;margin:4px 0 2px}
+.section-divider-line{flex:1;height:1px;background:var(--border)}
+.section-divider-label{font-size:10px;font-weight:700;color:var(--muted);letter-spacing:.08em;text-transform:uppercase;white-space:nowrap}
+
+/* タスク行 */
+.task-row{display:flex;align-items:center;gap:10px;padding:9px 10px;border-radius:8px;cursor:pointer;user-select:none;transition:background .1s}
+.task-row:hover{background:#f5f4f0}
+.task-row.done{background:var(--green-bg)}
+.task-row.done .task-name{text-decoration:line-through;color:var(--muted)}
+.task-row.overdue{background:var(--red-bg)}
+.task-row.overdue .task-name{color:var(--red)}
+.task-row input[type=checkbox]{width:16px;height:16px;cursor:pointer;accent-color:var(--green);flex-shrink:0}
+.task-name{flex:1;font-size:13px}
+.task-time{font-size:11px;color:var(--muted);white-space:nowrap}
+.badge{display:inline-block;padding:2px 6px;border-radius:4px;font-size:10px;font-weight:600}
+.badge.checkin{background:#e6f1fb;color:var(--blue)}
+.badge.checkout{background:var(--amber-bg);color:var(--amber)}
+.badge.overdue{background:var(--red-bg);color:var(--red)}
+.badge.monthly{background:#f3eafd;color:#6b2fa0}
+
+/* ヒートマップ */
+.history{background:var(--card);border:1px solid var(--border);border-radius:var(--r);padding:16px 18px;margin-top:20px}
+.history h2{font-size:14px;font-weight:600;margin-bottom:12px;color:var(--muted)}
+.heatmap{display:grid;gap:3px;font-size:11px}
+.heat-date{text-align:center;color:var(--faint);font-size:10px}
+.heat-label{color:var(--muted);font-size:12px;align-self:center;padding-right:4px}
+.heat-cell{height:18px;border-radius:3px;background:#ececea}
+.heat-cell.today{outline:2px solid var(--ink)}
+.legend{display:flex;align-items:center;gap:6px;margin-top:10px;font-size:11px;color:var(--muted)}
+.legend-cell{width:14px;height:14px;border-radius:3px}
+
+/* モーダル */
+.overlay{position:fixed;inset:0;background:rgba(0,0,0,.4);display:none;align-items:flex-start;justify-content:center;z-index:200;overflow-y:auto;padding:24px 16px}
+.overlay.open{display:flex}
+.modal{background:var(--card);border-radius:14px;width:100%;max-width:520px;padding:24px;box-shadow:0 10px 40px rgba(0,0,0,.15)}
+.modal h2{font-size:16px;font-weight:600;margin-bottom:16px}
+.field{margin-bottom:12px}
+.field label{display:block;font-size:12px;color:var(--muted);margin-bottom:4px}
+.field input,.field select{width:100%;padding:8px 10px;border:1px solid var(--border-s);border-radius:8px;font-family:inherit;font-size:13px;background:var(--card)}
+.field input:focus,.field select:focus{outline:none;border-color:#999}
+.field-row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.weekday-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:4px}
+.weekday-grid label{display:flex;align-items:center;justify-content:center;padding:6px 0;border:1px solid var(--border-s);border-radius:8px;font-size:12px;cursor:pointer}
+.weekday-grid input{display:none}
+.weekday-grid label:has(input:checked){background:var(--green-bg);border-color:var(--green)}
+.modal-foot{display:flex;justify-content:flex-end;gap:8px;margin-top:16px;padding-top:16px;border-top:1px solid var(--border)}
+.manage-list{display:flex;flex-direction:column;gap:6px;max-height:45vh;overflow-y:auto;margin-bottom:12px}
+.manage-item{display:flex;align-items:center;gap:8px;padding:8px 10px;background:var(--bg);border-radius:8px}
+.manage-item .name{flex:1;font-size:13px}
+.manage-item .sub{font-size:11px;color:var(--muted)}
+.empty{text-align:center;padding:28px;color:var(--faint);font-size:13px}
+@media(max-width:600px){.summary{grid-template-columns:repeat(2,1fr)}}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div>
+    <div class="topbar-title">✓ デイリーチェック</div>
+    <div class="topbar-sub">SOWAN — 日次タスク管理</div>
+  </div>
+  <div class="topbar-right">
+    <button class="btn sm" onclick="openTaskModal()">⚙ タスク管理</button>
+    <button class="btn sm" onclick="openStaffModal()">👥 スタッフ</button>
+    <a href="top.html" class="btn sm" style="text-decoration:none">↩ ポータル</a>
+  </div>
+</div>
+
+<div class="container">
+  <div class="date-nav">
+    <button class="btn" onclick="changeDate(-1)">◀</button>
+    <div class="date-label" id="dateLabel"></div>
+    <button class="btn" onclick="changeDate(1)">▶</button>
+    <button class="btn sm" onclick="goToday()">今日</button>
+  </div>
+
+  <div class="summary">
+    <div class="stat"><div class="stat-label">全タスク</div><div class="stat-value" id="sTotal">0</div></div>
+    <div class="stat"><div class="stat-label">完了</div><div class="stat-value green" id="sDone">0</div></div>
+    <div class="stat"><div class="stat-label">残り</div><div class="stat-value amber" id="sTodo">0</div></div>
+    <div class="stat"><div class="stat-label">遅延</div><div class="stat-value red" id="sOver">0</div></div>
+  </div>
+
+  <div id="staffArea"></div>
+
+  <div class="history">
+    <h2>過去14日の達成率</h2>
+    <div id="heatmap" class="heatmap"></div>
+    <div class="legend">
+      <span>低</span>
+      <span class="legend-cell" style="background:#ececea"></span>
+      <span class="legend-cell" style="background:#9fe1cb"></span>
+      <span class="legend-cell" style="background:#5dcaa5"></span>
+      <span class="legend-cell" style="background:#1d9e75"></span>
+      <span class="legend-cell" style="background:#0a6b50"></span>
+      <span>高</span>
+    </div>
+  </div>
+</div>
+
+<!-- タスク管理モーダル -->
+<div class="overlay" id="taskOverlay" onclick="closeOverlay(event,'taskOverlay')">
+  <div class="modal">
+    <h2>⚙ タスク管理</h2>
+    <div class="field"><label>タスク名 *</label><input id="t-name" placeholder="例：発注書入力"></div>
+    <div class="field-row">
+      <div class="field"><label>担当者 *</label><select id="t-staff"></select></div>
+      <div class="field"><label>タイミング</label>
+        <select id="t-timing">
+          <option value="work">通常業務</option>
+          <option value="checkin">出勤時</option>
+          <option value="checkout">退勤時</option>
+        </select>
+      </div>
+    </div>
+    <div class="field-row">
+      <div class="field"><label>繰り返し</label>
+        <select id="t-pattern" onchange="onPatternChange()">
+          <option value="daily">毎日</option>
+          <option value="weekday">平日のみ</option>
+          <option value="weekly">曜日指定</option>
+          <option value="monthly-start">月初（1〜3日）</option>
+          <option value="monthly-end">月末（最終3日）</option>
+        </select>
+      </div>
+    </div>
+    <div class="field" id="weekdayField" style="display:none">
+      <label>曜日を選択</label>
+      <div class="weekday-grid">
+        <label><input type="checkbox" value="1"><span>月</span></label>
+        <label><input type="checkbox" value="2"><span>火</span></label>
+        <label><input type="checkbox" value="3"><span>水</span></label>
+        <label><input type="checkbox" value="4"><span>木</span></label>
+        <label><input type="checkbox" value="5"><span>金</span></label>
+        <label><input type="checkbox" value="6"><span>土</span></label>
+        <label><input type="checkbox" value="0"><span>日</span></label>
+      </div>
+    </div>
+    <button class="btn primary" onclick="addTask()" style="margin-bottom:16px">＋ タスクを追加</button>
+    <div style="font-size:12px;font-weight:600;color:var(--muted);margin-bottom:8px">登録済みタスク</div>
+    <div class="manage-list" id="taskList"></div>
+    <div class="modal-foot"><button class="btn" onclick="closeOverlay(null,'taskOverlay')">閉じる</button></div>
+  </div>
+</div>
+
+<!-- スタッフ管理モーダル -->
+<div class="overlay" id="staffOverlay" onclick="closeOverlay(event,'staffOverlay')">
+  <div class="modal">
+    <h2>👥 スタッフ管理</h2>
+    <div class="field-row">
+      <div class="field"><label>氏名 *</label><input id="s-name" placeholder="例：田中"></div>
+      <div class="field"><label>役割</label><input id="s-role" placeholder="例：発注・生産"></div>
+    </div>
+    <button class="btn primary" onclick="addStaff()" style="margin-bottom:16px">＋ スタッフを追加</button>
+    <div style="font-size:12px;font-weight:600;color:var(--muted);margin-bottom:8px">登録済みスタッフ</div>
+    <div class="manage-list" id="staffList"></div>
+    <div class="modal-foot"><button class="btn" onclick="closeOverlay(null,'staffOverlay')">閉じる</button></div>
+  </div>
+</div>
+
+<script>
+const KEY='sowan_daily_check:v1';
+const COLORS=[
+  {bg:'#e6f1fb',fg:'#0c447c'},
+  {bg:'#e1f5ee',fg:'#085041'},
+  {bg:'#faeeda',fg:'#633806'},
+  {bg:'#fbeaf0',fg:'#72243e'},
+  {bg:'#eeedfe',fg:'#3c3489'},
+  {bg:'#faece7',fg:'#712b13'},
+];
+
+let cur=new Date();cur.setHours(0,0,0,0);
+
+function defaultState(){
+  const now=new Date().toISOString();
+  return {
+    staff:[
+      {id:'s1',name:'渋谷',role:'EC運営',color:0},
+      {id:'s2',name:'藤原',role:'商品企画',color:1},
+      {id:'s3',name:'岡田',role:'物流・出荷',color:2},
+    ],
+    tasks:[
+      // 渋谷
+      {id:'t01',name:'出勤チェック',staffId:'s1',timing:'checkin',pattern:'daily',weekdays:[]},
+      {id:'t02',name:'発注書入力',staffId:'s1',timing:'work',pattern:'weekday',weekdays:[]},
+      {id:'t03',name:'納品書入力',staffId:'s1',timing:'work',pattern:'weekday',weekdays:[]},
+      {id:'t04',name:'在処管理入力',staffId:'s1',timing:'work',pattern:'weekday',weekdays:[]},
+      {id:'t05',name:'新商品パイプライン更新',staffId:'s1',timing:'work',pattern:'daily',weekdays:[]},
+      {id:'t06',name:'退勤チェック',staffId:'s1',timing:'checkout',pattern:'daily',weekdays:[]},
+      // 藤原
+      {id:'t07',name:'出勤チェック',staffId:'s2',timing:'checkin',pattern:'daily',weekdays:[]},
+      {id:'t08',name:'新商品パイプライン更新',staffId:'s2',timing:'work',pattern:'daily',weekdays:[]},
+      {id:'t09',name:'退勤チェック',staffId:'s2',timing:'checkout',pattern:'daily',weekdays:[]},
+      // 岡田
+      {id:'t10',name:'出勤チェック',staffId:'s3',timing:'checkin',pattern:'daily',weekdays:[]},
+      {id:'t11',name:'tool4seller確認',staffId:'s3',timing:'work',pattern:'daily',weekdays:[]},
+      {id:'t12',name:'ベビーレッグ出荷数入力',staffId:'s3',timing:'work',pattern:'daily',weekdays:[]},
+      {id:'t13',name:'退勤チェック',staffId:'s3',timing:'checkout',pattern:'daily',weekdays:[]},
+    ],
+    checks:{},
+  };
+}
+
+let S=load();
+
+function load(){
+  try{const r=localStorage.getItem(KEY);if(r)return JSON.parse(r);}catch(e){}
+  return defaultState();
+}
+function save(){localStorage.setItem(KEY,JSON.stringify(S));}
+
+function fmtKey(d){return`${d.getFullYear()}-${p2(d.getMonth()+1)}-${p2(d.getDate())}`;}
+function p2(n){return String(n).padStart(2,'0');}
+function fmtJa(d){const w=['日','月','火','水','木','金','土'][d.getDay()];return`${d.getFullYear()}年${d.getMonth()+1}月${d.getDate()}日（${w}）`;}
+function esc(s){return String(s||'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+
+function onDate(task,date){
+  const dow=date.getDay(),dom=date.getDate();
+  const last=new Date(date.getFullYear(),date.getMonth()+1,0).getDate();
+  switch(task.pattern){
+    case'daily':return true;
+    case'weekday':return dow>=1&&dow<=5;
+    case'weekly':return(task.weekdays||[]).includes(dow);
+    case'monthly-start':return dom<=3;
+    case'monthly-end':return dom>=last-2;
+  }
+  return false;
+}
+
+function tasksFor(date){return S.tasks.filter(t=>onDate(t,date));}
+function getCheck(date,tid){const k=fmtKey(date);return S.checks[k]&&S.checks[k][tid];}
+function toggle(date,tid){
+  const k=fmtKey(date);
+  if(!S.checks[k])S.checks[k]={};
+  if(S.checks[k][tid]){delete S.checks[k][tid];}
+  else{const n=new Date();S.checks[k][tid]={done:true,time:p2(n.getHours())+':'+p2(n.getMinutes())};}
+  save();render();
+}
+function isOverdue(date,tid){
+  const today=new Date();today.setHours(0,0,0,0);
+  return date<today&&!getCheck(date,tid);
+}
+function patternLabel(t){
+  const wm=['日','月','火','水','木','金','土'];
+  switch(t.pattern){
+    case'daily':return'毎日';case'weekday':return'平日';
+    case'weekly':return(t.weekdays||[]).map(w=>wm[w]).join('・');
+    case'monthly-start':return'月初';case'monthly-end':return'月末';
+  }return'';
+}
+
+// ────── render ──────
+function render(){
+  document.getElementById('dateLabel').textContent=fmtJa(cur);
+  const tasks=tasksFor(cur);
+  let totDone=0,totOver=0;
+
+  const byStaff={};
+  S.staff.forEach(s=>byStaff[s.id]=[]);
+  tasks.forEach(t=>{if(!byStaff[t.staffId])byStaff[t.staffId]=[];byStaff[t.staffId].push(t);});
+
+  const area=document.getElementById('staffArea');
+  area.innerHTML='';
+
+  S.staff.forEach(staff=>{
+    const myTasks=byStaff[staff.id]||[];
+    if(!myTasks.length)return;
+    const checkin=myTasks.filter(t=>t.timing==='checkin');
+    const work=myTasks.filter(t=>t.timing==='work');
+    const checkout=myTasks.filter(t=>t.timing==='checkout');
+    const done=myTasks.filter(t=>getCheck(cur,t.id)).length;
+    totDone+=done;
+    myTasks.forEach(t=>{if(isOverdue(cur,t.id))totOver++;});
+    const pct=Math.round(done/myTasks.length*100);
+    const c=COLORS[staff.color%COLORS.length];
+
+    const card=document.createElement('div');
+    card.className='staff-card';
+    card.innerHTML=`
+      <div class="staff-head">
+        <div class="avatar" style="background:${c.bg};color:${c.fg}">${esc(staff.name.charAt(0))}</div>
+        <div style="flex:1">
+          <div class="staff-name">${esc(staff.name)}</div>
+          <div class="staff-sub">${esc(staff.role||'')} &nbsp; ${done} / ${myTasks.length} 完了</div>
+        </div>
+        <div class="progress-bar"><div class="progress-fill" style="width:${pct}%"></div></div>
+        <div class="pct-label">${pct}%</div>
+      </div>
+      <div class="task-section" id="ts-${staff.id}"></div>`;
+    area.appendChild(card);
+
+    const sec=document.getElementById('ts-'+staff.id);
+    const addSection=(label,items,badgeClass)=>{
+      if(!items.length)return;
+      sec.innerHTML+=`<div class="section-divider"><div class="section-divider-line"></div><div class="section-divider-label">${label}</div><div class="section-divider-line"></div></div>`;
+      items.forEach(t=>sec.appendChild(makeRow(t,badgeClass)));
+    };
+    addSection('出勤時',checkin,'checkin');
+    addSection('業務',work,'');
+    addSection('退勤時',checkout,'checkout');
+  });
+
+  document.getElementById('sTotal').textContent=tasks.length;
+  document.getElementById('sDone').textContent=totDone;
+  document.getElementById('sTodo').textContent=tasks.length-totDone;
+  document.getElementById('sOver').textContent=totOver;
+  renderHeatmap();
+}
+
+function makeRow(t,badgeClass){
+  const check=getCheck(cur,t.id);
+  const overdue=isOverdue(cur,t.id);
+  const div=document.createElement('div');
+  div.className='task-row'+(check?' done':'')+(overdue?' overdue':'');
+
+  let rightHtml='';
+  if(badgeClass)rightHtml+=`<span class="badge ${badgeClass}">${badgeClass==='checkin'?'出勤':'退勤'}</span> `;
+  if(check)rightHtml+=`<span class="task-time">${check.time}</span>`;
+  else if(overdue)rightHtml+=`<span class="badge overdue">遅延</span>`;
+  else{
+    const pl=patternLabel(t);
+    if(t.pattern==='monthly-start'||t.pattern==='monthly-end')
+      rightHtml+=`<span class="badge monthly">${pl}</span>`;
+    else rightHtml+=`<span class="task-time">—</span>`;
+  }
+
+  div.innerHTML=`
+    <input type="checkbox" ${check?'checked':''} onclick="toggle(cur,'${t.id}')">
+    <span class="task-name">${esc(t.name)}</span>
+    <span class="task-time" style="display:flex;align-items:center;gap:4px">${rightHtml}</span>`;
+  div.addEventListener('click',e=>{if(e.target.tagName!=='INPUT')toggle(cur,t.id);});
+  return div;
+}
+
+function renderHeatmap(){
+  const days=14;
+  const today=new Date();today.setHours(0,0,0,0);
+  const hc=['#ececea','#9fe1cb','#5dcaa5','#1d9e75','#0a6b50'];
+  const hm=document.getElementById('heatmap');
+  hm.style.gridTemplateColumns=`44px repeat(${days},1fr)`;
+  hm.innerHTML='';
+  hm.appendChild(document.createElement('div'));
+  for(let i=days-1;i>=0;i--){
+    const d=new Date(today);d.setDate(d.getDate()-i);
+    const c=document.createElement('div');
+    c.className='heat-date';
+    c.textContent=d.getDate();
+    if(i===0)c.style.fontWeight='600';
+    hm.appendChild(c);
+  }
+  S.staff.forEach(s=>{
+    const lbl=document.createElement('div');
+    lbl.className='heat-label';
+    lbl.textContent=s.name;
+    hm.appendChild(lbl);
+    for(let i=days-1;i>=0;i--){
+      const d=new Date(today);d.setDate(d.getDate()-i);
+      const my=tasksFor(d).filter(t=>t.staffId===s.id);
+      let idx=0;
+      if(my.length>0){
+        const done=my.filter(t=>getCheck(d,t.id)).length;
+        const p=done/my.length;
+        idx=p>=1?4:p>=.75?3:p>=.5?2:p>0?1:0;
+      }
+      const cell=document.createElement('div');
+      cell.className='heat-cell'+(i===0?' today':'');
+      cell.style.background=hc[idx];
+      cell.title=`${fmtKey(d)} ${s.name} ${my.length>0?Math.round((my.filter(t=>getCheck(d,t.id)).length/my.length)*100)+'%':'対象なし'}`;
+      hm.appendChild(cell);
+    }
+  });
+}
+
+// ────── 日付ナビ ──────
+function changeDate(d){cur.setDate(cur.getDate()+d);render();}
+function goToday(){cur=new Date();cur.setHours(0,0,0,0);render();}
+
+// ────── タスク管理 ──────
+function openTaskModal(){
+  refreshStaffSel();refreshTaskList();
+  document.getElementById('taskOverlay').classList.add('open');
+}
+function refreshStaffSel(){
+  document.getElementById('t-staff').innerHTML=S.staff.map(s=>`<option value="${s.id}">${esc(s.name)}</option>`).join('');
+}
+function onPatternChange(){
+  document.getElementById('weekdayField').style.display=document.getElementById('t-pattern').value==='weekly'?'':'none';
+}
+function addTask(){
+  const name=document.getElementById('t-name').value.trim();
+  if(!name){alert('タスク名を入力してください');return;}
+  const staffId=document.getElementById('t-staff').value;
+  const timing=document.getElementById('t-timing').value;
+  const pattern=document.getElementById('t-pattern').value;
+  let weekdays=[];
+  if(pattern==='weekly'){
+    weekdays=Array.from(document.querySelectorAll('.weekday-grid input:checked')).map(e=>parseInt(e.value));
+    if(!weekdays.length){alert('曜日を選んでください');return;}
+  }
+  S.tasks.push({id:'t'+Date.now(),name,staffId,timing,pattern,weekdays});
+  save();
+  document.getElementById('t-name').value='';
+  document.querySelectorAll('.weekday-grid input').forEach(e=>e.checked=false);
+  refreshTaskList();render();
+}
+function refreshTaskList(){
+  const el=document.getElementById('taskList');
+  if(!S.tasks.length){el.innerHTML='<div class="empty">タスクがありません</div>';return;}
+  const tLabel={checkin:'出勤時',work:'業務',checkout:'退勤時'};
+  el.innerHTML=S.tasks.map(t=>{
+    const s=S.staff.find(x=>x.id===t.staffId);
+    return`<div class="manage-item">
+      <div class="name">${esc(t.name)}</div>
+      <div class="sub">${s?esc(s.name):'?'} · ${tLabel[t.timing]||''} · ${patternLabel(t)}</div>
+      <button class="btn sm danger" onclick="delTask('${t.id}')">削除</button>
+    </div>`;
+  }).join('');
+}
+function delTask(id){
+  if(!confirm('削除しますか？'))return;
+  S.tasks=S.tasks.filter(t=>t.id!==id);
+  save();refreshTaskList();render();
+}
+
+// ────── スタッフ管理 ──────
+function openStaffModal(){
+  refreshStaffList();
+  document.getElementById('staffOverlay').classList.add('open');
+}
+function addStaff(){
+  const name=document.getElementById('s-name').value.trim();
+  if(!name){alert('氏名を入力してください');return;}
+  S.staff.push({id:'s'+Date.now(),name,role:document.getElementById('s-role').value.trim(),color:S.staff.length});
+  save();
+  document.getElementById('s-name').value='';document.getElementById('s-role').value='';
+  refreshStaffList();render();
+}
+function refreshStaffList(){
+  const el=document.getElementById('staffList');
+  if(!S.staff.length){el.innerHTML='<div class="empty">スタッフがいません</div>';return;}
+  el.innerHTML=S.staff.map(s=>`<div class="manage-item">
+    <div class="name">${esc(s.name)}</div>
+    <div class="sub">${esc(s.role||'')}</div>
+    <button class="btn sm danger" onclick="delStaff('${s.id}')">削除</button>
+  </div>`).join('');
+}
+function delStaff(id){
+  if(!confirm('このスタッフとそのタスクを削除しますか？'))return;
+  S.staff=S.staff.filter(s=>s.id!==id);
+  S.tasks=S.tasks.filter(t=>t.staffId!==id);
+  save();refreshStaffList();render();
+}
+
+function closeOverlay(e,id){
+  if(!e||e.target===document.getElementById(id))document.getElementById(id).classList.remove('open');
+}
+
+render();
+</script>
+</body>
+</html>
