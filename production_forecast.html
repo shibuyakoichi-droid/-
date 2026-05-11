@@ -84,11 +84,10 @@ input:focus,select:focus{outline:none;border-color:#999;box-shadow:0 0 0 3px rgb
     <button class="tab active" onclick="switchTab('alert')">発注判断</button>
     <button class="tab" onclick="switchTab('newproduct')">🆕 新商品</button>
     <button class="tab" onclick="switchTab('csv')">CSV取込</button>
-    <button class="tab" onclick="switchTab('progress')">生産中</button>
     <button class="tab" onclick="switchTab('sets')">セット構成</button>
-    <button class="tab" onclick="switchTab('sales')">色別販売</button>
     <button class="tab" onclick="switchTab('hidden')">非表示設定</button>
     <button class="tab" onclick="switchTab('fabric')">生地所要量</button>
+    <button class="tab" onclick="switchTab('sellthrough')">売り切り管理</button>
   </div>
 
   <!-- 発注判断 -->
@@ -166,28 +165,6 @@ input:focus,select:focus{outline:none;border-color:#999;box-shadow:0 0 0 3px rgb
     </div>
   </div>
 
-  <!-- 月別予測 -->
-  <div class="panel" id="tab-forecast">
-    <div class="card">
-      <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px">
-        <div class="section-label" style="margin-bottom:0">表示月</div>
-        <select id="forecast-base-month" onchange="renderForecast()" style="width:140px"></select>
-        <span style="font-size:12px;color:#888">を起点に3ヶ月分</span>
-        <button class="btn primary sm" onclick="saveAllForecasts()">一括保存</button>
-      </div>
-      <div id="forecast-table"></div>
-    </div>
-  </div>
-
-  <!-- 生産中 -->
-  <div class="panel" id="tab-progress">
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
-      <input id="progress-search" placeholder="品番・商品名で絞り込み" style="width:220px" oninput="renderProgress()">
-      <button class="btn primary" onclick="saveAllProgress()">一括保存</button>
-    </div>
-    <div id="progress-table"></div>
-  </div>
-
   <!-- セット構成 -->
   <div class="panel" id="tab-sets">
     <div class="card" style="margin-bottom:16px">
@@ -233,18 +210,6 @@ input:focus,select:focus{outline:none;border-color:#999;box-shadow:0 0 0 3px rgb
     </div>
   </div>
 
-
-  <!-- 色別販売 -->
-  <div class="panel" id="tab-sales">
-    <div class="filter-bar">
-      <select id="sales-filter-month" onchange="renderSales()" style="width:160px"></select>
-      <select id="sales-filter-code" onchange="renderSales()" style="width:220px">
-        <option value="">全品番</option>
-      </select>
-      <input id="sales-search" placeholder="品番・商品名・色で絞り込み" style="width:220px" oninput="renderSales()">
-    </div>
-    <div id="sales-table"></div>
-  </div>
 
   <!-- 非表示設定 -->
   <div class="panel" id="tab-hidden">
@@ -325,6 +290,59 @@ input:focus,select:focus{outline:none;border-color:#999;box-shadow:0 0 0 3px rgb
       <div id="fabric-master-table"></div>
     </div>
   </div>
+
+  <!-- 売り切り管理 -->
+  <div class="panel" id="tab-sellthrough">
+    <div style="display:flex;gap:4px;margin-bottom:16px">
+      <button class="btn" id="ststab-select" onclick="setStSubtab('select')" style="background:#1a1a1a;color:#fff;border-color:#1a1a1a">商品選定</button>
+      <button class="btn" id="ststab-track" onclick="setStSubtab('track')">在庫追跡</button>
+    </div>
+    <!-- 商品選定 -->
+    <div id="st-select-panel">
+      <div class="filter-bar">
+        <span class="chip chip-all active" id="stsel-all" onclick="setStSelFilter('all',this)">全て</span>
+        <span class="chip" id="stsel-ss" onclick="setStSelFilter('ss',this)" style="background:#fff3cd;color:#856404;border-color:#ffc107">☀️ 春夏</span>
+        <span class="chip" id="stsel-aw" onclick="setStSelFilter('aw',this)" style="background:#cfe2ff;color:#084298;border-color:#6ea8fe">❄️ 秋冬</span>
+        <span class="chip" id="stsel-both" onclick="setStSelFilter('both',this)" style="background:#f3e8fd;color:#6b2fa0;border-color:#c084fc">🔄 両方</span>
+        <span class="chip" id="stsel-unreg" onclick="setStSelFilter('unreg',this)" style="background:#f0ede8;color:#888">未登録のみ</span>
+        <input id="stsel-search" placeholder="品番・商品名で絞り込み" style="width:200px;margin-left:8px" oninput="renderStSelect()">
+      </div>
+      <div id="st-select-list"></div>
+    </div>
+    <!-- 在庫追跡 -->
+    <div id="st-track-panel" style="display:none">
+      <div class="filter-bar">
+        <span class="chip chip-all active" id="sttrk-all" onclick="setStTrkFilter('all',this)">全て</span>
+        <span class="chip" id="sttrk-ss" onclick="setStTrkFilter('ss',this)" style="background:#fff3cd;color:#856404;border-color:#ffc107">☀️ 春夏</span>
+        <span class="chip" id="sttrk-aw" onclick="setStTrkFilter('aw',this)" style="background:#cfe2ff;color:#084298;border-color:#6ea8fe">❄️ 秋冬</span>
+        <span class="chip" id="sttrk-both" onclick="setStTrkFilter('both',this)" style="background:#f3e8fd;color:#6b2fa0;border-color:#c084fc">🔄 両方</span>
+      </div>
+      <div id="st-track-list"></div>
+    </div>
+  </div>
+</div>
+
+<!-- スナップショット記録モーダル -->
+<div class="modal-overlay" id="snap-modal">
+  <div class="modal" style="max-width:500px">
+    <div class="modal-header">
+      <div class="modal-title" id="snap-modal-title">在庫を記録する</div>
+      <button class="btn sm" onclick="closeSnapshotModal()">閉じる</button>
+    </div>
+    <div class="form-row col2" style="margin-bottom:12px">
+      <div class="form-group"><label>日付 *</label><input type="date" id="snap-date"></div>
+      <div class="form-group"><label>メモ（イベント名など）</label><input id="snap-note" placeholder="例：楽天スーパーセール後"></div>
+    </div>
+    <div style="font-size:12px;font-weight:600;color:#999;margin-bottom:6px">SKU別在庫数（修正可）</div>
+    <table style="width:100%;border-collapse:collapse;margin-bottom:16px">
+      <thead><tr><th style="text-align:left;font-size:11px;color:#999;padding:5px 0;border-bottom:1px solid #e8e6e0">色 / サイズ</th><th style="text-align:right;font-size:11px;color:#999;padding:5px 0;border-bottom:1px solid #e8e6e0">在庫数</th></tr></thead>
+      <tbody id="snap-sku-body"></tbody>
+    </table>
+    <div style="display:flex;justify-content:flex-end;gap:8px">
+      <button class="btn" onclick="closeSnapshotModal()">キャンセル</button>
+      <button class="btn primary" onclick="saveSnapshot()">保存する</button>
+    </div>
+  </div>
 </div>
 
 <script>
@@ -337,6 +355,10 @@ let alertFilter='all';
 let fabricView='req';
 let alertSortAsc=false;
 let alertView='summary';
+let stFilter='all';
+let stView='summary';
+let stExpanded=new Set();
+let stSort={col:'stock',dir:'desc'};
 function getHiddenCodes(){try{return new Set(JSON.parse(localStorage.getItem('sowan_hidden')||'[]'));}catch(e){return new Set();}}
 function hideCode(code){const h=getHiddenCodes();h.add(code);localStorage.setItem('sowan_hidden',JSON.stringify([...h]));renderAlert();}
 function unhideCode(code){const h=getHiddenCodes();h.delete(code);localStorage.setItem('sowan_hidden',JSON.stringify([...h]));renderAlert();}
@@ -378,13 +400,11 @@ async function fetchAllRows(queryFn){
 
 // ── データ読み込み（軽量版） ────────────────────────
 async function loadAll(){
-  const[r1,r2,r3,r4,r5,r6,r7,r8,r9]=await Promise.all([
+  const cut14m=(()=>{const d=new Date();d.setMonth(d.getMonth()-14);return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0');})();
+  const[r1,r2,r3,r4,r5,r6]=await Promise.all([
     fetchAllRows((f,t)=>sb.from('products').select('*').order('code').range(f,t)),
     fetchAllRows((f,t)=>sb.from('set_compositions').select('*').order('set_code').range(f,t)),
-    fetchAllRows((f,t)=>sb.from('current_stock').select('*').range(f,t)),
-    fetchAllRows((f,t)=>sb.from('monthly_forecasts').select('*').range(f,t)),
-    sb.from('production_progress').select('*'),
-    fetchAllRows((f,t)=>sb.from('monthly_sales').select('*').order('year_month',{ascending:false}).range(f,t)),
+    fetchAllRows((f,t)=>sb.from('monthly_sales').select('*').gte('year_month',cut14m).order('year_month',{ascending:false}).range(f,t)),
     fetchAllRows((f,t)=>sb.from('fabric_usage').select('*').range(f,t)),
     fetchAllRows((f,t)=>sb.from('fabric_locations').select('*').range(f,t)),
     fetchAllRows((f,t)=>sb.from('items').select('item_code,item_name,memo').range(f,t)),
@@ -393,13 +413,10 @@ async function loadAll(){
   D.allProducts=r1.data||[];
   D.products=D.allProducts.filter(p=>p.active!==false);
   D.setCompositions=r2.data||[];
-  D.currentStock=r3.data||[];
-  D.forecasts=r4.data||[];
-  D.progress=r5.data||[];
-  D.monthlySales=r6.data||[];
-  D.fabricUsage=r7.data||[];
-  D.fabricLocations=r8.data||[];
-  D.items=r9.data||[];
+  D.monthlySales=r3.data||[];
+  D.fabricUsage=r4.data||[];
+  D.fabricLocations=r5.data||[];
+  D.items=r6.data||[];
   updateLastImportInfo();
 }
 
@@ -411,38 +428,31 @@ function updateLastImportInfo(){
 // ── タブ切替 ───────────────────────────────────────
 function switchTab(t){
   document.querySelectorAll('.tab').forEach((el,i)=>{
-    el.classList.toggle('active',['alert','newproduct','csv','progress','sets','sales','hidden','fabric'][i]===t);
+    el.classList.toggle('active',['alert','newproduct','csv','sets','hidden','fabric','sellthrough'][i]===t);
   });
   document.querySelectorAll('.panel').forEach(el=>el.classList.remove('active'));
   document.getElementById('tab-'+t).classList.add('active');
   if(t==='alert')renderAlert();
   if(t==='newproduct')renderNewProducts();
   if(t==='csv')renderImportHistory();
-  if(t==='progress')renderProgress();
   if(t==='sets'){renderSets();renderDemandMap();}
-  if(t==='sales')initSalesTab();
   if(t==='hidden')renderHidden();
   if(t==='fabric')initFabricTab();
+  if(t==='sellthrough')renderSellThrough();
 }
 
 // ── 新商品タブ ───────────────────────────────────────
 function renderNewProducts(){
   const el=document.getElementById('newproduct-list');
   if(!el)return;
-
-  // 実績月数をitem_codeごとに集計
   const salesMonths={};
   D.monthlySales.forEach(s=>{
     if(!s.code)return;
     if(!salesMonths[s.code])salesMonths[s.code]=new Set();
     salesMonths[s.code].add(s.year_month);
   });
-
-  // 3ヶ月未満の実績しかない商品を抽出（D.items全体から）
   const graduated=JSON.parse(localStorage.getItem('sowan_np_graduated')||'[]');
   const plans=JSON.parse(localStorage.getItem('sowan_np_plans')||'{}');
-
-  // item_codeの親商品(parent)でグルーピング
   const parentMap={};
   D.items.forEach(it=>{
     let parent=it.item_code;
@@ -451,25 +461,18 @@ function renderNewProducts(){
     parentMap[parent].items.push(it.item_code);
     if(!parentMap[parent].name)parentMap[parent].name=it.item_name||it.item_code;
   });
-
-  // 新商品フィルタ（全SKUの実績月数合計が3未満）
   const newProducts=Object.values(parentMap).filter(p=>{
     if(graduated.includes(p.parent))return false;
-    const totalMonths=new Set(
-      p.items.flatMap(code=>[...(salesMonths[code]||[])])
-    ).size;
+    const totalMonths=new Set(p.items.flatMap(code=>[...(salesMonths[code]||[])])).size;
     return totalMonths<3;
   });
-
   if(newProducts.length===0){
-    el.innerHTML='<div class="empty-state" style="padding:40px;text-align:center;color:#aaa">新商品はありません。3ヶ月以上の実績がある商品は「発注判断」タブで管理されます。</div>';
+    el.innerHTML='<div style="padding:40px;text-align:center;color:#aaa">新商品はありません。3ヶ月以上の実績がある商品は「発注判断」タブで管理されます。</div>';
     return;
   }
-
   el.innerHTML=newProducts.map(p=>{
     const plan=plans[p.parent]||0;
     const totalMonths=new Set(p.items.flatMap(code=>[...(salesMonths[code]||[])])).size;
-    // 在庫合計（colorStockから）
     const stock=p.items.reduce((sum,code)=>{
       return sum+Object.entries(D.colorStock)
         .filter(([k])=>k.startsWith(code+'|')||k===code)
@@ -477,7 +480,6 @@ function renderNewProducts(){
     },0);
     const pct=plan>0?Math.min(100,Math.round(stock/plan*100)):0;
     const barColor=pct>=80?'#16a34a':pct>=40?'#b8842a':'#e11d48';
-
     return `<div class="card" style="margin-bottom:14px">
       <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap">
         <div style="flex:1;min-width:160px">
@@ -505,24 +507,18 @@ function renderNewProducts(){
           </div>
         </div>
       </div>
-      ${plan>0?`
-      <div style="margin-top:12px;background:#f0ede8;border-radius:4px;height:8px;overflow:hidden">
-        <div id="np-bar-${p.parent}" style="height:100%;width:${pct}%;background:${barColor};transition:width .3s;border-radius:4px"></div>
-      </div>`:''}
+      ${plan>0?`<div style="margin-top:12px;background:#f0ede8;border-radius:4px;height:8px;overflow:hidden"><div id="np-bar-${p.parent}" style="height:100%;width:${pct}%;background:${barColor};transition:width .3s;border-radius:4px"></div></div>`:''}
       <div style="margin-top:10px;display:flex;gap:8px;justify-content:flex-end">
-        <button class="btn sm" onclick="graduateNewProduct('${p.parent}')"
-          style="font-size:11px;color:#999">✓ 発注判断タブへ移行</button>
+        <button class="btn sm" onclick="graduateNewProduct('${p.parent}')" style="font-size:11px;color:#999">✓ 発注判断タブへ移行</button>
       </div>
     </div>`;
   }).join('');
 }
-
 function saveNewProductPlan(parent,val){
   const plans=JSON.parse(localStorage.getItem('sowan_np_plans')||'{}');
   plans[parent]=parseInt(val)||0;
   localStorage.setItem('sowan_np_plans',JSON.stringify(plans));
 }
-
 function updateNewProductBar(parent,val,stock){
   const plan=parseInt(val)||0;
   const pct=plan>0?Math.min(100,Math.round(stock/plan*100)):0;
@@ -533,9 +529,8 @@ function updateNewProductBar(parent,val,stock){
   if(barEl){barEl.style.width=pct+'%';barEl.style.background=barColor;}
   saveNewProductPlan(parent,val);
 }
-
 function graduateNewProduct(parent){
-  if(!confirm(`「${parent}」を発注判断タブへ移行しますか？\n（このタブから非表示になります）`))return;
+  if(!confirm(`「${parent}」を発注判断タブへ移行しますか？`))return;
   const graduated=JSON.parse(localStorage.getItem('sowan_np_graduated')||'[]');
   if(!graduated.includes(parent))graduated.push(parent);
   localStorage.setItem('sowan_np_graduated',JSON.stringify(graduated));
@@ -1645,6 +1640,256 @@ function renderFabricReq(){
     }).join('')}</tbody>
     </table></div>`;
 }
+
+// ── 売り切り管理 ────────────────────────────────────
+let stSubtab='select';
+let stSelFilter='all';
+let stTrkFilter='all';
+let stTrkExpanded=new Set();
+let snapshotTargetCode='';
+
+function getSelloffTargets(){try{return JSON.parse(localStorage.getItem('sowan_selloff_targets')||'[]');}catch(e){return[];}}
+function saveSelloffTargets(t){localStorage.setItem('sowan_selloff_targets',JSON.stringify(t));}
+function getSelloffSnaps(){try{return JSON.parse(localStorage.getItem('sowan_selloff_snaps')||'[]');}catch(e){return[];}}
+function saveSelloffSnaps(s){localStorage.setItem('sowan_selloff_snaps',JSON.stringify(s));}
+
+function getCurrentTotalStock(code){
+  return Object.entries(D.colorStock).filter(([k])=>k.split('|')[0]===code).reduce((s,[,v])=>s+Math.max(typeof v==='object'?v.qty:(Number(v)||0),0),0);
+}
+function getCurrentSkuStock(code){
+  return Object.entries(D.colorStock).filter(([k])=>k.split('|')[0]===code).map(([key,val])=>{
+    const[,a1,a2]=key.split('|');
+    const qty=Math.max(typeof val==='object'?val.qty:(Number(val)||0),0);
+    const dc=(typeof val==='object'?val.displayColor:'')||a1||'';
+    const ds=(typeof val==='object'?val.displaySize:'')||a2||'';
+    return{key,color:[dc,ds].filter(Boolean).join(' / '),qty};
+  }).filter(s=>s.qty>0).sort((a,b)=>b.qty-a.qty);
+}
+
+function setStSubtab(tab){
+  stSubtab=tab;
+  const on='background:#1a1a1a;color:#fff;border-color:#1a1a1a';const off='';
+  document.getElementById('ststab-select').style.cssText=tab==='select'?on:off;
+  document.getElementById('ststab-track').style.cssText=tab==='track'?on:off;
+  document.getElementById('st-select-panel').style.display=tab==='select'?'block':'none';
+  document.getElementById('st-track-panel').style.display=tab==='track'?'block':'none';
+  if(tab==='select')renderStSelect();else renderStTrack();
+}
+function setStSelFilter(f){
+  stSelFilter=f;
+  ['all','ss','aw','both','unreg'].forEach(k=>{const c=document.getElementById('stsel-'+k);if(c)c.classList.toggle('active',k===f);});
+  renderStSelect();
+}
+function setStTrkFilter(f){
+  stTrkFilter=f;
+  ['all','ss','aw','both'].forEach(k=>{const c=document.getElementById('sttrk-'+k);if(c)c.classList.toggle('active',k===f);});
+  renderStTrack();
+}
+
+function registerTarget(code,season){
+  const targets=getSelloffTargets();
+  const existing=targets.find(t=>t.code===code);
+  if(existing){existing.season=season;}
+  else{
+    const initialStock={};
+    getCurrentSkuStock(code).forEach(s=>{initialStock[s.key]=s.qty;});
+    targets.push({code,season,registeredAt:new Date().toISOString().split('T')[0],initialStock});
+  }
+  saveSelloffTargets(targets);renderStSelect();
+}
+function removeTarget(code){
+  if(!confirm(`「${code}」の追跡登録を解除しますか？`))return;
+  saveSelloffTargets(getSelloffTargets().filter(t=>t.code!==code));
+  renderStSelect();
+}
+function updateTargetSeason(code,season){
+  const targets=getSelloffTargets();
+  const t=targets.find(t=>t.code===code);if(t)t.season=season;
+  saveSelloffTargets(targets);renderStSelect();
+}
+
+function openSnapshotModal(code){
+  snapshotTargetCode=code;
+  const product=D.products.find(p=>p.code===code);
+  document.getElementById('snap-modal-title').textContent=`在庫を記録：${product?.name||code}`;
+  document.getElementById('snap-date').value=new Date().toISOString().split('T')[0];
+  document.getElementById('snap-note').value='';
+  const skus=getCurrentSkuStock(code);
+  document.getElementById('snap-sku-body').innerHTML=skus.map(s=>`<tr>
+    <td style="padding:5px 0;font-size:13px;border-bottom:1px solid #f0ede8">${s.color}</td>
+    <td style="padding:5px 0;border-bottom:1px solid #f0ede8;text-align:right">
+      <input type="number" data-key="${s.key}" value="${s.qty}" min="0"
+        style="width:80px;padding:4px 8px;border:1px solid #d8d5cf;border-radius:5px;font-size:13px;text-align:right">
+    </td></tr>`).join('');
+  document.getElementById('snap-modal').classList.add('open');
+}
+function closeSnapshotModal(){document.getElementById('snap-modal').classList.remove('open');}
+function saveSnapshot(){
+  const date=document.getElementById('snap-date').value;
+  if(!date){showAlert('日付を入力してください','err');return;}
+  const note=document.getElementById('snap-note').value;
+  const stockData={};
+  document.querySelectorAll('#snap-sku-body [data-key]').forEach(el=>{stockData[el.dataset.key]=parseInt(el.value)||0;});
+  const snaps=getSelloffSnaps();
+  snaps.push({id:Date.now()+'',code:snapshotTargetCode,date,note,stockData});
+  snaps.sort((a,b)=>a.date.localeCompare(b.date));
+  saveSelloffSnaps(snaps);closeSnapshotModal();
+  showAlert(`${date} の在庫を記録しました`);
+  if(stSubtab==='track')renderStTrack();
+}
+function deleteSnapshot(id){
+  if(!confirm('この記録を削除しますか？'))return;
+  saveSelloffSnaps(getSelloffSnaps().filter(s=>s.id!==id));
+  renderStTrack();
+}
+function toggleTrkExpand(code){
+  if(stTrkExpanded.has(code))stTrkExpanded.delete(code);else stTrkExpanded.add(code);
+  renderStTrack();
+}
+
+function stSeasonTag(season){
+  if(season==='ss')return'<span style="background:#fff3cd;color:#856404;padding:2px 8px;border-radius:12px;font-size:11px;font-weight:600;white-space:nowrap">☀️ 春夏</span>';
+  if(season==='aw')return'<span style="background:#cfe2ff;color:#084298;padding:2px 8px;border-radius:12px;font-size:11px;font-weight:600;white-space:nowrap">❄️ 秋冬</span>';
+  return'<span style="background:#f3e8fd;color:#6b2fa0;padding:2px 8px;border-radius:12px;font-size:11px;font-weight:600;white-space:nowrap">🔄 両方</span>';
+}
+
+function renderStSelect(){
+  const el=document.getElementById('st-select-list');
+  const targets=getSelloffTargets();
+  const tMap=Object.fromEntries(targets.map(t=>[t.code,t]));
+  const search=(document.getElementById('stsel-search')?.value||'').toLowerCase();
+  let products=(D.products||[]).filter(p=>{
+    if(search&&!p.code.toLowerCase().includes(search)&&!(p.name||'').toLowerCase().includes(search))return false;
+    const t=tMap[p.code];
+    if(stSelFilter==='ss')return t?.season==='ss';
+    if(stSelFilter==='aw')return t?.season==='aw';
+    if(stSelFilter==='both')return t?.season==='both';
+    if(stSelFilter==='unreg')return!t;
+    return true;
+  }).map(p=>({...p,totalStock:getCurrentTotalStock(p.code),target:tMap[p.code]}))
+    .filter(p=>p.totalStock>0)
+    .sort((a,b)=>b.totalStock-a.totalStock);
+  if(!products.length){el.innerHTML='<div class="empty-state">条件に一致する商品がありません</div>';return;}
+  const thead=`<tr><th>品番</th><th>商品名</th><th style="text-align:right">在庫合計</th><th>シーズン</th><th>追跡登録</th></tr>`;
+  const tbody=products.map(p=>{
+    const t=p.target;const isReg=!!t;const season=t?.season||'ss';
+    const seasonSel=`<select onchange="updateTargetSeason('${p.code}',this.value)"
+      style="font-size:12px;padding:3px 6px;border:1px solid #d8d5cf;border-radius:6px"${!isReg?' disabled':''}>
+      <option value="ss"${season==='ss'?' selected':''}>☀️ 春夏</option>
+      <option value="aw"${season==='aw'?' selected':''}>❄️ 秋冬</option>
+      <option value="both"${season==='both'?' selected':''}>🔄 両方</option></select>`;
+    const regArea=isReg
+      ?`<button class="btn sm danger" onclick="removeTarget('${p.code}')">解除</button>`
+      :`<div style="display:flex;gap:4px;align-items:center">
+          <select id="nss-${p.code}" style="font-size:12px;padding:3px 6px;border:1px solid #d8d5cf;border-radius:6px">
+            <option value="ss">☀️ 春夏</option><option value="aw">❄️ 秋冬</option><option value="both">🔄 両方</option>
+          </select>
+          <button class="btn sm primary" onclick="registerTarget('${p.code}',document.getElementById('nss-${p.code}').value)">登録</button>
+        </div>`;
+    return`<tr style="${isReg?'background:#f8fff5':''}">
+      <td style="font-family:monospace;font-size:12px">
+        <span onclick="copyCode('${p.code}')" style="cursor:copy;text-decoration:underline dotted" title="クリックでコピー">${p.code}</span>
+        ${isReg?'<span style="color:#27ae60;font-size:11px;margin-left:4px">✓</span>':''}
+      </td>
+      <td style="font-size:13px">${p.name||'—'}</td>
+      <td style="text-align:right;font-weight:700;font-size:15px">${p.totalStock.toLocaleString()}</td>
+      <td>${isReg?seasonSel:'<span style="color:#ccc;font-size:12px">—</span>'}</td>
+      <td>${regArea}</td></tr>`;
+  }).join('');
+  el.innerHTML=`<div style="font-size:12px;color:#888;margin-bottom:8px">${targets.length}品番 追跡中 / 在庫合計順</div>
+    <div class="table-wrap"><table class="list"><thead>${thead}</thead><tbody>${tbody}</tbody></table></div>`;
+}
+
+function renderStTrack(){
+  const el=document.getElementById('st-track-list');
+  let targets=getSelloffTargets();
+  if(stTrkFilter!=='all')targets=targets.filter(t=>t.season===stTrkFilter);
+  if(!targets.length){el.innerHTML='<div class="empty-state">追跡中の商品がありません。「商品選定」タブで登録してください</div>';return;}
+  const allSnaps=getSelloffSnaps();
+  el.innerHTML=targets.map(t=>{
+    const product=D.products.find(p=>p.code===t.code);
+    const name=product?.name||t.code;
+    const currentSkus=getCurrentSkuStock(t.code);
+    const currentTotal=currentSkus.reduce((s,x)=>s+x.qty,0);
+    const initTotal=Object.values(t.initialStock||{}).reduce((s,v)=>s+(Number(v)||0),0);
+    const sold=Math.max(initTotal-currentTotal,0);
+    const pct=initTotal>0?Math.min(Math.round(sold/initTotal*100),100):0;
+    const barCol=pct>=50?'#27ae60':pct>=20?'#e0a800':'#c0392b';
+    const tSnaps=allSnaps.filter(s=>s.code===t.code).sort((a,b)=>a.date.localeCompare(b.date));
+    const expanded=stTrkExpanded.has(t.code);
+    const snapHistory=tSnaps.length?`
+      <div style="margin-top:10px;padding:10px 14px;background:#f5f4f0;border-radius:8px">
+        <div style="font-size:11px;font-weight:600;color:#999;margin-bottom:6px">記録履歴</div>
+        <table style="width:100%;font-size:12px;border-collapse:collapse">
+          <tr><th style="text-align:left;color:#999;font-weight:500;padding:3px 6px 3px 0">日付</th><th style="text-align:left;color:#999;font-weight:500;padding:3px 6px">メモ</th><th style="text-align:right;color:#999;font-weight:500;padding:3px 6px">在庫合計</th><th></th></tr>
+          ${tSnaps.map(s=>{
+            const tot=Object.values(s.stockData||{}).reduce((sum,v)=>sum+(Number(v)||0),0);
+            return`<tr><td style="padding:4px 6px 4px 0">${s.date}</td><td style="padding:4px 6px;color:#888">${s.note||'—'}</td><td style="text-align:right;font-weight:600;padding:4px 6px">${tot.toLocaleString()}</td><td style="padding:4px 6px"><button class="btn sm danger" onclick="deleteSnapshot('${s.id}')">削除</button></td></tr>`;
+          }).join('')}
+        </table>
+      </div>`:'';
+    const skuDetail=expanded?`
+      <div style="margin-top:10px;overflow-x:auto">
+        <table style="width:100%;font-size:12px;border-collapse:collapse;min-width:400px">
+          <thead><tr style="background:#faf9f7">
+            <th style="text-align:left;padding:6px 10px;border-bottom:1px solid #e8e6e0;font-size:11px;color:#999">色 / サイズ</th>
+            <th style="text-align:right;padding:6px 10px;border-bottom:1px solid #e8e6e0;font-size:11px;color:#999">登録時</th>
+            ${tSnaps.map(s=>`<th style="text-align:right;padding:6px 10px;border-bottom:1px solid #e8e6e0;font-size:11px;color:#999">${s.date}${s.note?`<br><span style='font-weight:400'>${s.note}</span>`:''}</th>`).join('')}
+            <th style="text-align:right;padding:6px 10px;border-bottom:1px solid #e8e6e0;font-size:11px;color:#999">現在庫</th>
+            <th style="text-align:right;padding:6px 10px;border-bottom:1px solid #e8e6e0;font-size:11px;color:#999">増減</th>
+          </tr></thead>
+          <tbody>${currentSkus.map(sku=>{
+            const init=t.initialStock?.[sku.key]||0;
+            const diff=sku.qty-init;
+            const diffHtml=diff===0?'<span style="color:#aaa">±0</span>':diff>0?`<span style="color:#c0392b">+${diff}</span>`:`<span style="color:#27ae60">${diff}</span>`;
+            const snapCells=tSnaps.map(s=>`<td style="text-align:right;padding:5px 10px;border-bottom:1px solid #f0ede8">${s.stockData?.[sku.key]??'—'}</td>`).join('');
+            return`<tr>
+              <td style="padding:5px 10px;border-bottom:1px solid #f0ede8">${sku.color}</td>
+              <td style="text-align:right;padding:5px 10px;border-bottom:1px solid #f0ede8;color:#aaa">${init||'—'}</td>
+              ${snapCells}
+              <td style="text-align:right;padding:5px 10px;border-bottom:1px solid #f0ede8;font-weight:700">${sku.qty.toLocaleString()}</td>
+              <td style="text-align:right;padding:5px 10px;border-bottom:1px solid #f0ede8">${diffHtml}</td></tr>`;
+          }).join('')}</tbody>
+        </table>
+      </div>`:'';
+    return`<div class="card" style="margin-bottom:12px">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:8px">
+        <div>
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;flex-wrap:wrap">
+            <span onclick="copyCode('${t.code}')" style="font-family:monospace;font-size:13px;font-weight:600;cursor:copy;text-decoration:underline dotted" title="クリックでコピー">${t.code}</span>
+            ${stSeasonTag(t.season)}
+            <span style="font-size:11px;color:#bbb">登録日：${t.registeredAt}</span>
+          </div>
+          <div style="font-size:14px;font-weight:500;color:#1a1a1a;margin-bottom:8px">${name}</div>
+          <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+            <span style="font-size:12px;color:#888">登録時 <b style="color:#1a1a1a">${initTotal.toLocaleString()}</b></span>
+            <span style="font-size:12px;color:#888">現在 <b style="color:#1a1a1a;font-size:15px">${currentTotal.toLocaleString()}</b></span>
+            <span style="font-size:12px;color:#27ae60">▼ ${sold.toLocaleString()} 消化</span>
+            <div style="display:flex;align-items:center;gap:6px">
+              <div style="background:#f0ede8;border-radius:4px;height:8px;overflow:hidden;width:100px">
+                <div style="width:${pct}%;height:100%;background:${barCol};border-radius:4px;transition:width .3s"></div>
+              </div>
+              <span style="font-size:12px;font-weight:700;color:${barCol}">${pct}%</span>
+            </div>
+          </div>
+        </div>
+        <div style="display:flex;gap:6px;flex-shrink:0">
+          <button class="btn sm" onclick="toggleTrkExpand('${t.code}')">${expanded?'▲ 閉じる':'SKU詳細 ▶'}</button>
+          <button class="btn sm primary" onclick="openSnapshotModal('${t.code}')">📷 記録する</button>
+        </div>
+      </div>
+      ${snapHistory}${skuDetail}
+    </div>`;
+  }).join('');
+}
+
+function renderSellThrough(){setStSubtab(stSubtab);}
+
+function copyCode(code){
+  navigator.clipboard.writeText(code).catch(()=>{const el=document.createElement('textarea');el.value=code;document.body.appendChild(el);el.select();document.execCommand('copy');document.body.removeChild(el);});
+  showAlert(`「${code}」をコピーしました`);
+}
+
 
 // ── 初期化 ─────────────────────────────────────────
 function restoreSkuStock(){
