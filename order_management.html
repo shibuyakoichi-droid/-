@@ -988,6 +988,20 @@ async function deleteOrder(id){
   showAlert('削除しました');
 }
 
+// order_form.htmlのフォーム種別→列ヘッダー
+const FORM_COLS={
+  sakamoto:    ['品番','品名','反/kg','単価','数量(反)','出荷先'],
+  oei_order:   ['品名','品番','糸使','編機','数量(反)','備考'],
+  oei_delivery:['品番・品名','数量','単位','単価(税抜)','税率'],
+  matsuda:     ['生機','色番','カラー名','反物','仕上げ巾','備考'],
+  seisan_mai:  ['生地番号','カラー','商品名','枚数','反物','備考/内訳'],
+  kiritatsu:   ['生地番号','カラー','商品名','枚数','反物'],
+  naigaimen:   ['品名（番手・種類）','数量(kg)','備考'],
+  seisan_kg:   ['カラー名/商品','kg','備考'],
+  prison:      ['カラー名','商品','枚数','反物','備考'],
+  toyo:        ['色番','色名','反数','適用・備考'],
+};
+
 function printOrder(id){
   const o=D.orders.find(o=>o.id===id);
   if(!o){showAlert('発注データが見つかりません（ID: '+id+'）','err');return;}
@@ -995,6 +1009,52 @@ function printOrder(id){
   const cat=getCat(o);
   const proc=CAT_TO_PROCESS[cat]||'other';
   const pm=PM[proc]||PM.other;
+
+  // order_form.html形式（{vals:[...]}）の検出
+  const isVals=(o.items||[]).length>0&&o.items[0]!=null&&Array.isArray(o.items[0].vals);
+  if(isVals){
+    const cols=FORM_COLS[o.form_type]||[];
+    const thead=cols.map(c=>`<th style="padding:7px 10px;border:1px solid #ddd;text-align:left;background:#f5f4f0;font-size:12px">${esc(c)}</th>`).join('');
+    const tbody=o.items.filter(i=>i.vals&&i.vals.some(v=>v&&v.trim())).map((item,idx)=>{
+      const cells=(item.vals||[]).map(v=>`<td style="padding:7px 10px;border:1px solid #ddd">${esc(String(v||''))}</td>`).join('');
+      return `<tr><td style="padding:7px 10px;border:1px solid #ddd;text-align:center">${idx+1}</td>${cells}</tr>`;
+    }).join('');
+    const bodyHtml=`
+      <div style="max-width:760px;margin:0 auto">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:28px">
+          <div>
+            <h1 style="font-size:22px;font-weight:700;margin-bottom:4px;letter-spacing:.05em">発 注 書</h1>
+            <div style="font-size:11px;color:#888">発注番号：${esc(o.number)}　工程：${esc(cat)}</div>
+          </div>
+          <div style="text-align:right;font-size:12px;color:#555">
+            <div style="font-weight:600;font-size:14px;margin-bottom:2px">株式会社エル・アイ・シー</div>
+            <div>mofmofu</div>
+          </div>
+        </div>
+        <table style="width:100%;margin-bottom:22px;font-size:13px;border-collapse:collapse">
+          <tr><td style="width:80px;color:#888;padding:4px 0">発注先</td><td style="font-weight:600;font-size:15px">${esc(f?f.name:'')} 御中</td></tr>
+          <tr><td style="color:#888;padding:4px 0">発注日</td><td>${esc(o.date||'')}</td></tr>
+          <tr><td style="color:#888;padding:4px 0">希望納期</td><td>${esc(o.due||'別途ご相談')}</td></tr>
+        </table>
+        <table style="width:100%;border-collapse:collapse;font-size:13px">
+          <thead><tr><th style="padding:7px 10px;border:1px solid #ddd;text-align:center;background:#f5f4f0;width:5%">No</th>${thead}</tr></thead>
+          <tbody>${tbody}</tbody>
+        </table>
+        ${o.memo?`<div style="margin-top:18px;font-size:12px;color:#555;border-top:1px solid #eee;padding-top:12px"><b>備考：</b>${esc(o.memo)}</div>`:''}
+        <div style="margin-top:36px;font-size:11px;color:#ccc;text-align:center">— 以上 —</div>
+      </div>`;
+    const printDiv=document.getElementById('print-content');
+    printDiv.innerHTML=bodyHtml;
+    const styleEl=document.createElement('style');
+    styleEl.id='_ps';
+    styleEl.textContent='body>*:not(#print-content){display:none!important}#print-content{display:block!important;padding:40px}';
+    document.head.appendChild(styleEl);
+    const cleanup=()=>{styleEl.remove();printDiv.innerHTML='';window.removeEventListener('afterprint',cleanup);};
+    window.addEventListener('afterprint',cleanup);
+    window.print();
+    return;
+  }
+
   const isOld=(o.items||[]).some(i=>i.fabricNo!=null||i.tan!=null||i.cutQty!=null);
   const oldSchemas={
     '編み':[{key:'fabricNo',label:'生地番号'},{key:'color',label:'カラー名'},{key:'tan',label:'反数'}],
