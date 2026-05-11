@@ -90,11 +90,12 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:#999;box-shado
 .dot-normal{background:#2cb67d}
 .no-tasks{font-size:13px;color:#bbb;text-align:center;padding:16px 0}
 /* 項目管理 */
-.step-edit-row{display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid #f5f4f0}
+.step-edit-row{display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid #f5f4f0;flex-wrap:wrap}
 .drag-handle{color:#ccc;cursor:grab;font-size:16px;padding:0 4px;user-select:none}
-.step-edit-name{flex:1;font-size:13px}
+.step-edit-name{flex:1;font-size:13px;min-width:80px}
 .phase-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0}
 .step-edit-row.dragging{opacity:.4;background:#f5f4f0;border-radius:6px}
+select.default-sel{font-size:11px;padding:3px 6px;border:1px solid #d8d5cf;border-radius:6px;background:#fff;font-family:inherit;color:#1a1a1a;max-width:90px}
 .empty{text-align:center;padding:60px 20px;color:#aaa}
 .empty h3{font-size:18px;color:#888;margin-bottom:8px}
 .toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:#1a1a1a;color:#fff;padding:10px 22px;border-radius:10px;font-size:13px;z-index:400;opacity:0;transition:opacity .25s;pointer-events:none}
@@ -138,6 +139,11 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:#999;box-shado
           <option value="生産">生産</option>
           <option value="マスタ">マスタ</option>
           <option value="マーケ">マーケ</option>
+        </select>
+      </div>
+      <div style="margin-bottom:8px">
+        <select id="new-step-default-staff" style="width:100%;padding:7px 10px;border:1px solid #d8d5cf;border-radius:7px;font-size:13px;font-family:inherit;background:#fff">
+          <option value="">デフォルト担当者（省略可）</option>
         </select>
       </div>
       <button class="btn primary sm" onclick="addStep()" style="width:100%">＋ 追加</button>
@@ -216,24 +222,24 @@ const SB_URL='https://yukcdqnnevomhdcpsvms.supabase.co';
 const SB_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inl1a2NkcW5uZXZvbWhkY3Bzdm1zIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY0Mjc2MTUsImV4cCI6MjA5MjAwMzYxNX0.XBSc2kQNwR_bleSwrfYZD8l0fbKTbL1Z3S7ewEtSkDc';
 const sb=supabase.createClient(SB_URL,SB_KEY);
 
-// ステップ定義はlocalStorageに保存して永続化
 const DEFAULT_STEPS=[
-  {code:'sample_create', name:'サンプル作成',     phase:'生産'},
-  {code:'sample_confirm',name:'サンプル確定',     phase:'生産'},
-  {code:'crossmall_reg', name:'クロスモール登録',  phase:'マスタ'},
-  {code:'thomas_reg',    name:'トーマス登録',     phase:'マスタ'},
-  {code:'barcode',       name:'バーコード作成',    phase:'マスタ'},
-  {code:'master_reg',    name:'マスタ登録',       phase:'マスタ'},
-  {code:'photo',         name:'撮影',             phase:'マーケ'},
-  {code:'page_plan',     name:'ページ企画',       phase:'マーケ'},
-  {code:'page_build',    name:'ページ構成作成',   phase:'マーケ'},
-  {code:'page_live',     name:'ページアップ',     phase:'マーケ'},
-  {code:'ads_reg',       name:'広告登録',         phase:'マーケ'},
-  {code:'sales_check',   name:'売れてるかチェック',phase:'マーケ'},
+  {code:'sample_create', name:'サンプル作成',     phase:'生産', default_staff:''},
+  {code:'sample_confirm',name:'サンプル確定',     phase:'生産', default_staff:''},
+  {code:'crossmall_reg', name:'クロスモール登録',  phase:'マスタ',default_staff:''},
+  {code:'thomas_reg',    name:'トーマス登録',     phase:'マスタ',default_staff:''},
+  {code:'barcode',       name:'バーコード作成',    phase:'マスタ',default_staff:''},
+  {code:'master_reg',    name:'マスタ登録',       phase:'マスタ',default_staff:''},
+  {code:'photo',         name:'撮影',             phase:'マーケ',default_staff:''},
+  {code:'page_plan',     name:'ページ企画',       phase:'マーケ',default_staff:''},
+  {code:'page_build',    name:'ページ構成作成',   phase:'マーケ',default_staff:''},
+  {code:'page_live',     name:'ページアップ',     phase:'マーケ',default_staff:''},
+  {code:'ads_reg',       name:'広告登録',         phase:'マーケ',default_staff:''},
+  {code:'sales_check',   name:'売れてるかチェック',phase:'マーケ',default_staff:''},
 ];
 
-let STEPS=JSON.parse(localStorage.getItem('sowan_pipeline_steps')||'null')||DEFAULT_STEPS;
-let staffList=JSON.parse(localStorage.getItem('sowan_pipeline_staff')||'[]');
+// STEPS・staffListはSupabaseのpipeline_configで全デバイス共有
+let STEPS=DEFAULT_STEPS;
+let staffList=[];
 let products=[];
 let currentFilter='all';
 let currentId=null;
@@ -246,8 +252,24 @@ const PHASE_CFG={
 };
 const AVATAR_COLORS=['#1a5fa0','#0a6b50','#7b5ea0','#b86a00','#c0392b'];
 
+// ── 設定をSupabaseに保存（全デバイスで共有） ──────
+async function saveConfig(key,value){
+  await sb.from('pipeline_config').upsert({config_key:key,config_value:value,updated_at:new Date().toISOString()},{onConflict:'config_key'});
+}
+
 // ── 初期化 ────────────────────────────────────
 async function init(){
+  // config（ステップ・スタッフ）をSupabaseから読み込む
+  const{data:cfg}=await sb.from('pipeline_config').select('*');
+  if(cfg){
+    const stepsCfg=cfg.find(r=>r.config_key==='steps');
+    if(stepsCfg&&Array.isArray(stepsCfg.config_value)&&stepsCfg.config_value.length>0){
+      STEPS=stepsCfg.config_value.map(s=>({default_staff:'',...s}));
+    }
+    const staffCfg=cfg.find(r=>r.config_key==='staff');
+    if(staffCfg&&Array.isArray(staffCfg.config_value)) staffList=staffCfg.config_value;
+  }
+  // 商品データ読み込み
   const{data,error}=await sb.from('product_pipeline')
     .select('*').neq('status','deleted').order('updated_at',{ascending:false});
   if(error){
@@ -461,12 +483,15 @@ function closeAddModal(){document.getElementById('add-modal').classList.remove('
 async function saveNewProduct(){
   const name=document.getElementById('add-name').value.trim();
   if(!name){alert('商品名を入力してください');return;}
+  // デフォルト担当者を自動設定
+  const initialSteps={};
+  STEPS.forEach(s=>{if(s.default_staff)initialSteps[s.code]={assigned:s.default_staff};});
   const{data,error}=await sb.from('product_pipeline').insert({
     product_name:name,
     product_code:document.getElementById('add-code').value.trim()||null,
     target_sale_date:document.getElementById('add-target').value||null,
     notes:document.getElementById('add-notes').value.trim()||null,
-    steps:{},status:'active'
+    steps:initialSteps,status:'active'
   }).select().single();
   if(error){alert('登録エラー: '+error.message);return;}
   products.unshift(data);
@@ -524,35 +549,49 @@ async function deleteProduct(){
 let dragSrcIdx=null;
 
 function openStepsModal(){
+  // 新規追加フォームのデフォルト担当者セレクトを更新
+  const sel=document.getElementById('new-step-default-staff');
+  sel.innerHTML='<option value="">デフォルト担当者（省略可）</option>'+staffList.map(n=>`<option value="${esc(n)}">${esc(n)}</option>`).join('');
   renderStepsEditList();
   document.getElementById('steps-modal').classList.add('open');
 }
-function closeStepsModal(){
+async function closeStepsModal(){
   document.getElementById('steps-modal').classList.remove('open');
-  localStorage.setItem('sowan_pipeline_steps',JSON.stringify(STEPS));
+  await saveConfig('steps',STEPS);
   renderAll();
   if(currentFilter==='member')renderMemberView();
 }
 
 function renderStepsEditList(){
   const phaseColors={'生産':'#1a5fa0','マスタ':'#7b5ea0','マーケ':'#0a6b50'};
-  document.getElementById('steps-edit-list').innerHTML=STEPS.map((s,i)=>`
-    <div class="step-edit-row" id="step-edit-${i}" draggable="true"
+  document.getElementById('steps-edit-list').innerHTML=STEPS.map((s,i)=>{
+    const staffOpts=staffList.map(n=>`<option value="${esc(n)}"${s.default_staff===n?' selected':''}>${esc(n)}</option>`).join('');
+    return`<div class="step-edit-row" id="step-edit-${i}" draggable="true"
       ondragstart="dragStart(${i})" ondragover="dragOver(event,${i})" ondrop="drop(event,${i})" ondragend="dragEnd()">
       <span class="drag-handle">⠿</span>
       <span class="phase-dot" style="background:${phaseColors[s.phase]||'#aaa'}"></span>
       <span class="step-edit-name">${esc(s.name)}</span>
       <span style="font-size:11px;color:#bbb;background:#f5f4f0;padding:2px 8px;border-radius:10px">${s.phase}</span>
+      <select class="default-sel" title="デフォルト担当者" onchange="setDefaultStaff(${i},this.value)">
+        <option value="">担当者▼</option>${staffOpts}
+      </select>
       <button onclick="removeStep(${i})" style="background:none;border:none;color:#ccc;cursor:pointer;font-size:16px;padding:2px 6px;line-height:1">×</button>
-    </div>`).join('');
+    </div>`;
+  }).join('');
+}
+
+function setDefaultStaff(i,val){
+  STEPS[i].default_staff=val;
 }
 
 function addStep(){
   const name=document.getElementById('new-step-name').value.trim();
   if(!name){alert('項目名を入力してください');return;}
   const phase=document.getElementById('new-step-phase').value;
-  STEPS.push({code:'custom_'+Date.now(),name,phase});
+  const default_staff=document.getElementById('new-step-default-staff').value;
+  STEPS.push({code:'custom_'+Date.now(),name,phase,default_staff});
   document.getElementById('new-step-name').value='';
+  document.getElementById('new-step-default-staff').value='';
   renderStepsEditList();
 }
 
@@ -591,17 +630,18 @@ function renderStaffList(){
         <button onclick="removeStaff(${i})" style="background:none;border:none;color:#ccc;cursor:pointer;font-size:16px;padding:2px 6px">×</button>
       </div>`).join('');
 }
-function addStaff(){
+async function addStaff(){
   const name=document.getElementById('staff-new-name').value.trim();
   if(!name||staffList.includes(name))return;
   staffList.push(name);
-  localStorage.setItem('sowan_pipeline_staff',JSON.stringify(staffList));
+  await saveConfig('staff',staffList);
   document.getElementById('staff-new-name').value='';
   renderStaffList();
+  renderStepsEditList();
 }
-function removeStaff(i){
+async function removeStaff(i){
   staffList.splice(i,1);
-  localStorage.setItem('sowan_pipeline_staff',JSON.stringify(staffList));
+  await saveConfig('staff',staffList);
   renderStaffList();
 }
 document.getElementById('staff-new-name').addEventListener('keydown',e=>{if(e.key==='Enter')addStaff();});
