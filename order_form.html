@@ -535,7 +535,10 @@ function showAlert(msg,type){
   const el=document.getElementById('alertBox');
   el.textContent=msg;
   el.className='alert show alert-'+(type==='err'?'err':'ok');
-  setTimeout(()=>el.classList.remove('show'),5000);
+  // エラーは10秒、かつページ上部にスクロールして気づきやすくする
+  const dur=type==='err'?10000:5000;
+  if(type==='err') window.scrollTo({top:0,behavior:'smooth'});
+  setTimeout(()=>el.classList.remove('show'),dur);
 }
 
 // ========== PRINT HTML BUILDERS ==========
