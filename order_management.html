@@ -1062,10 +1062,15 @@ function printOrder(id){
     </div>
     <script>window.onload=function(){window.print();}<\/script>
   </body></html>`;
-  const w=window.open('','_blank');
-  if(!w){showAlert('ポップアップがブロックされています。アドレスバー右の許可をクリックしてください','err');return;}
-  w.document.write(html);
-  w.document.close();
+  const blob=new Blob([html],{type:'text/html;charset=utf-8'});
+  const url=URL.createObjectURL(blob);
+  const w=window.open(url,'_blank');
+  if(!w){
+    // ポップアップブロック時はページ内印刷にフォールバック
+    document.getElementById('print-content').innerHTML=html;
+    setTimeout(()=>window.print(),200);
+  }
+  setTimeout(()=>URL.revokeObjectURL(url),30000);
 }
 
 function showAlert(msg,type='ok'){
