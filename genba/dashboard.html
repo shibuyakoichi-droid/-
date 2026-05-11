@@ -256,7 +256,6 @@ tr[id] { scroll-margin-top: 140px; }
             <th>内職</th>
             <th>実在庫</th>
             <th>工程合計<br>(個換算)</th>
-            <th>出荷残</th>
             <th>差分</th>
             <th>目標数</th>
             <th>目標差分</th>
@@ -451,7 +450,6 @@ function renderMatrix(skus) {
     const kg     = snap['神木さん'] || 0;
     const kPcs   = snap.kamikiPcs != null ? snap.kamikiPcs : Math.round(kg / KG_PER_PCS);
     const pt     = getProcessTotal(snap);
-    const bl     = snap.backlog || 0;
     const diff   = getDiff(snap);
     const sign   = diff > 0 ? '+' : '';
     const diffCls = diff > 0 ? 'diff-ng' : diff < 0 ? 'diff-ok' : 'diff-zero';
@@ -470,7 +468,6 @@ function renderMatrix(skus) {
       <td>${snap['内職']                 || 0}</td>
       <td>${snap['実在庫']               || 0}</td>
       <td class="col-total">${pt}</td>
-      <td>${bl}</td>
       <td class="${diffCls}">${sign}${diff}</td>
       <td>${target > 0 ? target.toLocaleString() : '—'}</td>
       <td class="${tDiffCls}">${targetDiff != null ? (targetDiff > 0 ? '+' : '') + targetDiff : '—'}</td>
