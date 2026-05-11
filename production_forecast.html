@@ -301,7 +301,8 @@ input:focus,select:focus{outline:none;border-color:#999;box-shadow:0 0 0 3px rgb
     <div style="display:flex;gap:4px;margin-bottom:16px;align-items:center;flex-wrap:wrap">
       <button class="btn" id="ststab-select" onclick="setStSubtab('select')" style="background:#1a1a1a;color:#fff;border-color:#1a1a1a">商品選定</button>
       <button class="btn" id="ststab-track" onclick="setStSubtab('track')">在庫追跡</button>
-      <button class="btn sm" onclick="downloadSellThroughCSV()" style="margin-left:auto">⬇ CSVダウンロード</button>
+      <button class="btn sm" onclick="migrateLocalToSupabase()" style="margin-left:auto;color:#b86a00;border-color:#f0d090" title="ローカルで入力済みのデータをSupabaseに一回だけ移行">📤 ローカルデータを移行</button>
+      <button class="btn sm" onclick="downloadSellThroughCSV()">⬇ CSVダウンロード</button>
     </div>
     <!-- 商品選定 -->
     <div id="st-select-panel">
@@ -1660,10 +1661,68 @@ let stTrkFilter='all';
 let stTrkExpanded=new Set();
 let snapshotTargetCode='';
 
-function getSelloffTargets(){try{return JSON.parse(localStorage.getItem('sowan_selloff_targets')||'[]');}catch(e){return[];}}
-function saveSelloffTargets(t){localStorage.setItem('sowan_selloff_targets',JSON.stringify(t));}
-function getSelloffSnaps(){try{return JSON.parse(localStorage.getItem('sowan_selloff_snaps')||'[]');}catch(e){return[];}}
-function saveSelloffSnaps(s){localStorage.setItem('sowan_selloff_snaps',JSON.stringify(s));}
+// ── 売り切りデータ Supabase管理 ──────────────────────
+let _stTargets=null;
+let _stSnaps=null;
+
+async function loadSelloffData(){
+  const[tr,sr]=await Promise.all([
+    sb.from('selloff_targets').select('*'),
+    sb.from('selloff_snaps').select('*').order('date')
+  ]);
+  _stTargets=(tr.data||[]).map(r=>({code:r.code,season:r.season||'ss',grade:r.grade||'',registeredAt:r.registered_at,initialStock:r.initial_stock||{}}));
+  _stSnaps=(sr.data||[]).map(r=>({id:r.id,code:r.code,date:r.date,note:r.note||'',stockData:r.stock_data||{}}));
+}
+
+function getSelloffTargets(){return _stTargets||[];}
+function getSelloffSnaps(){return _stSnaps||[];}
+
+function saveSelloffTargets(targets){
+  _stTargets=targets;
+  // 非同期でSupabaseに同期
+  (async()=>{
+    if(targets.length){
+      await sb.from('selloff_targets').upsert(
+        targets.map(t=>({id:t.code,code:t.code,season:t.season||null,grade:t.grade||null,registered_at:t.registeredAt||null,initial_stock:t.initialStock||{},updated_at:new Date().toISOString()})),
+        {onConflict:'id'}
+      );
+    }
+    // DBから消えたものを削除
+    const dbIds=(await sb.from('selloff_targets').select('id')).data?.map(r=>r.id)||[];
+    const cur=new Set(targets.map(t=>t.code));
+    const del=dbIds.filter(id=>!cur.has(id));
+    if(del.length) await sb.from('selloff_targets').delete().in('id',del);
+  })();
+}
+
+function saveSelloffSnaps(snaps){
+  _stSnaps=snaps;
+  (async()=>{
+    if(snaps.length){
+      await sb.from('selloff_snaps').upsert(
+        snaps.map(s=>({id:s.id,code:s.code,date:s.date,note:s.note||null,stock_data:s.stockData||{}})),
+        {onConflict:'id'}
+      );
+    }
+    const dbIds=(await sb.from('selloff_snaps').select('id')).data?.map(r=>r.id)||[];
+    const cur=new Set(snaps.map(s=>s.id));
+    const del=dbIds.filter(id=>!cur.has(id));
+    if(del.length) await sb.from('selloff_snaps').delete().in('id',del);
+  })();
+}
+
+// ローカルデータをSupabaseに移行（初回一回のみ）
+async function migrateLocalToSupabase(){
+  const localTargets=JSON.parse(localStorage.getItem('sowan_selloff_targets')||'[]');
+  const localSnaps=JSON.parse(localStorage.getItem('sowan_selloff_snaps')||'[]');
+  if(!localTargets.length&&!localSnaps.length){showAlert('ローカルにデータがありません','err');return;}
+  if(!confirm(`ローカルデータ（商品${localTargets.length}件・記録${localSnaps.length}件）をSupabaseに移行しますか？`))return;
+  saveSelloffTargets(localTargets);
+  saveSelloffSnaps(localSnaps);
+  _stTargets=localTargets;_stSnaps=localSnaps;
+  showAlert(`移行完了：商品${localTargets.length}件・記録${localSnaps.length}件`);
+  renderSellThrough();
+}
 
 function getCurrentTotalStock(code){
   return Object.entries(D.colorStock).filter(([k])=>k.split('|')[0]===code).reduce((s,[,v])=>s+Math.max(typeof v==='object'?v.qty:(Number(v)||0),0),0);
@@ -1971,7 +2030,7 @@ function restoreSkuStock(){
   try{
     initImportYearMonth();
     restoreSkuStock();
-    await loadAll();
+    await Promise.all([loadAll(), loadSelloffData()]);
     renderAlert();
   }catch(e){
     console.error('初期化エラー:',e);
