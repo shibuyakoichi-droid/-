@@ -994,7 +994,6 @@ function printOrder(id){
   const cat=getCat(o);
   const proc=CAT_TO_PROCESS[cat]||'other';
   const pm=PM[proc]||PM.other;
-  // 後方互換：古い発注（fabricNo/tan形式）と新形式を判別
   const isOld=(o.items||[]).some(i=>i.fabricNo!=null||i.tan!=null||i.cutQty!=null);
   const oldSchemas={
     '編み':[{key:'fabricNo',label:'生地番号'},{key:'color',label:'カラー名'},{key:'tan',label:'反数'}],
@@ -1013,24 +1012,32 @@ function printOrder(id){
   });
   const qkBase=isOld?QTY_KEY[cat]:baseSchema.find(c=>c.type==='number_calc'||c.type==='number')?.key;
   const qk=qkBase||'qty';
-  const thead=printSchema.map(c=>`<th style="padding:7px 10px;border:1px solid #ddd;text-align:left;background:#f5f4f0;font-size:12px">${c.label}</th>`).join('');
+  const thead=printSchema.map(c=>`<th style="padding:7px 10px;border:1px solid #ddd;text-align:left;background:#f5f4f0;font-size:12px">${esc(c.label)}</th>`).join('');
   const tbody=(o.items||[]).map((item,idx)=>{
     const cells=printSchema.map(c=>{
-      let v=item[c.key]||'';
-      const align=(c.type==='number')?'text-align:right':'';
-      const disp=v===''?'':(c.type==='number'&&!isNaN(Number(v)))?Number(v).toLocaleString():v;
-      return `<td style="padding:7px 10px;border:1px solid #ddd;${align}">${disp}</td>`;
+      const v=item[c.key]??'';
+      const align=(c.type==='number'||c.type==='number_calc')?'text-align:right':'';
+      const disp=v===''?'':((c.type==='number'||c.type==='number_calc')&&!isNaN(Number(v)))?Number(v).toLocaleString():v;
+      return `<td style="padding:7px 10px;border:1px solid #ddd;${align}">${esc(String(disp))}</td>`;
     }).join('');
     return `<tr><td style="padding:7px 10px;border:1px solid #ddd;text-align:center">${idx+1}</td>${cells}</tr>`;
   }).join('');
   const totalQty=(o.items||[]).reduce((s,i)=>s+(parseInt(i[qk])||0),0);
   const unitLabel=pm.unit||'点';
-  document.getElementById('print-content').innerHTML=`
-    <div style="font-family:'Helvetica Neue',Arial,Meiryo,sans-serif;padding:40px;max-width:760px;margin:0 auto">
+  const html=`<!DOCTYPE html><html lang="ja"><head>
+    <meta charset="UTF-8">
+    <title>発注書 ${esc(o.number)}</title>
+    <style>
+      *{box-sizing:border-box;margin:0;padding:0}
+      body{font-family:'Helvetica Neue',Arial,'Hiragino Kaku Gothic ProN',Meiryo,sans-serif;padding:40px}
+      @media print{@page{margin:15mm}body{padding:0}}
+    </style>
+  </head><body>
+    <div style="max-width:760px;margin:0 auto">
       <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:28px">
         <div>
           <h1 style="font-size:22px;font-weight:700;margin-bottom:4px;letter-spacing:.05em">発 注 書</h1>
-          <div style="font-size:11px;color:#888">発注番号：${o.number}　工程：${cat}</div>
+          <div style="font-size:11px;color:#888">発注番号：${esc(o.number)}　工程：${esc(cat)}</div>
         </div>
         <div style="text-align:right;font-size:12px;color:#555">
           <div style="font-weight:600;font-size:14px;margin-bottom:2px">株式会社エル・アイ・シー</div>
@@ -1038,9 +1045,9 @@ function printOrder(id){
         </div>
       </div>
       <table style="width:100%;margin-bottom:22px;font-size:13px;border-collapse:collapse">
-        <tr><td style="width:80px;color:#888;padding:4px 0">発注先</td><td style="font-weight:600;font-size:15px">${f?f.name:''} ${f&&f.contact?f.contact+' 御中':' 御中'}</td></tr>
-        <tr><td style="color:#888;padding:4px 0">発注日</td><td>${o.date}</td></tr>
-        <tr><td style="color:#888;padding:4px 0">希望納期</td><td>${o.due||'別途ご相談'}</td></tr>
+        <tr><td style="width:80px;color:#888;padding:4px 0">発注先</td><td style="font-weight:600;font-size:15px">${esc(f?f.name:'')} 御中</td></tr>
+        <tr><td style="color:#888;padding:4px 0">発注日</td><td>${esc(o.date||'')}</td></tr>
+        <tr><td style="color:#888;padding:4px 0">希望納期</td><td>${esc(o.due||'別途ご相談')}</td></tr>
       </table>
       <table style="width:100%;border-collapse:collapse;font-size:13px">
         <thead><tr><th style="padding:7px 10px;border:1px solid #ddd;text-align:center;background:#f5f4f0;width:5%">No</th>${thead}</tr></thead>
@@ -1050,10 +1057,15 @@ function printOrder(id){
           <td style="padding:7px 10px;border:1px solid #ddd;text-align:right;font-weight:600;background:#faf9f7">${totalQty.toLocaleString()} ${unitLabel}</td>
         </tr></tfoot>
       </table>
-      ${o.memo?`<div style="margin-top:18px;font-size:12px;color:#555;border-top:1px solid #eee;padding-top:12px"><b>備考：</b>${o.memo}</div>`:''}
+      ${o.memo?`<div style="margin-top:18px;font-size:12px;color:#555;border-top:1px solid #eee;padding-top:12px"><b>備考：</b>${esc(o.memo)}</div>`:''}
       <div style="margin-top:36px;font-size:11px;color:#ccc;text-align:center">— 以上 —</div>
-    </div>`;
-  window.print();
+    </div>
+    <script>window.onload=function(){window.print();}<\/script>
+  </body></html>`;
+  const w=window.open('','_blank');
+  if(!w){showAlert('ポップアップがブロックされています。アドレスバー右の許可をクリックしてください','err');return;}
+  w.document.write(html);
+  w.document.close();
 }
 
 function showAlert(msg,type='ok'){
