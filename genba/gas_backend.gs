@@ -162,8 +162,8 @@ function recordEntry(payload) {
   try {
     appendLog(ss, payload);
 
-    if (payload.mode === '出荷残更新') {
-      setBacklog(ss, payload.skuCode, Number(payload.qty));
+    if (payload.mode === '出荷数更新') {
+      recordShipment(ss, payload.skuCode, Number(payload.qty));
     } else if (payload.mode === '生産目標更新') {
       setTarget(ss, payload.skuCode, Number(payload.qty));
     } else if (payload.mode === '在庫修正') {
@@ -284,7 +284,14 @@ function setStageValue(ss, skuCode, stage, qty) {
   sheet.appendRow([skuCode, stage, qty]);
 }
 
-// 出荷残更新: Snapshotの 'backlog' 行を上書き
+// 出荷数更新: 実在庫を減らし、出荷数（累計）を増やす
+function recordShipment(ss, skuCode, qty) {
+  const sheet = ss.getSheetByName('Snapshot');
+  addToSnapshot(sheet, skuCode, '実在庫', -qty); // 実在庫 -= qty
+  addToSnapshot(sheet, skuCode, '出荷数',  qty); // 出荷数 += qty
+}
+
+// 出荷残更新: Snapshotの 'backlog' 行を上書き（旧機能・互換用）
 function setBacklog(ss, skuCode, qty) {
   const sheet = ss.getSheetByName('Snapshot');
   const data  = sheet.getDataRange().getValues();

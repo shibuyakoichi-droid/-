@@ -203,9 +203,9 @@
   /* 外部入荷: 移動元を非表示 / 通常の移動先ピルを非表示 */
   .mode-外部入荷 .field-source { display: none; }
   .mode-外部入荷 .field-dest   { display: none; }
-  /* 出荷残更新: 移動元・移動先を非表示 */
-  .mode-出荷残更新 .field-source { display: none; }
-  .mode-出荷残更新 .field-dest   { display: none; }
+  /* 出荷数更新: 移動元・移動先を非表示 */
+  .mode-出荷数更新 .field-source { display: none; }
+  .mode-出荷数更新 .field-dest   { display: none; }
   /* 生産目標更新: 移動元・移動先を非表示 */
   .mode-生産目標更新 .field-source { display: none; }
   .mode-生産目標更新 .field-dest   { display: none; }
@@ -249,8 +249,8 @@
       <button class="mtab active" data-mode="工程移動" onclick="switchMode('工程移動')">
         <span class="icon">🔄</span>移動
       </button>
-      <button class="mtab" data-mode="出荷残更新" onclick="switchMode('出荷残更新')">
-        <span class="icon">📋</span>出荷残
+      <button class="mtab" data-mode="出荷数更新" onclick="switchMode('出荷数更新')">
+        <span class="icon">📦</span>出荷数
       </button>
       <button class="mtab" data-mode="生産目標更新" onclick="switchMode('生産目標更新')">
         <span class="icon">🎯</span>目標
@@ -604,8 +604,8 @@ function switchMode(mode) {
   document.querySelector('.field-source').style.display = showSource ? '' : 'none';
   document.querySelector('.field-dest').style.display   = showDest   ? '' : 'none';
 
-  document.getElementById('qtyLabel').innerHTML = mode === '出荷残更新'
-    ? '現在の出荷残（個） <span class="req">必須</span>'
+  document.getElementById('qtyLabel').innerHTML = mode === '出荷数更新'
+    ? '今回の出荷数（個） <span class="req">必須</span>'
     : mode === '生産目標更新'
       ? '生産目標数（個） <span class="req">必須</span>'
       : mode === '修正'
@@ -639,9 +639,9 @@ function updateFlow() {
     text = `外部 → ${selectedDest || '?'}`;
   } else if (currentMode === '工程移動') {
     text = `${selectedSource || '?'} → ${selectedDest || '?'}`;
-  } else if (currentMode === '出荷残更新') {
-    text    = `出荷残を ${qty} 個 にセット`;
-    subtext = '';
+  } else if (currentMode === '出荷数更新') {
+    text    = `実在庫から ${qty} 個 を出荷`;
+    subtext = '実在庫 -' + qty + ' / 出荷数 +' + qty;
   } else if (currentMode === '生産目標更新') {
     text    = `生産目標を ${qty} 個 にセット`;
     subtext = '';
@@ -686,8 +686,8 @@ async function submitForm() {
     product:   product,
     skuCode:   skuCode,
     skuName:   sku.name,
-    source:    (currentMode === '外部入荷' || currentMode === '出荷残更新' || currentMode === '生産目標更新' || currentMode === '修正') ? '—' : selectedSource,
-    dest:      (currentMode === '出荷残更新' || currentMode === '生産目標更新') ? '—' : currentMode === '修正' ? selectedFixStage : selectedDest,
+    source:    (currentMode === '外部入荷' || currentMode === '出荷数更新' || currentMode === '生産目標更新' || currentMode === '修正') ? '—' : selectedSource,
+    dest:      (currentMode === '出荷数更新' || currentMode === '生産目標更新') ? '—' : currentMode === '修正' ? selectedFixStage : selectedDest,
     qty:       qty,
     unit:      unit,
     memo:      memo
