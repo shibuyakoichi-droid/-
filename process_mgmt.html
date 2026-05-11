@@ -710,11 +710,17 @@ async function addFabric(){
   const locId=document.getElementById('add-fabric-loc').value;
   const memo=document.getElementById('add-fabric-memo').value.trim();
   if(!no||!qty||!locId){showAlert('生地番号・数量・現在地は必須です','err');return;}
-  const{error}=await sb.from('process_fabrics').insert({id:'fab'+Date.now(),fabric_no:no,color,qty,location_id:locId,memo,updated_at:new Date().toISOString()});
+  const existing=fabrics.find(f=>f.fabric_no===no&&f.color===color&&f.location_id===locId);
+  let error;
+  if(existing){
+    ({error}=await sb.from('process_fabrics').update({qty:existing.qty+qty,updated_at:new Date().toISOString()}).eq('id',existing.id));
+  } else {
+    ({error}=await sb.from('process_fabrics').insert({id:'fab'+Date.now(),fabric_no:no,color,qty,location_id:locId,memo,updated_at:new Date().toISOString()}));
+  }
   if(error){showAlert('登録に失敗しました','err');return;}
   ['add-fabric-no','add-fabric-color','add-fabric-qty','add-fabric-memo'].forEach(id=>document.getElementById(id).value='');
   await loadFabrics();renderAll();
-  showAlert(`生地を登録しました：${no} ${color} ${qty}反`,'ok');
+  showAlert(existing?`加算しました：${no} ${color} → ${existing.qty+qty}反`:`生地を登録しました：${no} ${color} ${qty}反`,'ok');
 }
 async function addProduct(){
   const code=document.getElementById('add-prod-code').value.trim();
@@ -722,11 +728,17 @@ async function addProduct(){
   const qty=parseInt(document.getElementById('add-prod-qty').value)||0;
   const locId=document.getElementById('add-prod-loc').value;
   if(!code||!qty||!locId){showAlert('品番・数量・現在地は必須です','err');return;}
-  const{error}=await sb.from('process_products').insert({id:'prod'+Date.now(),code,name:name||code,qty,location_id:locId,updated_at:new Date().toISOString()});
+  const existing=products.find(p=>p.code===code&&p.location_id===locId);
+  let error;
+  if(existing){
+    ({error}=await sb.from('process_products').update({qty:existing.qty+qty,updated_at:new Date().toISOString()}).eq('id',existing.id));
+  } else {
+    ({error}=await sb.from('process_products').insert({id:'prod'+Date.now(),code,name:name||code,qty,location_id:locId,updated_at:new Date().toISOString()}));
+  }
   if(error){showAlert('登録に失敗しました','err');return;}
   ['add-prod-code','add-prod-name','add-prod-qty'].forEach(id=>document.getElementById(id).value='');
   await loadProducts();renderAll();
-  showAlert(`商品を登録しました：${code} ${qty}枚`,'ok');
+  showAlert(existing?`加算しました：${code} → ${existing.qty+qty}枚`:`商品を登録しました：${code} ${qty}枚`,'ok');
 }
 
 async function deleteItem(type,id){
