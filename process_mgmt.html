@@ -141,6 +141,7 @@ tr:hover td{background:#faf9f7}
       <select id="map-loc" onchange="applyFilter()">
         <option value="">場所: すべて</option>
       </select>
+      <button class="btn sm" onclick="mergeDuplicates()" style="margin-left:auto;color:#888">重複をまとめる</button>
     </div>
 
     <!-- 生地セクション -->
@@ -739,6 +740,51 @@ async function addProduct(){
   ['add-prod-code','add-prod-name','add-prod-qty'].forEach(id=>document.getElementById(id).value='');
   await loadProducts();renderAll();
   showAlert(existing?`加算しました：${code} → ${existing.qty+qty}枚`:`商品を登録しました：${code} ${qty}枚`,'ok');
+}
+
+async function mergeDuplicates(){
+  // 生地：fabric_no＋color＋location_id が同じものをまとめる
+  const fabGroups={};
+  fabrics.forEach(f=>{
+    const key=`${f.fabric_no}||${f.color}||${f.location_id}`;
+    if(!fabGroups[key])fabGroups[key]=[];
+    fabGroups[key].push(f);
+  });
+  const fabDups=Object.values(fabGroups).filter(g=>g.length>1);
+
+  // 商品：code＋location_id が同じものをまとめる
+  const prodGroups={};
+  products.forEach(p=>{
+    const key=`${p.code}||${p.location_id}`;
+    if(!prodGroups[key])prodGroups[key]=[];
+    prodGroups[key].push(p);
+  });
+  const prodDups=Object.values(prodGroups).filter(g=>g.length>1);
+
+  if(!fabDups.length&&!prodDups.length){showAlert('重複はありません','ok');return;}
+  const total=fabDups.reduce((s,g)=>s+g.length-1,0)+prodDups.reduce((s,g)=>s+g.length-1,0);
+  if(!confirm(`生地${fabDups.length}件・商品${prodDups.length}件の重複グループが見つかりました（${total}件のレコードを統合します）。まとめますか？`))return;
+
+  const ops=[];
+  for(const grp of fabDups){
+    grp.sort((a,b)=>a.id.localeCompare(b.id));
+    const keep=grp[0];
+    const totalQty=grp.reduce((s,f)=>s+f.qty,0);
+    ops.push(sb.from('process_fabrics').update({qty:totalQty,updated_at:new Date().toISOString()}).eq('id',keep.id));
+    for(const dup of grp.slice(1))ops.push(sb.from('process_fabrics').delete().eq('id',dup.id));
+  }
+  for(const grp of prodDups){
+    grp.sort((a,b)=>a.id.localeCompare(b.id));
+    const keep=grp[0];
+    const totalQty=grp.reduce((s,p)=>s+p.qty,0);
+    ops.push(sb.from('process_products').update({qty:totalQty,updated_at:new Date().toISOString()}).eq('id',keep.id));
+    for(const dup of grp.slice(1))ops.push(sb.from('process_products').delete().eq('id',dup.id));
+  }
+  const results=await Promise.all(ops);
+  if(results.some(r=>r.error)){showAlert('一部の統合に失敗しました','err');return;}
+  await Promise.all([loadFabrics(),loadProducts()]);
+  renderAll();
+  showAlert(`統合完了：生地${fabDups.length}件・商品${prodDups.length}件をまとめました`,'ok');
 }
 
 async function deleteItem(type,id){
