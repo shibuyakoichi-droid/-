@@ -311,6 +311,12 @@ input:focus,select:focus{outline:none;border-color:#999;box-shadow:0 0 0 3px rgb
         <span class="chip" id="stsel-aw" onclick="setStSelFilter('aw',this)" style="background:#cfe2ff;color:#084298;border-color:#6ea8fe">❄️ 秋冬</span>
         <span class="chip" id="stsel-both" onclick="setStSelFilter('both',this)" style="background:#f3e8fd;color:#6b2fa0;border-color:#c084fc">🔄 両方</span>
         <span class="chip" id="stsel-unreg" onclick="setStSelFilter('unreg',this)" style="background:#f0ede8;color:#888">未登録のみ</span>
+        <span style="margin-left:8px;font-size:11px;color:#aaa;align-self:center">企画強弱：</span>
+        <span class="chip" id="stsel-gA" onclick="setStSelFilter('gA',this)" style="background:#fde8e8;color:#a32d2d;border-color:#f0b4b4">A</span>
+        <span class="chip" id="stsel-gB" onclick="setStSelFilter('gB',this)" style="background:#fef3e2;color:#865a00;border-color:#fcd97a">B</span>
+        <span class="chip" id="stsel-gC" onclick="setStSelFilter('gC',this)" style="background:#e8f5f0;color:#0a6b50;border-color:#7dd4b8">C</span>
+        <span class="chip" id="stsel-gD" onclick="setStSelFilter('gD',this)" style="background:#e8f0fa;color:#1a5fa0;border-color:#9ab8e8">D</span>
+        <span class="chip" id="stsel-gE" onclick="setStSelFilter('gE',this)" style="background:#f0ede8;color:#888;border-color:#ccc">E</span>
         <input id="stsel-search" placeholder="品番・商品名で絞り込み" style="width:200px;margin-left:8px" oninput="renderStSelect()">
       </div>
       <div id="st-select-list"></div>
@@ -1683,7 +1689,7 @@ function setStSubtab(tab){
 }
 function setStSelFilter(f){
   stSelFilter=f;
-  ['all','ss','aw','both','unreg'].forEach(k=>{const c=document.getElementById('stsel-'+k);if(c)c.classList.toggle('active',k===f);});
+  ['all','ss','aw','both','unreg','gA','gB','gC','gD','gE'].forEach(k=>{const c=document.getElementById('stsel-'+k);if(c)c.classList.toggle('active',k===f);});
   renderStSelect();
 }
 function setStTrkFilter(f){
@@ -1711,6 +1717,11 @@ function removeTarget(code){
 function updateTargetSeason(code,season){
   const targets=getSelloffTargets();
   const t=targets.find(t=>t.code===code);if(t)t.season=season;
+  saveSelloffTargets(targets);renderStSelect();
+}
+function updateTargetGrade(code,grade){
+  const targets=getSelloffTargets();
+  const t=targets.find(t=>t.code===code);if(t)t.grade=grade;
   saveSelloffTargets(targets);renderStSelect();
 }
 
@@ -1771,19 +1782,32 @@ function renderStSelect(){
     if(stSelFilter==='aw')return t?.season==='aw';
     if(stSelFilter==='both')return t?.season==='both';
     if(stSelFilter==='unreg')return!t;
+    if(stSelFilter==='gA')return t?.grade==='A';
+    if(stSelFilter==='gB')return t?.grade==='B';
+    if(stSelFilter==='gC')return t?.grade==='C';
+    if(stSelFilter==='gD')return t?.grade==='D';
+    if(stSelFilter==='gE')return t?.grade==='E';
     return true;
   }).map(p=>({...p,totalStock:getCurrentTotalStock(p.code),target:tMap[p.code]}))
     .filter(p=>p.totalStock>0)
     .sort((a,b)=>b.totalStock-a.totalStock);
   if(!products.length){el.innerHTML='<div class="empty-state">条件に一致する商品がありません</div>';return;}
-  const thead=`<tr><th>品番</th><th>商品名</th><th style="text-align:right">在庫合計</th><th>シーズン</th><th>追跡登録</th></tr>`;
+  const GRADE_STYLE={A:'background:#fde8e8;color:#a32d2d',B:'background:#fef3e2;color:#865a00',C:'background:#e8f5f0;color:#0a6b50',D:'background:#e8f0fa;color:#1a5fa0',E:'background:#f0ede8;color:#888'};
+  const thead=`<tr><th>品番</th><th>商品名</th><th style="text-align:right">在庫合計</th><th>シーズン</th><th>企画強弱</th><th>追跡登録</th></tr>`;
   const tbody=products.map(p=>{
-    const t=p.target;const isReg=!!t;const season=t?.season||'ss';
+    const t=p.target;const isReg=!!t;const season=t?.season||'ss';const grade=t?.grade||'';
     const seasonSel=`<select onchange="updateTargetSeason('${p.code}',this.value)"
       style="font-size:12px;padding:3px 6px;border:1px solid #d8d5cf;border-radius:6px"${!isReg?' disabled':''}>
       <option value="ss"${season==='ss'?' selected':''}>☀️ 春夏</option>
       <option value="aw"${season==='aw'?' selected':''}>❄️ 秋冬</option>
       <option value="both"${season==='both'?' selected':''}>🔄 両方</option></select>`;
+    const gradeSel=isReg
+      ?`<select onchange="updateTargetGrade('${p.code}',this.value)"
+          style="font-size:13px;font-weight:700;padding:3px 8px;border:1px solid #d8d5cf;border-radius:6px;${grade?GRADE_STYLE[grade]:''}">
+          <option value="">—</option>
+          ${['A','B','C','D','E'].map(g=>`<option value="${g}"${grade===g?' selected':''}>${g}</option>`).join('')}
+        </select>`
+      :'<span style="color:#ccc;font-size:12px">—</span>';
     const regArea=isReg
       ?`<button class="btn sm danger" onclick="removeTarget('${p.code}')">解除</button>`
       :`<div style="display:flex;gap:4px;align-items:center">
@@ -1800,6 +1824,7 @@ function renderStSelect(){
       <td style="font-size:13px">${p.name||'—'}</td>
       <td style="text-align:right;font-weight:700;font-size:15px">${p.totalStock.toLocaleString()}</td>
       <td>${isReg?seasonSel:'<span style="color:#ccc;font-size:12px">—</span>'}</td>
+      <td>${gradeSel}</td>
       <td>${regArea}</td></tr>`;
   }).join('');
   el.innerHTML=`<div style="font-size:12px;color:#888;margin-bottom:8px">${targets.length}品番 追跡中 / 在庫合計順</div>
@@ -1895,23 +1920,23 @@ function downloadSellThroughCSV(){
   const targets=getSelloffTargets();
   const snaps=getSelloffSnaps();
   if(!targets.length){showAlert('売り切り対象商品がありません','err');return;}
-  const rows=[['品番','商品名','シーズン','記録日','メモ','SKU','在庫数']];
+  const rows=[['品番','商品名','シーズン','企画強弱','記録日','メモ','SKU','在庫数']];
   targets.forEach(t=>{
     const product=D.allProducts.find(p=>p.parent===t.code)||{name:t.code};
     const tSnaps=snaps.filter(s=>s.code===t.code).sort((a,b)=>b.date.localeCompare(a.date));
     if(tSnaps.length===0){
-      rows.push([t.code,product.name||'',t.season||'','','','','']);
+      rows.push([t.code,product.name||'',t.season||'',t.grade||'','','','','']);
     } else {
       tSnaps.forEach(snap=>{
         const stockData=snap.stockData||{};
         const skuKeys=Object.keys(stockData);
         if(skuKeys.length===0){
-          rows.push([t.code,product.name||'',t.season||'',snap.date,snap.note||'','','']);
+          rows.push([t.code,product.name||'',t.season||'',t.grade||'',snap.date,snap.note||'','','']);
         } else {
           skuKeys.forEach((sku,i)=>{
             rows.push(i===0
-              ?[t.code,product.name||'',t.season||'',snap.date,snap.note||'',sku,stockData[sku]]
-              :['','','','','',sku,stockData[sku]]);
+              ?[t.code,product.name||'',t.season||'',t.grade||'',snap.date,snap.note||'',sku,stockData[sku]]
+              :['','','','','','',sku,stockData[sku]]);
           });
         }
       });
