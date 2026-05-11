@@ -608,11 +608,31 @@ async function saveMove(){
   if(item.qty<qty){alertEl.innerHTML=`<div class="alert alert-err">在庫が足りません（現在: ${item.qty}${unit}）</div>`;return;}
   const table=type==='fabric'?'process_fabrics':'process_products';
   const summary=`${type==='fabric'?item.fabric_no+' '+item.color:item.code} ${qty}${unit} → ${loc(to).name}`;
-  const[r1,r2]=await Promise.all([
-    sb.from(table).update({qty:item.qty-qty,location_id:to,updated_at:new Date().toISOString()}).eq('id',id),
-    sb.from('process_logs').insert({id:'log'+Date.now(),type:`move_${type}`,summary,staff,memo,logged_at:new Date().toISOString()}),
-  ]);
-  if(r1.error){alertEl.innerHTML='<div class="alert alert-err">保存に失敗しました</div>';return;}
+
+  let ops=[];
+  if(item.qty===qty){
+    // 全量移動：場所だけ変える
+    ops.push(sb.from(table).update({location_id:to,updated_at:new Date().toISOString()}).eq('id',id));
+  } else {
+    // 一部移動：元の数量を減らし、移動先に加算 or 新規追加
+    ops.push(sb.from(table).update({qty:item.qty-qty,updated_at:new Date().toISOString()}).eq('id',id));
+    const existing=type==='fabric'
+      ?fabrics.find(f=>f.id!==id&&f.fabric_no===item.fabric_no&&f.color===item.color&&f.location_id===to)
+      :products.find(p=>p.id!==id&&p.code===item.code&&p.location_id===to);
+    if(existing){
+      ops.push(sb.from(table).update({qty:existing.qty+qty,updated_at:new Date().toISOString()}).eq('id',existing.id));
+    } else {
+      const newId=(type==='fabric'?'fab':'prod')+Date.now();
+      const newRec=type==='fabric'
+        ?{id:newId,fabric_no:item.fabric_no,color:item.color,qty,location_id:to,memo:item.memo||'',updated_at:new Date().toISOString()}
+        :{id:newId,code:item.code,name:item.name,qty,location_id:to,updated_at:new Date().toISOString()};
+      ops.push(sb.from(table).insert(newRec));
+    }
+  }
+  ops.push(sb.from('process_logs').insert({id:'log'+Date.now(),type:`move_${type}`,summary,staff,memo,logged_at:new Date().toISOString()}));
+
+  const results=await Promise.all(ops);
+  if(results.some(r=>r.error)){alertEl.innerHTML='<div class="alert alert-err">保存に失敗しました</div>';return;}
   await Promise.all([loadFabrics(),loadProducts(),loadLogs()]);
   document.getElementById('move-overlay').classList.remove('open');
   showAlert(`移動を記録しました：${summary}`,'ok');
