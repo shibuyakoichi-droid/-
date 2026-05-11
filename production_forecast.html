@@ -66,6 +66,11 @@ input:focus,select:focus{outline:none;border-color:#999;box-shadow:0 0 0 3px rgb
 @keyframes spin{to{transform:rotate(360deg)}}
 .yoy-badge{display:inline-block;font-size:11px;padding:2px 6px;border-radius:4px;margin-left:6px}
 .yoy-up{background:#eaf3de;color:#3a6d10}.yoy-down{background:#fcebeb;color:#a32d2d}.yoy-flat{background:#f0ede8;color:#888}
+.modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:300;align-items:center;justify-content:center;padding:16px}
+.modal-overlay.open{display:flex}
+.modal-overlay .modal{background:#fff;border-radius:14px;padding:24px;width:100%;max-width:500px;max-height:90vh;overflow-y:auto;box-shadow:0 8px 40px rgba(0,0,0,.2)}
+.modal-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px}
+.modal-title{font-size:16px;font-weight:600}
 </style>
 </head>
 <body>
@@ -293,9 +298,10 @@ input:focus,select:focus{outline:none;border-color:#999;box-shadow:0 0 0 3px rgb
 
   <!-- 売り切り管理 -->
   <div class="panel" id="tab-sellthrough">
-    <div style="display:flex;gap:4px;margin-bottom:16px">
+    <div style="display:flex;gap:4px;margin-bottom:16px;align-items:center;flex-wrap:wrap">
       <button class="btn" id="ststab-select" onclick="setStSubtab('select')" style="background:#1a1a1a;color:#fff;border-color:#1a1a1a">商品選定</button>
       <button class="btn" id="ststab-track" onclick="setStSubtab('track')">在庫追跡</button>
+      <button class="btn sm" onclick="downloadSellThroughCSV()" style="margin-left:auto">⬇ CSVダウンロード</button>
     </div>
     <!-- 商品選定 -->
     <div id="st-select-panel">
@@ -1884,6 +1890,40 @@ function renderStTrack(){
 }
 
 function renderSellThrough(){setStSubtab(stSubtab);}
+
+function downloadSellThroughCSV(){
+  const targets=getSelloffTargets();
+  const snaps=getSelloffSnaps();
+  if(!targets.length){showAlert('売り切り対象商品がありません','err');return;}
+  const rows=[['品番','商品名','シーズン','記録日','メモ','SKU','在庫数']];
+  targets.forEach(t=>{
+    const product=D.allProducts.find(p=>p.parent===t.code)||{name:t.code};
+    const tSnaps=snaps.filter(s=>s.code===t.code).sort((a,b)=>b.date.localeCompare(a.date));
+    if(tSnaps.length===0){
+      rows.push([t.code,product.name||'',t.season||'','','','','']);
+    } else {
+      tSnaps.forEach(snap=>{
+        const stockData=snap.stockData||{};
+        const skuKeys=Object.keys(stockData);
+        if(skuKeys.length===0){
+          rows.push([t.code,product.name||'',t.season||'',snap.date,snap.note||'','','']);
+        } else {
+          skuKeys.forEach((sku,i)=>{
+            rows.push(i===0
+              ?[t.code,product.name||'',t.season||'',snap.date,snap.note||'',sku,stockData[sku]]
+              :['','','','','',sku,stockData[sku]]);
+          });
+        }
+      });
+    }
+  });
+  const bom='﻿';
+  const csv=bom+rows.map(r=>r.map(v=>'"'+String(v||'').replace(/"/g,'""')+'"').join(',')).join('\n');
+  const a=document.createElement('a');
+  a.href='data:text/csv;charset=utf-8,'+encodeURIComponent(csv);
+  a.download='売り切り管理_'+new Date().toISOString().slice(0,10)+'.csv';
+  a.click();
+}
 
 function copyCode(code){
   navigator.clipboard.writeText(code).catch(()=>{const el=document.createElement('textarea');el.value=code;document.body.appendChild(el);el.select();document.execCommand('copy');document.body.removeChild(el);});
