@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<title>SKU運用ランク プレビュー（2026/04/12〜05/12）</title>
+<style>
+* { box-sizing:border-box; margin:0; padding:0; }
+body { font-family:'Segoe UI','Hiragino Sans',sans-serif; background:#f0f2f5; color:#222; }
+header { background:#2F5496; color:#fff; padding:16px 24px; }
+header h1 { font-size:1.2rem; font-weight:700; }
+header p  { font-size:.82rem; opacity:.8; margin-top:4px; }
+
+.summary { display:flex; gap:14px; padding:16px 24px; flex-wrap:wrap; }
+.card { background:#fff; border-radius:8px; padding:14px 18px; min-width:140px; box-shadow:0 1px 4px rgba(0,0,0,.1); }
+.card .label { font-size:.72rem; color:#666; margin-bottom:5px; }
+.card .value { font-size:1.5rem; font-weight:700; color:#2F5496; }
+
+.chart-row { display:flex; gap:14px; padding:0 24px 14px; flex-wrap:wrap; }
+.chart-box { background:#fff; border-radius:8px; padding:14px 18px; box-shadow:0 1px 4px rgba(0,0,0,.1); flex:1; min-width:240px; }
+.chart-box h3 { font-size:.82rem; color:#555; margin-bottom:10px; font-weight:600; }
+.bar-group { display:flex; align-items:center; gap:8px; margin-bottom:6px; }
+.bar-label { width:52px; text-align:right; font-size:.78rem; }
+.bar-track { flex:1; height:20px; background:#eee; border-radius:4px; overflow:hidden; }
+.bar-fill  { height:100%; border-radius:4px; display:flex; align-items:center; padding:0 6px; font-size:.72rem; color:#fff; font-weight:600; }
+.bar-count { font-size:.76rem; color:#666; width:32px; }
+
+.badge { display:inline-block; border-radius:4px; padding:2px 7px; font-size:.72rem; font-weight:700; color:#fff; text-align:center; min-width:40px; }
+.fill-A,.badge.A { background:#70AD47; }
+.fill-B,.badge.B { background:#FFC000; color:#333 !important; }
+.fill-C,.badge.C { background:#FF7043; }
+.fill-D,.badge.D { background:#C00000; }
+.fill-新商品,.badge.新商品 { background:#1976D2; font-size:.62rem; min-width:46px; }
+.fill-S,.badge.S { background:#7B2D8B; }
+
+.note { background:#fffbe6; border-left:4px solid #FFC000; padding:10px 16px; margin:0 24px 14px; border-radius:4px; font-size:.8rem; color:#555; }
+.controls { padding:0 24px 10px; display:flex; gap:10px; flex-wrap:wrap; align-items:center; }
+.controls label { font-size:.78rem; color:#555; }
+select, input[type=text] { padding:5px 9px; border:1px solid #ccc; border-radius:5px; font-size:.78rem; }
+.btn { padding:6px 14px; border:none; border-radius:5px; cursor:pointer; font-size:.78rem; font-weight:600; }
+.btn-dl { background:#2F5496; color:#fff; }
+.btn-dl:hover { background:#1e3a6e; }
+.count-info { font-size:.78rem; color:#888; margin-left:auto; }
+
+table { width:calc(100% - 48px); margin:0 24px 32px; border-collapse:collapse; background:#fff; border-radius:8px; overflow:hidden; box-shadow:0 1px 4px rgba(0,0,0,.1); font-size:.76rem; }
+th { background:#2F5496; color:#fff; padding:9px 8px; text-align:center; white-space:nowrap; position:sticky; top:0; z-index:2; }
+td { padding:7px 8px; border-bottom:1px solid #f0f0f0; vertical-align:middle; }
+tr:hover td { background:#f5f8ff; }
+td.num { text-align:right; font-variant-numeric:tabular-nums; }
+td.ctr { text-align:center; }
+.name-cell { max-width:220px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.yp { color:#2e7d32; font-weight:600; }
+.ym { color:#c62828; }
+select.gross { padding:3px 6px; border:1px solid #ccc; border-radius:4px; font-size:.72rem; background:#fff; cursor:pointer; width:60px; }
+select.gross.set { background:#e8f5e9; border-color:#70AD47; font-weight:700; }
+</style>
+</head>
+<body>
+<header>
+  <h1>SKU運用ランク — 楽天 商品別売上（2026年4月12日〜5月12日）</h1>
+  <p>売上ランク / 昨対ランク / 粗利ランク（入力） / 総合評価</p>
+</header>
+
+<div id="summary" class="summary"></div>
+
+<div class="chart-row">
+  <div class="chart-box"><h3>売上ランク分布（今年売上の上位順）</h3><div id="cs"></div></div>
+  <div class="chart-box"><h3>昨対ランク分布</h3><div id="cy"></div></div>
+  <div class="chart-box"><h3>総合評価分布（粗利入力済みのみ）</h3><div id="cg"></div></div>
+</div>
+
+<div class="note">
+  &#9888; <b>粗利ランク</b>を各行のセレクトで入力すると <b>総合評価</b> がリアルタイム表示されます。<br>
+  昨対ランク <b>C・D</b> は別途「売り切り作戦」対象。入力後は「CSVダウンロード」で保存できます。
+</div>
+
+<div class="controls">
+  <label>売上ランク：<select id="fs"><option value="">全て</option><option>A</option><option>B</option><option>C</option><option>D</option></select></label>
+  <label>昨対ランク：<select id="fy"><option value="">全て</option><option>A</option><option>B</option><option>C</option><option>D</option><option>新商品</option></select></label>
+  <label>総合評価：<select id="fg"><option value="">全て</option><option>S</option><option>A</option><option>B</option><option>C</option><option>D</option><option value="none">未入力</option></select></label>
+  <label>品番検索：<input id="fq" type="text" placeholder="品番 / 商品名" style="width:160px"></label>
+  <button class="btn btn-dl" onclick="downloadCSV()">&#11015; CSVダウンロード</button>
+  <span class="count-info" id="ci"></span>
+</div>
+
+<table>
+  <thead><tr>
+    <th>順位</th><th>品番</th><th style="min-width:180px">商品名</th>
+    <th>今年売上</th><th>去年売上</th>
+    <th>売上<br>ランク</th><th>昨対<br>増減率</th><th>昨対<br>ランク</th>
+    <th>粗利ランク<br><small style="font-weight:400;opacity:.8">▼入力</small></th>
+    <th>総合評価</th>
+  </tr></thead>
+  <tbody id="tb"></tbody>
+</table>
+
+<script>
+// ===== DATA (Pythonから自動生成) =====
+var INLINE_DATA = null;
+// ===== END DATA =====
+
+var D = INLINE_DATA;
+var rows = D.rows;
+var grossMap = {};
+
+// 総合評価スコア: 売上A=3,B=2,C=1,D=0 / 昨対A=3,B=2,C=1,D=0,新商品=2 / 粗利A=3,B=2,C=1,D=0
+// 合計 8-9=S / 6-7=A / 4-5=B / 2-3=C / 0-1=D
+var SC = {A:3, B:2, C:1, D:0};
+var YC = {A:3, B:2, C:1, D:0};
+YC['新商品'] = 2;
+
+function calcOverall(srank, yrank, grank) {
+  if (!grank) return null;
+  var s = (SC[srank] || 0) + (YC[yrank] || 0) + (SC[grank] || 0);
+  if (s >= 8) return 'S';
+  if (s >= 6) return 'A';
+  if (s >= 4) return 'B';
+  if (s >= 2) return 'C';
+  return 'D';
+}
+
+function overallBadge(ov) {
+  if (!ov) return '<span style="color:#bbb;font-size:.72rem">&#8722;</span>';
+  return '<span class="badge ' + ov + '">' + ov + '</span>';
+}
+
+// サマリー
+var yoy_all = ((D.tt - D.tl) / D.tl * 100).toFixed(1);
+var summaryData = [
+  ['総SKU数', rows.length],
+  ['昨対比較可能', D.wl],
+  ['新商品（昨年なし）', D.np],
+  ['今年総売上', '&yen;' + D.tt.toLocaleString()],
+  ['昨対比（全体）', yoy_all + '%']
+];
+var summaryHTML = '';
+for (var i = 0; i < summaryData.length; i++) {
+  summaryHTML += '<div class="card"><div class="label">' + summaryData[i][0] + '</div><div class="value">' + summaryData[i][1] + '</div></div>';
+}
+document.getElementById('summary').innerHTML = summaryHTML;
+
+// バーチャート
+function renderChart(id, data, order) {
+  var max = 0;
+  for (var k = 0; k < order.length; k++) { if ((data[order[k]] || 0) > max) max = data[order[k]] || 0; }
+  if (max === 0) { document.getElementById(id).innerHTML = '<p style="color:#aaa;font-size:.78rem">データなし</p>'; return; }
+  var html = '';
+  for (var j = 0; j < order.length; j++) {
+    var key = order[j];
+    var v = data[key] || 0;
+    var pct = Math.round(v / max * 100);
+    html += '<div class="bar-group">' +
+      '<div class="bar-label"><span class="badge ' + key + '">' + key + '</span></div>' +
+      '<div class="bar-track"><div class="bar-fill fill-' + key + '" style="width:' + pct + '%">' + v + '</div></div>' +
+      '<div class="bar-count">' + v + '件</div></div>';
+  }
+  document.getElementById(id).innerHTML = html;
+}
+renderChart('cs', D.dist_s, ['A','B','C','D']);
+renderChart('cy', D.dist_y, ['A','B','C','D','新商品']);
+
+function updateOverallChart() {
+  var gc = {};
+  for (var i = 0; i < rows.length; i++) {
+    var r = rows[i];
+    var ov = calcOverall(r.srank, r.yrank, grossMap[r.sku]);
+    if (ov) gc[ov] = (gc[ov] || 0) + 1;
+  }
+  renderChart('cg', gc, ['S','A','B','C','D']);
+}
+updateOverallChart();
+
+// テーブル描画
+function render() {
+  var fs = document.getElementById('fs').value;
+  var fy = document.getElementById('fy').value;
+  var fg = document.getElementById('fg').value;
+  var fq = document.getElementById('fq').value.toLowerCase();
+
+  var filtered = [];
+  for (var i = 0; i < rows.length; i++) {
+    var r = rows[i];
+    var ov = calcOverall(r.srank, r.yrank, grossMap[r.sku]);
+    var ovKey = ov || 'none';
+    var nameMatch = r.sku.toLowerCase().indexOf(fq) >= 0 || r.name.toLowerCase().indexOf(fq) >= 0;
+    if ((!fs || r.srank === fs) && (!fy || r.yrank === fy) && (!fg || ovKey === fg) && (!fq || nameMatch)) {
+      filtered.push(r);
+    }
+  }
+
+  document.getElementById('ci').textContent = '表示: ' + filtered.length + ' / ' + rows.length + ' 件';
+
+  var tbody = '';
+  for (var j = 0; j < filtered.length; j++) {
+    var r = filtered[j];
+    var thisStr = '&yen;' + r.this.toLocaleString();
+    var lastStr = r.last != null ? '&yen;' + r.last.toLocaleString() : '&minus;';
+    var yoyStr  = r.yoy != null ? (r.yoy >= 0 ? '+' : '') + r.yoy + '%' : '&minus;';
+    var yc = r.yoy != null ? (r.yoy >= 0 ? 'yp' : 'ym') : '';
+    var nm = r.name.length > 30 ? r.name.substring(0, 30) + '…' : r.name;
+    var gv = grossMap[r.sku] || '';
+    var ov = calcOverall(r.srank, r.yrank, gv);
+    var selCls = gv ? 'gross set' : 'gross';
+    var rowId = 'row_' + j;
+
+    tbody += '<tr id="' + rowId + '">' +
+      '<td class="ctr">' + r.rank + '</td>' +
+      '<td style="white-space:nowrap">' + r.sku + '</td>' +
+      '<td class="name-cell" title="' + r.name.replace(/"/g,'&quot;') + '">' + nm + '</td>' +
+      '<td class="num">' + thisStr + '</td>' +
+      '<td class="num">' + lastStr + '</td>' +
+      '<td class="ctr"><span class="badge ' + r.srank + '">' + r.srank + '</span></td>' +
+      '<td class="ctr ' + yc + '">' + yoyStr + '</td>' +
+      '<td class="ctr"><span class="badge ' + r.yrank + '">' + r.yrank + '</span></td>' +
+      '<td class="ctr"><select class="' + selCls + '" data-sku="' + r.sku + '" onchange="setGross(this)">' +
+        '<option value="">&#8722;</option>' +
+        '<option value="A"' + (gv==='A'?' selected':'') + '>A</option>' +
+        '<option value="B"' + (gv==='B'?' selected':'') + '>B</option>' +
+        '<option value="C"' + (gv==='C'?' selected':'') + '>C</option>' +
+        '<option value="D"' + (gv==='D'?' selected':'') + '>D</option>' +
+      '</select></td>' +
+      '<td class="ctr" id="ov_' + rowId + '">' + overallBadge(ov) + '</td>' +
+    '</tr>';
+  }
+  document.getElementById('tb').innerHTML = tbody;
+}
+
+function setGross(sel) {
+  var sku = sel.getAttribute('data-sku');
+  var val = sel.value;
+  grossMap[sku] = val;
+  sel.className = val ? 'gross set' : 'gross';
+  // この行の総合評価セルを更新
+  var tr = sel.parentElement.parentElement;
+  var ovCell = tr.querySelector('td:last-child');
+  var r = null;
+  for (var i = 0; i < rows.length; i++) { if (rows[i].sku === sku) { r = rows[i]; break; } }
+  if (r) ovCell.innerHTML = overallBadge(calcOverall(r.srank, r.yrank, val));
+  updateOverallChart();
+}
+
+function downloadCSV() {
+  var header = '品番,商品名,今年売上,去年売上,売上順位,売上ランク,昨対増減率,昨対ランク,粗利ランク,総合評価\n';
+  var lines = '';
+  for (var i = 0; i < rows.length; i++) {
+    var r = rows[i];
+    var gv = grossMap[r.sku] || '';
+    var ov = calcOverall(r.srank, r.yrank, gv) || '';
+    lines += '"' + r.sku + '",' +
+      '"' + r.name.replace(/"/g,'""') + '",' +
+      r.this + ',' +
+      (r.last != null ? r.last : '') + ',' +
+      r.rank + ',' + r.srank + ',' +
+      (r.yoy != null ? r.yoy : '') + ',' +
+      r.yrank + ',' + gv + ',' + ov + '\n';
+  }
+  var csv = '﻿' + header + lines;
+  var a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([csv], {type:'text/csv'}));
+  a.download = 'SKU運用ランク_入力済み.csv';
+  a.click();
+}
+
+document.getElementById('fs').addEventListener('change', render);
+document.getElementById('fy').addEventListener('change', render);
+document.getElementById('fg').addEventListener('change', render);
+document.getElementById('fq').addEventListener('input', render);
+render();
+</script>
+</body>
+</html>
