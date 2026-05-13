@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="ja">
 <head>
 <meta charset="UTF-8">
@@ -53,6 +53,7 @@ td.ctr { text-align:center; }
 select.gross { padding:3px 6px; border:1px solid #ccc; border-radius:4px; font-size:.72rem; background:#fff; cursor:pointer; width:60px; }
 select.gross.set { background:#e8f5e9; border-color:#70AD47; font-weight:700; }
 </style>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
 <header>
@@ -101,6 +102,33 @@ var INLINE_DATA = {"rows": [{"rank": 1, "sku": "tubutubu-babyleg", "name": "【3
 var D = INLINE_DATA;
 var rows = D.rows;
 var grossMap = {};
+
+// Supabase連携
+var SUPABASE_URL = 'https://yukcdqnnevomhdcpsvms.supabase.co';
+var SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inl1a2NkcW5uZXZvbWhkY3Bzdm1zIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY0Mjc2MTUsImV4cCI6MjA5MjAwMzYxNX0.XBSc2kQNwR_bleSwrfYZD8l0fbKTbL1Z3S7ewEtSkDc';
+var sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+async function loadGrossRanks() {
+  var { data, error } = await sb.from('sku_ranks').select('sku,gross_rank');
+  if (error) { console.error('loadGrossRanks:', error); return; }
+  data.forEach(function(row) {
+    if (row.gross_rank) grossMap[row.sku] = row.gross_rank;
+  });
+  // ロード後に全行の粗利セルとバッジを更新
+  document.querySelectorAll('select.gross').forEach(function(sel) {
+    var sku = sel.getAttribute('data-sku');
+    if (grossMap[sku]) {
+      sel.value = grossMap[sku];
+      sel.className = 'gross set';
+      var tr = sel.parentElement.parentElement;
+      var ovCell = tr.querySelector('td:last-child');
+      var r = null;
+      for (var i = 0; i < rows.length; i++) { if (rows[i].sku === sku) { r = rows[i]; break; } }
+      if (r) ovCell.innerHTML = overallBadge(calcOverall(r.srank, r.yrank, grossMap[sku]));
+    }
+  });
+  updateOverallChart();
+}
 
 // 総合評価スコア: 売上A=3,B=2,C=1,D=0 / 昨対A=3,B=2,C=1,D=0,新商品=2 / 粗利A=3,B=2,C=1,D=0
 // 合計 8-9=S / 6-7=A / 4-5=B / 2-3=C / 0-1=D
@@ -264,7 +292,8 @@ document.getElementById('fs').addEventListener('change', render);
 document.getElementById('fy').addEventListener('change', render);
 document.getElementById('fg').addEventListener('change', render);
 document.getElementById('fq').addEventListener('input', render);
-render();
+render(); loadGrossRanks();
 </script>
 </body>
 </html>
+
