@@ -342,11 +342,12 @@ tr:hover td{background:#faf9f7}
           使った生地
         </div>
         <div class="form-row col3" style="margin-bottom:6px">
-          <div class="form-group">
+          <div class="form-group suggest-wrap">
             <label>生地 *</label>
-            <select id="c-fabric" onchange="onCutFabricChange()">
-              <option value="">選択してください</option>
-            </select>
+            <input type="text" id="c-fabric-input" placeholder="生地番号またはカラーで検索…" autocomplete="off"
+              oninput="suggestCutFabric(this.value)" onblur="hideSuggestCutFabric()">
+            <div class="suggest-list" id="suggest-c-fabric" style="display:none"></div>
+            <input type="hidden" id="c-fabric">
           </div>
           <div class="arrow-mid">→</div>
           <div class="form-group">
@@ -392,6 +393,44 @@ tr:hover td{background:#faf9f7}
     <div class="modal-foot">
       <button class="btn" onclick="document.getElementById('cut-overlay').classList.remove('open')">キャンセル</button>
       <button class="btn accent" onclick="saveCut()">裁断を記録する</button>
+    </div>
+  </div>
+</div>
+
+<!-- 編集モーダル -->
+<div class="overlay" id="edit-overlay" onclick="closeOverlay(event,'edit-overlay')">
+  <div class="modal">
+    <div class="modal-head">
+      <div class="modal-title">数量を編集</div>
+      <div class="modal-sub" id="edit-sub"></div>
+    </div>
+    <div class="modal-body">
+      <div id="edit-alert"></div>
+      <div style="text-align:center;margin-bottom:18px">
+        <div style="font-size:12px;color:#999;margin-bottom:4px">現在の数量</div>
+        <div style="font-size:36px;font-weight:700;line-height:1" id="edit-current-display">—</div>
+        <div style="font-size:12px;color:#aaa;margin-top:2px" id="edit-unit-display"></div>
+      </div>
+      <div class="form-group" style="margin-bottom:14px">
+        <label>操作</label>
+        <select id="edit-mode" onchange="onEditModeChange()">
+          <option value="set">数量を指定する（上書き）</option>
+          <option value="add">増やす（加算）</option>
+          <option value="sub">減らす（減算）</option>
+        </select>
+      </div>
+      <div class="form-group" style="margin-bottom:14px">
+        <label id="edit-qty-label">新しい数量 *</label>
+        <input type="number" id="edit-qty" min="0" placeholder="0" style="width:100%">
+      </div>
+      <div class="form-group">
+        <label>メモ（任意）</label>
+        <input type="text" id="edit-memo" placeholder="例: 棚卸しで確認">
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn" onclick="document.getElementById('edit-overlay').classList.remove('open')">キャンセル</button>
+      <button class="btn primary" onclick="saveEdit()">保存する</button>
     </div>
   </div>
 </div>
@@ -526,7 +565,8 @@ function renderFabrics(q,lf){
       <td><span class="badge ${l.badge}">${l.process}</span></td>
       <td style="color:#aaa;font-size:12px">${f.memo||''}</td>
       <td style="white-space:nowrap">
-        <button class="btn sm" onclick="openMoveWith('fabric','${f.id}')">移動</button>
+        <button class="btn sm" onclick="openEditModal('fabric','${f.id}')">編集</button>
+        <button class="btn sm" onclick="openMoveWith('fabric','${f.id}')" style="margin-left:4px">移動</button>
         <button class="btn sm danger" onclick="deleteItem('fabric','${f.id}')" style="margin-left:4px">削除</button>
       </td>
     </tr>`;
@@ -554,7 +594,8 @@ function renderProducts(q,lf){
       <td>${l.name}</td>
       <td><span class="badge ${l.badge}">${l.process}</span></td>
       <td style="white-space:nowrap">
-        <button class="btn sm" onclick="openMoveWith('product','${p.id}')">移動</button>
+        <button class="btn sm" onclick="openEditModal('product','${p.id}')">編集</button>
+        <button class="btn sm" onclick="openMoveWith('product','${p.id}')" style="margin-left:4px">移動</button>
         <button class="btn sm danger" onclick="deleteItem('product','${p.id}')" style="margin-left:4px">削除</button>
       </td>
     </tr>`;
@@ -670,9 +711,9 @@ async function saveMove(){
 
 // ---- 裁断モーダル ----
 function openCutModal(){
-  const sel=document.getElementById('c-fabric');
-  sel.innerHTML='<option value="">選択してください</option>'+
-    fabrics.map(f=>`<option value="${f.id}">${f.fabric_no} ${f.color}（${f.qty}反 @ ${loc(f.location_id).name}）</option>`).join('');
+  document.getElementById('c-fabric-input').value='';
+  document.getElementById('c-fabric').value='';
+  document.getElementById('suggest-c-fabric').style.display='none';
   document.getElementById('c-tan').value='';
   document.getElementById('c-memo').value='';
   document.getElementById('c-hint').textContent='';
@@ -989,6 +1030,94 @@ async function deleteYarnRow(id){
   else renderYarnTab();
 }
 function closeOverlay(e,id){if(e.target===document.getElementById(id))document.getElementById(id).classList.remove('open');}
+
+// ---- 裁断モーダル 生地サジェスト ----
+function suggestCutFabric(q){
+  const listEl=document.getElementById('suggest-c-fabric');
+  document.getElementById('c-fabric').value='';
+  document.getElementById('c-hint').textContent='';
+  if(!q){listEl.style.display='none';return;}
+  const ql=q.toLowerCase();
+  const hits=fabrics.filter(f=>(f.fabric_no+' '+f.color).toLowerCase().includes(ql)).slice(0,12);
+  if(!hits.length){listEl.style.display='none';return;}
+  listEl.innerHTML=hits.map(f=>{
+    const l=loc(f.location_id);
+    const safeColor=f.color.replace(/'/g,'&#39;').replace(/"/g,'&quot;');
+    const safeLabel=`${f.fabric_no} ${safeColor}`;
+    return `<div class="suggest-item" onmousedown="pickCutFabric('${f.id}','${safeLabel}')">
+      <span class="suggest-code">${f.fabric_no}</span>${f.color}
+      <span class="suggest-fabric">${f.qty}反 @ ${l.name}</span>
+    </div>`;
+  }).join('');
+  listEl.style.display='block';
+}
+
+function hideSuggestCutFabric(){
+  setTimeout(()=>{document.getElementById('suggest-c-fabric').style.display='none';},200);
+}
+
+function pickCutFabric(id,label){
+  document.getElementById('c-fabric').value=id;
+  document.getElementById('c-fabric-input').value=label;
+  document.getElementById('suggest-c-fabric').style.display='none';
+  onCutFabricChange();
+}
+
+// ---- 数量編集モーダル ----
+let editTarget={type:'',id:'',item:null};
+
+function openEditModal(type,id){
+  const item=type==='fabric'?fabrics.find(f=>f.id===id):products.find(p=>p.id===id);
+  if(!item)return;
+  editTarget={type,id,item};
+  const unit=type==='fabric'?'反':'枚';
+  const label=type==='fabric'?`${item.fabric_no} ${item.color}`:`${item.code} — ${item.name}`;
+  document.getElementById('edit-sub').textContent=label;
+  document.getElementById('edit-current-display').textContent=item.qty.toLocaleString();
+  document.getElementById('edit-unit-display').textContent=unit;
+  document.getElementById('edit-mode').value='set';
+  document.getElementById('edit-qty').value=item.qty;
+  document.getElementById('edit-qty-label').textContent=`新しい数量（${unit}）*`;
+  document.getElementById('edit-memo').value='';
+  document.getElementById('edit-alert').innerHTML='';
+  document.getElementById('edit-overlay').classList.add('open');
+}
+
+function onEditModeChange(){
+  const mode=document.getElementById('edit-mode').value;
+  const unit=editTarget.type==='fabric'?'反':'枚';
+  const labels={set:`新しい数量（${unit}）*`,add:`増やす数量（${unit}）*`,sub:`減らす数量（${unit}）*`};
+  document.getElementById('edit-qty-label').textContent=labels[mode];
+  if(mode==='add'||mode==='sub') document.getElementById('edit-qty').value='';
+  else document.getElementById('edit-qty').value=editTarget.item.qty;
+}
+
+async function saveEdit(){
+  const{type,id,item}=editTarget;
+  const mode=document.getElementById('edit-mode').value;
+  const qty=parseInt(document.getElementById('edit-qty').value);
+  const memo=document.getElementById('edit-memo').value.trim();
+  const alertEl=document.getElementById('edit-alert');
+  const unit=type==='fabric'?'反':'枚';
+  if(isNaN(qty)||qty<0){alertEl.innerHTML='<div class="alert alert-err">数量を入力してください</div>';return;}
+  let newQty;
+  if(mode==='set') newQty=qty;
+  else if(mode==='add') newQty=item.qty+qty;
+  else newQty=item.qty-qty;
+  if(newQty<0){alertEl.innerHTML=`<div class="alert alert-err">数量がマイナスになります（結果: ${newQty}${unit}）</div>`;return;}
+  const table=type==='fabric'?'process_fabrics':'process_products';
+  const{error}=await sb.from(table).update({qty:newQty,updated_at:new Date().toISOString()}).eq('id',id);
+  if(error){alertEl.innerHTML='<div class="alert alert-err">保存に失敗しました</div>';return;}
+  const label=type==='fabric'?`${item.fabric_no} ${item.color}`:`${item.code}`;
+  const modeLabel={set:'上書き',add:'加算',sub:'減算'}[mode];
+  const summary=`${label} ${item.qty}${unit}→${newQty}${unit}（${modeLabel}）`;
+  await sb.from('process_logs').insert({id:'log'+Date.now(),type:`edit_${type}`,summary,staff:'渋谷',memo,logged_at:new Date().toISOString()});
+  if(type==='fabric') await loadFabrics(); else await loadProducts();
+  await loadLogs();
+  document.getElementById('edit-overlay').classList.remove('open');
+  showAlert(`更新しました：${summary}`,'ok');
+  renderAll();
+}
 
 init();
 </script>
